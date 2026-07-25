@@ -1,8 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Pool } from 'pg';
-import bcrypt from 'bcrypt';
+import { getPool } from './db';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { evaluateExpression } from './generation/mathParser.js';
 import { generateProblem } from './problemGenerator';
@@ -39,7 +39,9 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Multer storage configuration
-const storage = multer.diskStorage({
+const storage = process.env.VERCEL
+  ? multer.memoryStorage()
+  : multer.diskStorage({
   destination: (
     _req: Request,
     _file: Express.Multer.File,
@@ -75,13 +77,7 @@ const upload = multer({
   },
 });
 
-const pool = new Pool({
-  user: process.env.DB_USER || 'mathuser',
-  host: process.env.DB_HOST || 'db',
-  database: process.env.DB_NAME || 'math_solved',
-  password: process.env.DB_PASSWORD || 'mathpass',
-  port: parseInt(process.env.DB_PORT || '5432'),
-});
+const pool = getPool();
 
 app.use(cors());
 app.use(express.json());
@@ -2707,11 +2703,18 @@ ${urls}
 
 ensureSchema()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
+    if (process.env.VERCEL !== '1') {
+      app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+      });
+    }
   })
   .catch((err) => {
     console.error('Failed to initialize database schema:', err);
-    process.exit(1);
+    if (process.env.VERCEL !== '1') {
+      process.exit(1);
+    }
   });
+
+export { app, ensureSchema };
+export default app;

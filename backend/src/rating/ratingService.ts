@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { getPool } from '../db';
 import { 
   checkAndRepairStreak, 
   handleDailyReset, 
@@ -8,13 +8,7 @@ import {
   getTodayString
 } from './gameSystemService';
 
-const pool = new Pool({
-  user: process.env.DB_USER || 'mathuser',
-  host: process.env.DB_HOST || 'db',
-  database: process.env.DB_NAME || 'math_solved',
-  password: process.env.DB_PASSWORD || 'mathpass',
-  port: parseInt(process.env.DB_PORT || '5432'),
-});
+const pool = getPool();
 
 const MIN_REWARD = 5000;
 const MAX_REWARD = 150000;

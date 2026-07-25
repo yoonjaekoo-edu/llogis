@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "installCommand": "npm install && npm install --prefix backend",
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/api/sitemap.xml",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/((?!api/|uploads/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, immutable, max-age=31536000" }
+      ]
+    }
+  ]
+}
