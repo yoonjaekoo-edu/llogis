@@ -1,0 +1,26 @@
+{
+  "name": "Logis - 수학 문제 풀이 플랫폼",
+  "short_name": "Logis",
+  "description": "수학 문제를 풀고 레이팅을 올리는 재미있는 수학 학습 플랫폼",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0f7ff",
+  "theme_color": "#5c95ff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "math"],
+  "lang": "ko-KR"
+}

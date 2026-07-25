@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Allow: /$                                  
+Allow: /ranking$                           
+Allow: /about$                             
+Allow: /login$                             
+Allow: /signup$                            
+Allow: /users/                             
+Allow: /groups/                            
+Disallow: /admin                           
+Disallow: /profile                         
+Disallow: /api/                            
+
+# Sitemap
+Sitemap: https://llogis.xyz/sitemap.xml
+
+# Crawl delay for polite crawling
+Crawl-Delay: 10
+
+# Host
+Host: https://llogis.xyz
