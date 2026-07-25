@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { animate, motion, useInView, useReducedMotion, useScroll, useTransform } from 'framer-motion';
@@ -749,7 +749,7 @@ const Groups: React.FC<{ user: User | null }> = ({ user }) => {
     <main className="container" style={{ padding: '4rem 0' }}>
       <Helmet>
         <title>그룹 | Logis - 수학 문제 풀이 플랫폼</title>
-        <meta name="description" content="Logis에서 다른 유저들과 그룹을 만들어 함께 수학 문제를 풀고 경쟁해보세요. 그룹 레이팅 경쟁에 참여하세요!" />
+        <meta name="description" content="Logis에서 다른 유저들과 그룹을 만들어 함께 수학 문제를 풀고 경쟁해보���요. 그룹 레이팅 경쟁에 참여하세요!" />
         <meta property="og:title" content="그룹 | Logis - 수학 문제 풀이 플랫폼" />
         <link rel="canonical" href={`https://llogis.xyz${location.pathname}`} />
       </Helmet>
@@ -1335,9 +1335,23 @@ const Ranking: React.FC = () => {
 
   useEffect(() => {
     fetch('/api/users/ranking')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`API error: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        setRanks(data);
+        // data가 배열인지 확인
+        if (Array.isArray(data)) {
+          setRanks(data);
+        } else {
+          setRanks([]);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        setRanks([]);
         setLoading(false);
       });
   }, []);

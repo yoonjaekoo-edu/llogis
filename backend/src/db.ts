@@ -4,9 +4,12 @@ let pool: Pool | null = null;
 
 export function getPool(): Pool {
   if (!pool) {
-    if (process.env.DATABASE_URL) {
+    // DATABASE_URL이나 Neon의 NEON_POSTGRES_URL_NON_POOLING 사용
+    const databaseUrl = process.env.DATABASE_URL || process.env.NEON_POSTGRES_URL_NON_POOLING;
+    
+    if (databaseUrl) {
       pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
+        connectionString: databaseUrl,
         ssl: { rejectUnauthorized: false },
         max: 5,
       });
