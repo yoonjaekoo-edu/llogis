@@ -89,6 +89,11 @@ app.use('/uploads', express.static(uploadsDir, {
   }
 }));
 
+const frontendDist = path.join(__dirname, '../public');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+}
+
 const ensureSchema = async () => {
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT');
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT');
@@ -2700,6 +2705,12 @@ ${urls}
     res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><error>Failed to generate sitemap</error>');
   }
 });
+
+if (fs.existsSync(frontendDist)) {
+  app.get('*', (req: Request, res: Response) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
 
 ensureSchema()
   .then(() => {
