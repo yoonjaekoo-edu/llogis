@@ -9,7 +9,7 @@ Korean math problem-solving platform with Glicko-2 rating system (unused — see
 ## Commands
 | Context | Command |
 |---------|---------|
-| Full stack | `docker compose up -d` (frontend :1972, backend :5000, DB :5432) |
+| Full stack | `docker compose up -d` (frontend :80, backend :5000, DB :5432) |
 | Rebuild after changes | `docker compose down && docker compose up -d --build` |
 | Backend dev | `cd backend && npm install && npm run dev` (nodemon + ts-node) |
 | Frontend dev | `cd frontend && npm install && npm run dev` (:1972, proxies `/api` `/uploads` → :5000) |

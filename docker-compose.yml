@@ -11,11 +11,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-mathuser}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   backend:
     build:
       context: ./backend
-      # ARM/Pi 등에서 BuildKit 어테스테이션보내기 중 스냅샷 오류가 나는 경우 완화
       provenance: false
       sbom: false
     restart: always
@@ -26,10 +30,12 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-mathpass}
       DB_NAME: ${DB_NAME:-math_solved}
       DB_PORT: 5432
+      JWT_SECRET: ${JWT_SECRET:-llogis-change-me-in-production}
     ports:
       - "5000:5000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - uploads_data:/app/uploads
 
@@ -40,7 +46,7 @@ services:
       sbom: false
     restart: always
     ports:
-      - "1972:80"
+      - "80:80"
     depends_on:
       - backend
 
