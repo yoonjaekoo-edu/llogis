@@ -30,12 +30,14 @@ export async function putImage(
   data: ArrayBuffer | ReadableStream,
   contentType: string,
 ): Promise<StoredUpload> {
+  if (!env.UPLOADS) throw new Error('UPLOADS (R2) binding is not configured');
   const key = buildUploadKey(fieldName, originalName);
   await env.UPLOADS.put(key, data, { httpMetadata: { contentType } });
   return { key, url: `/uploads/${key}` };
 }
 
 export async function getUpload(env: Env, key: string): Promise<R2ObjectBody | null> {
+  if (!env.UPLOADS) return null;
   return env.UPLOADS.get(key);
 }
 

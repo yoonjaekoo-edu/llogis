@@ -37,6 +37,7 @@ function json(data: unknown, status = 200, extraHeaders: Record<string, string> 
 async function handleUploads(request: Request, env: Env, url: URL): Promise<Response> {
   const key = keyFromUploadUrl(url.pathname);
   if (!key) return json({ error: 'Not found' }, 404);
+  if (!env.UPLOADS) return json({ error: 'UPLOADS (R2) binding is not configured' }, 501);
   const object = await getUpload(env, key);
   if (!object) return json({ error: 'Not found' }, 404);
   const headers = new Headers();

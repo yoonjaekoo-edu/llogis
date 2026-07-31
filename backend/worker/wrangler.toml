@@ -20,13 +20,13 @@ workers_dev = true
 #      $ wrangler secret put NIM_API_KEY
 # ---------------------------------------------------------------
 
-[[hyperdrive]]
-binding = "HYPERDRIVE"
-id = "HYPERDRIVE_ID"  # TODO: wrangler hyperdrive create 결과의 id 로 교체
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "HYPERDRIVE_ID"  # TODO: wrangler hyperdrive create 결과의 id 로 교체
 
-[[r2_buckets]]
-binding = "UPLOADS"
-bucket_name = "llogis-uploads"
+# [[r2_buckets]]
+# binding = "UPLOADS"
+# bucket_name = "llogis-uploads"
 
 [vars]
 NIM_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
