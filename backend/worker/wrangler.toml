@@ -1,0 +1,32 @@
+name = "llogis-api"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+workers_dev = true
+
+# ---------------------------------------------------------------
+# Cloudflare Workers 백엔드 마이그레이션 준비 설정
+#
+# 배포 전에 아래 항목을 준비해야 한다:
+#   1. Hyperdrive 생성 및 ID 주입
+#      $ wrangler hyperdrive create llogis-db --connection-string="postgresql://user:pass@host:5432/math_solved"
+#      생성된 id 를 아래 [[hyperdrive]] 의 id 에 넣는다.
+#   2. R2 버킷 생성
+#      $ wrangler r2 bucket create llogis-uploads
+#      (기존 backend/uploads 를 마이그레이션하려면 wrangler r2 object put ... 사용)
+#   3. 비밀 설정
+#      $ wrangler secret put JWT_SECRET
+#      $ wrangler secret put NIM_API_KEY
+# ---------------------------------------------------------------
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "HYPERDRIVE_ID"  # TODO: wrangler hyperdrive create 결과의 id 로 교체
+
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "llogis-uploads"
+
+[vars]
+NIM_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
