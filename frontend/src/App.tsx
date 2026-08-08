@@ -4387,15 +4387,57 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
+  const turnstileRef = useRef<HTMLDivElement>(null);
+
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    if (!siteKey) return;
+    if (window.turnstile) {
+      window.turnstile.render(turnstileRef.current!, {
+        sitekey: siteKey,
+        callback: (token: string) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(''),
+        'error-callback': () => setTurnstileToken(''),
+        theme: 'light',
+      });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    script.async = true;
+    script.onload = () => {
+      window.turnstile?.render(turnstileRef.current!, {
+        sitekey: siteKey,
+        callback: (token: string) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(''),
+        'error-callback': () => setTurnstileToken(''),
+        theme: 'light',
+      });
+    };
+    document.head.appendChild(script);
+  }, [siteKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (siteKey && !turnstileToken) {
+      alert('캡차 인증을 완료해주세요.');
+      return;
+    }
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password })
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        turnstileToken,
+      })
     });
     if (res.ok) {
       const data = await res.json();
@@ -4424,6 +4466,9 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
           <input type="text" placeholder="이름" value={username} onChange={e => setUsername(e.target.value)} required aria-label="사용자 이름" />
           <input type="email" placeholder="이메일" value={email} onChange={e => setEmail(e.target.value)} required aria-label="이메일 주소" />
           <input type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required aria-label="비밀번호" />
+          {siteKey && (
+            <div ref={turnstileRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }} />
+          )}
           <button type="submit" aria-label="회원가입 제출">가입</button>
         </form>
       </section>

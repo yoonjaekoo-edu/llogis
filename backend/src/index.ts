@@ -22,6 +22,19 @@ import {
 } from './templateProblemGenerator';
 import { getTier, processSubmission, getTierConfig, updateTierConfig } from './rating/ratingService';
 import { getTodayString } from './rating/gameSystemService';
+import { signupRateLimit, loginRateLimit, profileRateLimit } from './security/rateLimiter';
+import {
+  isDisposableEmail,
+  getIpSubnet,
+  isValidEmail,
+  isValidUsername,
+  validatePassword,
+  validateBio,
+  generateServerFingerprint,
+  checkAbuse,
+  recordFingerprint,
+} from './security/signupGuard';
+import { verifyTurnstile } from './security/turnstile';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
@@ -78,6 +91,15 @@ const upload = multer({
 });
 
 const pool = getPool();
+
+// nginx/리버스 프록시 뒤에서 클라이언트 IP 추출
+const getClientIp = (req: Request): string => {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) {
+    return xff.split(',')[0].trim();
+  }
+  return req.ip || req.socket.remoteAddress || 'unknown';
+};
 
 app.use(cors());
 app.use(express.json());
@@ -159,6 +181,22 @@ const ensureSchema = async () => {
       is_read BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS signup_fingerprints (
+      id SERIAL PRIMARY KEY,
+      visitor_id VARCHAR(64) NOT NULL,
+      ip_subnet VARCHAR(64) NOT NULL,
+      user_agent TEXT,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_signup_fingerprints_visitor ON signup_fingerprints (visitor_id, created_at)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_signup_fingerprints_ip ON signup_fingerprints (ip_subnet, created_at)
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS bug_reports (
@@ -362,16 +400,62 @@ const canGenerateProblems = async (userId: number) => {
   return !!user && (user.username === 'admin' || user.can_generate_problems === true);
 };
 
-app.post('/api/auth/signup', async (req: Request, res: Response) => {
-  const { username, email, password } = req.body;
+app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response) => {
+  const { username, email, password, userAgent, language, turnstileToken } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields are required' });
+
+  // 1. 입력값 유효성 검사
+  const nameCheck = isValidUsername(username);
+  if (!nameCheck.ok) return res.status(400).json({ error: nameCheck.error });
+
+  const emailCheck = isValidEmail(email);
+  if (!emailCheck) return res.status(400).json({ error: '이메일 형식이 올바르지 않습니다.' });
+  if (isDisposableEmail(email)) {
+    return res.status(400).json({ error: '일회용 이메일은 사용할 수 없습니다.' });
+  }
+
+  const passCheck = validatePassword(password);
+  if (!passCheck.ok) return res.status(400).json({ error: passCheck.error });
+
+  const ip = getClientIp(req);
+  const ipSubnet = getIpSubnet(ip);
+
+  // 2. Cloudflare Turnstile 캡차 검증 (TURNSTILE_SECRET 설정 시에만)
+  const turnstileResult = await verifyTurnstile(turnstileToken || '', ip);
+  if (!turnstileResult.success) {
+    return res.status(400).json({ error: turnstileResult.error || '캡차 인증에 실패했습니다.' });
+  }
+
   try {
+    // 3. 다중계정 어뷰징 체크 (기기 fingerprint + IP 서브넷)
+    const fingerprint = generateServerFingerprint(
+      typeof userAgent === 'string' ? userAgent : String(req.headers['user-agent'] || ''),
+      typeof language === 'string' ? language : String(req.headers['accept-language'] || '')
+    );
+    const abuseCheck = await checkAbuse(pool, { fingerprint, ipSubnet, email });
+    if (abuseCheck.blocked) {
+      return res.status(429).json({ error: abuseCheck.reason || '가입이 제한되었습니다.' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       'INSERT INTO users (username, email, password_hash, streak_repaired) VALUES ($1, $2, $3, TRUE) RETURNING id, username',
       [username, email, hashedPassword]
     );
     const user = result.rows[0];
+
+    // 4. 가입 기록 저장 (다중계정 추적용)
+    try {
+      await recordFingerprint(pool, {
+        visitorId: fingerprint,
+        ipSubnet,
+        userAgent: String(req.headers['user-agent'] || ''),
+        userId: user.id,
+      });
+    } catch (fpErr) {
+      console.error('Fingerprint 기록 실패:', fpErr);
+    }
+
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
     res.status(201).json({ 
       token,
@@ -391,11 +475,12 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     if (err.code === '23505') return res.status(400).json({ error: 'Username already exists' });
+    console.error('Signup error:', err);
     res.status(500).json({ error: 'Failed to create user' });
   }
 });
 
-app.post('/api/auth/login', async (req: Request, res: Response) => {
+app.post('/api/auth/login', loginRateLimit, async (req: Request, res: Response) => {
   const { email, password } = req.body;
   const client = await pool.connect();
   try {
@@ -530,7 +615,7 @@ app.post('/api/users/profile-image', authenticateToken, (req: any, res: Response
   });
 });
 
-app.patch('/api/users/profile', authenticateToken, async (req: any, res: Response) => {
+app.patch('/api/users/profile', authenticateToken, profileRateLimit, async (req: any, res: Response) => {
   const { username, bio } = req.body;
   const userId = req.user.id;
 
@@ -541,6 +626,10 @@ app.patch('/api/users/profile', authenticateToken, async (req: any, res: Respons
 
     if (typeof username === 'string' && username.trim()) {
       const nextUsername = username.trim();
+      const nameCheck = isValidUsername(nextUsername);
+      if (!nameCheck.ok) {
+        return res.status(400).json({ error: nameCheck.error });
+      }
       const existingUser = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [nextUsername, userId]);
       if (existingUser.rows.length > 0) {
         return res.status(400).json({ error: 'Username already exists' });
@@ -550,8 +639,12 @@ app.patch('/api/users/profile', authenticateToken, async (req: any, res: Respons
     }
 
     if (typeof bio === 'string') {
+      const bioCheck = validateBio(bio);
+      if (!bioCheck.ok) {
+        return res.status(400).json({ error: bioCheck.error });
+      }
       updates.push(`bio = $${idx++}`);
-      params.push(bio);
+      params.push(bioCheck.clean);
     }
 
     if (updates.length === 0) {
