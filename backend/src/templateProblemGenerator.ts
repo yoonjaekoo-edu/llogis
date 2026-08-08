@@ -7,6 +7,7 @@ import {
   resetEngine,
 } from './generation/index.js';
 import type { ProblemTemplateInput, GeneratedProblem } from './generation/types.js';
+import templatesJson from '../data/templates.json';
 
 const TEMPLATES_PATH = join(__dirname, '..', 'data', 'templates.json');
 
@@ -43,8 +44,14 @@ function normalizeTemplate(
 
 function loadTemplates(): ProblemTemplateInput[] {
   if (!templates) {
-    const raw = readFileSync(TEMPLATES_PATH, 'utf-8');
-    const parsed = JSON.parse(raw) as ProblemTemplateInput[];
+    // Vercel(읽기 전용 파일시스템) 대비: 빌드 시점에 번들된 JSON을 우선 사용
+    let parsed: ProblemTemplateInput[];
+    if (process.env.VERCEL) {
+      parsed = templatesJson as unknown as ProblemTemplateInput[];
+    } else {
+      const raw = readFileSync(TEMPLATES_PATH, 'utf-8');
+      parsed = JSON.parse(raw) as ProblemTemplateInput[];
+    }
     if (!Array.isArray(parsed) || parsed.length === 0) {
       throw new Error('templates.json is empty or invalid');
     }
@@ -71,7 +78,13 @@ function loadTemplates(): ProblemTemplateInput[] {
 
 function persistTemplates(nextTemplates: ProblemTemplateInput[]): ProblemTemplateInput[] {
   templates = nextTemplates.map(normalizeTemplate);
-  writeFileSync(TEMPLATES_PATH, `${JSON.stringify(templates, null, 2)}\n`, 'utf-8');
+  if (!process.env.VERCEL) {
+    try {
+      writeFileSync(TEMPLATES_PATH, `${JSON.stringify(templates, null, 2)}\n`, 'utf-8');
+    } catch (e) {
+      console.warn('Failed to persist templates to disk:', e);
+    }
+  }
   return templates;
 }
 

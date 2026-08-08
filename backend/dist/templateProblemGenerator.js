@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resetEngine = exports.batchGenerate = void 0;
 exports.reloadTemplates = reloadTemplates;
@@ -20,6 +23,7 @@ const path_1 = require("path");
 const index_js_1 = require("./generation/index.js");
 Object.defineProperty(exports, "batchGenerate", { enumerable: true, get: function () { return index_js_1.batchGenerate; } });
 Object.defineProperty(exports, "resetEngine", { enumerable: true, get: function () { return index_js_1.resetEngine; } });
+const templates_json_1 = __importDefault(require("../data/templates.json"));
 const TEMPLATES_PATH = (0, path_1.join)(__dirname, '..', 'data', 'templates.json');
 let templates = null;
 function getDefaultRewardRatingByRank(rank, total) {
@@ -47,8 +51,15 @@ function normalizeTemplate(template, defaultRewardRating) {
 }
 function loadTemplates() {
     if (!templates) {
-        const raw = (0, fs_1.readFileSync)(TEMPLATES_PATH, 'utf-8');
-        const parsed = JSON.parse(raw);
+        // Vercel(읽기 전용 파일시스템) 대비: 빌드 시점에 번들된 JSON을 우선 사용
+        let parsed;
+        if (process.env.VERCEL) {
+            parsed = templates_json_1.default;
+        }
+        else {
+            const raw = (0, fs_1.readFileSync)(TEMPLATES_PATH, 'utf-8');
+            parsed = JSON.parse(raw);
+        }
         if (!Array.isArray(parsed) || parsed.length === 0) {
             throw new Error('templates.json is empty or invalid');
         }
@@ -72,7 +83,14 @@ function loadTemplates() {
 }
 function persistTemplates(nextTemplates) {
     templates = nextTemplates.map(normalizeTemplate);
-    (0, fs_1.writeFileSync)(TEMPLATES_PATH, `${JSON.stringify(templates, null, 2)}\n`, 'utf-8');
+    if (!process.env.VERCEL) {
+        try {
+            (0, fs_1.writeFileSync)(TEMPLATES_PATH, `${JSON.stringify(templates, null, 2)}\n`, 'utf-8');
+        }
+        catch (e) {
+            console.warn('Failed to persist templates to disk:', e);
+        }
+    }
     return templates;
 }
 function reloadTemplates() {

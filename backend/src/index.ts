@@ -45,10 +45,16 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists (skip on Vercel — read-only filesystem)
 const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+if (!process.env.VERCEL) {
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+  } catch (e) {
+    console.warn('Failed to create uploads directory:', e);
+  }
 }
 
 // Multer storage configuration
@@ -104,6 +110,7 @@ const getClientIp = (req: Request): string => {
 app.use(cors());
 app.use(express.json());
 app.disable('x-powered-by');
+app.set('trust proxy', 1); // nginx/docker/리버스 프록시 뒤에서 정확한 IP 감지
 app.use('/uploads', express.static(uploadsDir, {
   maxAge: '30d',
   setHeaders: (res) => {
@@ -2805,20 +2812,18 @@ if (fs.existsSync(frontendDist)) {
   });
 }
 
-ensureSchema()
-  .then(() => {
-    if (process.env.VERCEL !== '1') {
+if (process.env.VERCEL !== '1') {
+  ensureSchema()
+    .then(() => {
       app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
       });
-    }
-  })
-  .catch((err) => {
-    console.error('Failed to initialize database schema:', err);
-    if (process.env.VERCEL !== '1') {
+    })
+    .catch((err) => {
+      console.error('Failed to initialize database schema:', err);
       process.exit(1);
-    }
-  });
+    });
+}
 
 export { app, ensureSchema };
 export default app;

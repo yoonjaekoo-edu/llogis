@@ -3,39 +3,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ensureSchema = exports.app = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const pg_1 = require("pg");
-const bcrypt_1 = __importDefault(require("bcrypt"));
+const db_1 = require("./db");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const mathParser_js_1 = require("./generation/mathParser.js");
 const problemGenerator_1 = require("./problemGenerator");
 const nimGenerator_1 = require("./nimGenerator");
 const templateProblemGenerator_1 = require("./templateProblemGenerator");
 const ratingService_1 = require("./rating/ratingService");
+const rateLimiter_1 = require("./security/rateLimiter");
+const signupGuard_1 = require("./security/signupGuard");
+const turnstile_1 = require("./security/turnstile");
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const multer_1 = __importDefault(require("multer"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
+exports.app = app;
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-// Ensure uploads directory exists
+// Ensure uploads directory exists (skip on Vercel — read-only filesystem)
 const uploadsDir = path_1.default.join(__dirname, '../uploads');
-if (!fs_1.default.existsSync(uploadsDir)) {
-    fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+if (!process.env.VERCEL) {
+    try {
+        if (!fs_1.default.existsSync(uploadsDir)) {
+            fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+        }
+    }
+    catch (e) {
+        console.warn('Failed to create uploads directory:', e);
+    }
 }
 // Multer storage configuration
-const storage = multer_1.default.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, uploadsDir);
-    },
-    filename: (_req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
-    },
-});
+const storage = process.env.VERCEL
+    ? multer_1.default.memoryStorage()
+    : multer_1.default.diskStorage({
+        destination: (_req, _file, cb) => {
+            cb(null, uploadsDir);
+        },
+        filename: (_req, file, cb) => {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+            cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
+        },
+    });
 const upload = (0, multer_1.default)({
     storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
@@ -49,22 +63,29 @@ const upload = (0, multer_1.default)({
         cb(new Error('Only images are allowed (jpeg, jpg, png, gif, webp, heic, heif)'));
     },
 });
-const pool = new pg_1.Pool({
-    user: process.env.DB_USER || 'mathuser',
-    host: process.env.DB_HOST || 'db',
-    database: process.env.DB_NAME || 'math_solved',
-    password: process.env.DB_PASSWORD || 'mathpass',
-    port: parseInt(process.env.DB_PORT || '5432'),
-});
+const pool = (0, db_1.getPool)();
+// nginx/리버스 프록시 뒤에서 클라이언트 IP 추출
+const getClientIp = (req) => {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.length > 0) {
+        return xff.split(',')[0].trim();
+    }
+    return req.ip || req.socket.remoteAddress || 'unknown';
+};
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.disable('x-powered-by');
+app.set('trust proxy', 1); // nginx/docker/리버스 프록시 뒤에서 정확한 IP 감지
 app.use('/uploads', express_1.default.static(uploadsDir, {
     maxAge: '30d',
     setHeaders: (res) => {
         res.setHeader('Cache-Control', 'public, immutable, max-age=2592000');
     }
 }));
+const frontendDist = path_1.default.join(__dirname, '../public');
+if (fs_1.default.existsSync(frontendDist)) {
+    app.use(express_1.default.static(frontendDist));
+}
 const ensureSchema = async () => {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT');
@@ -130,6 +151,22 @@ const ensureSchema = async () => {
       is_read BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+    await pool.query(`
+    CREATE TABLE IF NOT EXISTS signup_fingerprints (
+      id SERIAL PRIMARY KEY,
+      visitor_id VARCHAR(64) NOT NULL,
+      ip_subnet VARCHAR(64) NOT NULL,
+      user_agent TEXT,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+    await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_signup_fingerprints_visitor ON signup_fingerprints (visitor_id, created_at)
+  `);
+    await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_signup_fingerprints_ip ON signup_fingerprints (ip_subnet, created_at)
   `);
     await pool.query(`
     CREATE TABLE IF NOT EXISTS bug_reports (
@@ -314,6 +351,7 @@ const ensureSchema = async () => {
     ON CONFLICT (badge_id) DO NOTHING
   `);
 };
+exports.ensureSchema = ensureSchema;
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -331,14 +369,52 @@ const canGenerateProblems = async (userId) => {
     const user = result.rows[0];
     return !!user && (user.username === 'admin' || user.can_generate_problems === true);
 };
-app.post('/api/auth/signup', async (req, res) => {
-    const { username, email, password } = req.body;
+app.post('/api/auth/signup', rateLimiter_1.signupRateLimit, async (req, res) => {
+    const { username, email, password, userAgent, language, turnstileToken } = req.body;
     if (!username || !email || !password)
         return res.status(400).json({ error: 'All fields are required' });
+    // 1. 입력값 유효성 검사
+    const nameCheck = (0, signupGuard_1.isValidUsername)(username);
+    if (!nameCheck.ok)
+        return res.status(400).json({ error: nameCheck.error });
+    const emailCheck = (0, signupGuard_1.isValidEmail)(email);
+    if (!emailCheck)
+        return res.status(400).json({ error: '이메일 형식이 올바르지 않습니다.' });
+    if ((0, signupGuard_1.isDisposableEmail)(email)) {
+        return res.status(400).json({ error: '일회용 이메일은 사용할 수 없습니다.' });
+    }
+    const passCheck = (0, signupGuard_1.validatePassword)(password);
+    if (!passCheck.ok)
+        return res.status(400).json({ error: passCheck.error });
+    const ip = getClientIp(req);
+    const ipSubnet = (0, signupGuard_1.getIpSubnet)(ip);
+    // 2. Cloudflare Turnstile 캡차 검증 (TURNSTILE_SECRET 설정 시에만)
+    const turnstileResult = await (0, turnstile_1.verifyTurnstile)(turnstileToken || '', ip);
+    if (!turnstileResult.success) {
+        return res.status(400).json({ error: turnstileResult.error || '캡차 인증에 실패했습니다.' });
+    }
     try {
-        const hashedPassword = await bcrypt_1.default.hash(password, 10);
+        // 3. 다중계정 어뷰징 체크 (기기 fingerprint + IP 서브넷)
+        const fingerprint = (0, signupGuard_1.generateServerFingerprint)(typeof userAgent === 'string' ? userAgent : String(req.headers['user-agent'] || ''), typeof language === 'string' ? language : String(req.headers['accept-language'] || ''));
+        const abuseCheck = await (0, signupGuard_1.checkAbuse)(pool, { fingerprint, ipSubnet, email });
+        if (abuseCheck.blocked) {
+            return res.status(429).json({ error: abuseCheck.reason || '가입이 제한되었습니다.' });
+        }
+        const hashedPassword = await bcryptjs_1.default.hash(password, 10);
         const result = await pool.query('INSERT INTO users (username, email, password_hash, streak_repaired) VALUES ($1, $2, $3, TRUE) RETURNING id, username', [username, email, hashedPassword]);
         const user = result.rows[0];
+        // 4. 가입 기록 저장 (다중계정 추적용)
+        try {
+            await (0, signupGuard_1.recordFingerprint)(pool, {
+                visitorId: fingerprint,
+                ipSubnet,
+                userAgent: String(req.headers['user-agent'] || ''),
+                userId: user.id,
+            });
+        }
+        catch (fpErr) {
+            console.error('Fingerprint 기록 실패:', fpErr);
+        }
         const token = jsonwebtoken_1.default.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
         res.status(201).json({
             token,
@@ -360,16 +436,17 @@ app.post('/api/auth/signup', async (req, res) => {
     catch (err) {
         if (err.code === '23505')
             return res.status(400).json({ error: 'Username already exists' });
+        console.error('Signup error:', err);
         res.status(500).json({ error: 'Failed to create user' });
     }
 });
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', rateLimiter_1.loginRateLimit, async (req, res) => {
     const { email, password } = req.body;
     const client = await pool.connect();
     try {
         const userResult = await client.query('SELECT * FROM users WHERE email = $1 OR username = $1', [email]);
         const user = userResult.rows[0];
-        if (!user || !(await bcrypt_1.default.compare(password, user.password_hash))) {
+        if (!user || !(await bcryptjs_1.default.compare(password, user.password_hash))) {
             client.release();
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -474,7 +551,7 @@ app.post('/api/users/profile-image', authenticateToken, (req, res) => {
         }
     });
 });
-app.patch('/api/users/profile', authenticateToken, async (req, res) => {
+app.patch('/api/users/profile', authenticateToken, rateLimiter_1.profileRateLimit, async (req, res) => {
     const { username, bio } = req.body;
     const userId = req.user.id;
     try {
@@ -483,6 +560,10 @@ app.patch('/api/users/profile', authenticateToken, async (req, res) => {
         let idx = 1;
         if (typeof username === 'string' && username.trim()) {
             const nextUsername = username.trim();
+            const nameCheck = (0, signupGuard_1.isValidUsername)(nextUsername);
+            if (!nameCheck.ok) {
+                return res.status(400).json({ error: nameCheck.error });
+            }
             const existingUser = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [nextUsername, userId]);
             if (existingUser.rows.length > 0) {
                 return res.status(400).json({ error: 'Username already exists' });
@@ -491,8 +572,12 @@ app.patch('/api/users/profile', authenticateToken, async (req, res) => {
             params.push(nextUsername);
         }
         if (typeof bio === 'string') {
+            const bioCheck = (0, signupGuard_1.validateBio)(bio);
+            if (!bioCheck.ok) {
+                return res.status(400).json({ error: bioCheck.error });
+            }
             updates.push(`bio = $${idx++}`);
-            params.push(bio);
+            params.push(bioCheck.clean);
         }
         if (updates.length === 0) {
             return res.status(400).json({ error: 'No profile fields provided' });
@@ -1289,10 +1374,10 @@ app.post('/api/users/change-password', authenticateToken, async (req, res) => {
     try {
         const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
-        if (!user || !(await bcrypt_1.default.compare(currentPassword, user.password_hash))) {
+        if (!user || !(await bcryptjs_1.default.compare(currentPassword, user.password_hash))) {
             return res.status(401).json({ error: 'Invalid current password' });
         }
-        const hashedNewPassword = await bcrypt_1.default.hash(newPassword, 10);
+        const hashedNewPassword = await bcryptjs_1.default.hash(newPassword, 10);
         await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedNewPassword, userId]);
         res.json({ message: 'Password changed successfully' });
     }
@@ -2435,13 +2520,21 @@ ${urls}
         res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><error>Failed to generate sitemap</error>');
     }
 });
-ensureSchema()
-    .then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+if (fs_1.default.existsSync(frontendDist)) {
+    app.get('*', (req, res) => {
+        res.sendFile(path_1.default.join(frontendDist, 'index.html'));
     });
-})
-    .catch((err) => {
-    console.error('Failed to initialize database schema:', err);
-    process.exit(1);
-});
+}
+if (process.env.VERCEL !== '1') {
+    ensureSchema()
+        .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+        .catch((err) => {
+        console.error('Failed to initialize database schema:', err);
+        process.exit(1);
+    });
+}
+exports.default = app;

@@ -1,15 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processSubmission = exports.calculateDifficultyFromSolveRate = exports.getTier = exports.getTierName = exports.updateTierConfig = exports.getTierConfig = void 0;
-const pg_1 = require("pg");
+const db_1 = require("../db");
 const gameSystemService_1 = require("./gameSystemService");
-const pool = new pg_1.Pool({
-    user: process.env.DB_USER || 'mathuser',
-    host: process.env.DB_HOST || 'db',
-    database: process.env.DB_NAME || 'math_solved',
-    password: process.env.DB_PASSWORD || 'mathpass',
-    port: parseInt(process.env.DB_PORT || '5432'),
-});
+const pool = (0, db_1.getPool)();
 const MIN_REWARD = 5000;
 const MAX_REWARD = 150000;
 const getDefaultDifficulty = (isCustom) => isCustom ? 60000 : 10000;
