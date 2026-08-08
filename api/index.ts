@@ -1,30 +1,32 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 
-let appModule: any = null;
+// Static import so Vercel's nft (node file tracer) can resolve the dependency
+import { app, ensureSchema } from '../backend/dist/index.js';
 
-async function getApp() {
-  if (!appModule) {
-    appModule = await import('../backend/src/index');
-  }
-  return appModule;
-}
+let schemaReady = false;
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   try {
-    const { app, ensureSchema } = await getApp();
-
-    // Run schema on cold start
-    if (!(globalThis as any).__schemaReady) {
-      await ensureSchema();
-      (globalThis as any).__schemaReady = true;
+    if (!schemaReady) {
+      try {
+        await ensureSchema();
+        schemaReady = true;
+      } catch (schemaErr: any) {
+        console.error('Schema init failed:', schemaErr?.message || schemaErr);
+        if (!res.headersSent) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Database connection failed', detail: schemaErr?.message }));
+        }
+        return;
+      }
     }
 
-    return app(req, res);
+    return (app as any)(req, res);
   } catch (err: any) {
-    console.error('Vercel handler error:', err);
+    console.error('Vercel handler error:', err?.message || err, err?.stack);
     if (!res.headersSent) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Internal Server Error' }));
+      res.end(JSON.stringify({ error: 'Internal Server Error', detail: err?.message }));
     }
   }
 }

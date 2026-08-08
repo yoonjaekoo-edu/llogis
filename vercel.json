@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "installCommand": "npm install && npm install --prefix backend",
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "installCommand": "npm install --include=dev && cd backend && npm install --include=dev",
+  "buildCommand": "cd backend && npm install --include=dev && npm run build && cd ../frontend && npm install --include=dev && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
