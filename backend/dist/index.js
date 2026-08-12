@@ -120,6 +120,7 @@ const ensureSchema = async () => {
     // Drop the CASCADE constraint and recreate with SET NULL (submissions survive problem deletion)
     await pool.query('ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_problem_id_fkey');
     await pool.query('ALTER TABLE submissions ADD CONSTRAINT submissions_problem_id_fkey FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE SET NULL');
+    await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS uq_submissions_correct ON submissions (user_id, problem_id) WHERE is_correct = true');
     await pool.query("UPDATE users SET can_generate_problems = TRUE WHERE username = 'admin'");
     await pool.query("INSERT INTO tags (name) VALUES ('이차방정식') ON CONFLICT (name) DO NOTHING");
     await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_title VARCHAR(100) DEFAULT ''");
@@ -1886,18 +1887,15 @@ app.patch('/api/admin/templates/:id', authenticateToken, async (req, res) => {
 app.post('/api/submissions', authenticateToken, async (req, res) => {
     const { problemId, userAnswer } = req.body;
     const userId = req.user.id;
+    const handlerStart = Date.now();
     try {
-        // 이미 맞춘 문제인지 확인
-        const existingSubmission = await pool.query('SELECT id FROM submissions WHERE user_id = $1 AND problem_id = $2 AND is_correct = true', [userId, problemId]);
-        if (existingSubmission.rows.length > 0) {
-            return res.status(400).json({ error: 'Already solved this problem correctly!' });
-        }
-        // DB에서 실제 정답 가져오기
-        const problemRes = await pool.query('SELECT answer, content FROM problems WHERE id = $1', [problemId]);
+        // DB에서 실제 정답 + rating용 데이터 가져오기 (중복 체크는 processSubmission 트랜잭션 내부에서 수행)
+        const problemRes = await pool.query('SELECT answer, content, is_custom, current_difficulty, total_attempts, correct_attempts FROM problems WHERE id = $1', [problemId]);
         if (problemRes.rows.length === 0)
             return res.status(404).json({ error: 'Problem not found' });
-        const correctAnswer = problemRes.rows[0].answer;
-        const problemContent = problemRes.rows[0].content || '';
+        const problemRow = problemRes.rows[0];
+        const correctAnswer = problemRow.answer;
+        const problemContent = problemRow.content || '';
         // 공백 전체 제거 및 소문자 변환 비교 (기본)
         const normalizedUserAnswer = userAnswer.replace(/\s+/g, '').toLowerCase();
         const normalizedCorrectAnswer = correctAnswer.replace(/\s+/g, '').toLowerCase();
@@ -1932,13 +1930,27 @@ app.post('/api/submissions', authenticateToken, async (req, res) => {
                 // 평가 실패 시 문자열 비교 결과 유지
             }
         }
-        const updateResult = await (0, ratingService_1.processSubmission)(userId, problemId, isCorrect);
+        const updateResult = await (0, ratingService_1.processSubmission)(userId, problemId, isCorrect, {
+            is_custom: problemRow.is_custom,
+            current_difficulty: problemRow.current_difficulty,
+            total_attempts: problemRow.total_attempts,
+            correct_attempts: problemRow.correct_attempts,
+        });
+        if (updateResult.alreadySolved) {
+            return res.status(400).json({ error: 'Already solved this problem correctly!' });
+        }
+        if (process.env.LOG_SUBMISSION_PERF === '1') {
+            console.log(`[submission-perf] handler user=${userId} problem=${problemId} total:${Date.now() - handlerStart}ms`);
+        }
         res.json({
             isCorrect,
             ...updateResult
         });
     }
     catch (err) {
+        if (process.env.LOG_SUBMISSION_PERF === '1') {
+            console.log(`[submission-perf] handler error user=${userId} problem=${problemId} total:${Date.now() - handlerStart}ms`);
+        }
         res.status(500).json({ error: 'Failed to process submission' });
     }
 });

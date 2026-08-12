@@ -84,118 +84,289 @@ const calculateDifficultyFromSolveRate = (solveRate) => {
     return Math.round(MAX_REWARD - (MAX_REWARD - MIN_REWARD) * solveRate);
 };
 exports.calculateDifficultyFromSolveRate = calculateDifficultyFromSolveRate;
-const processSubmission = async (userId, problemId, isCorrect) => {
+const processSubmission = async (userId, problemId, isCorrect, problemData) => {
     const client = await pool.connect();
+    const perf = [];
+    let perfStart = Date.now();
+    const perfMark = (label) => {
+        perf.push(`${label}:${Date.now() - perfStart}ms`);
+        perfStart = Date.now();
+    };
+    const perfLog = () => {
+        if (process.env.LOG_SUBMISSION_PERF === '1') {
+            console.log(`[submission-perf] user=${userId} problem=${problemId} correct=${isCorrect}: ${perf.join(' ')}`);
+        }
+    };
     try {
         await client.query('BEGIN');
-        await (0, gameSystemService_1.handleDailyReset)(userId, client);
-        const repairResult = await (0, gameSystemService_1.checkAndRepairStreak)(userId, client);
-        const problemRes = await client.query('SELECT is_custom, current_difficulty FROM problems WHERE id = $1', [problemId]);
-        if (problemRes.rows.length === 0) {
-            throw new Error('Problem not found');
+        perfMark('begin');
+        // 1. Duplicate check (must be first for correct answers)
+        if (isCorrect) {
+            const dup = await client.query('SELECT id FROM submissions WHERE user_id = $1 AND problem_id = $2 AND is_correct = true FOR UPDATE', [userId, problemId]);
+            if (dup.rows.length > 0) {
+                await client.query('ROLLBACK');
+                return { alreadySolved: true };
+            }
         }
-        const { is_custom, current_difficulty } = problemRes.rows[0];
-        const defaultDifficulty = getDefaultDifficulty(is_custom);
-        const rewardRating = current_difficulty != null ? parseFloat(current_difficulty) : defaultDifficulty;
-        const feverRes = await client.query('SELECT fever_multiplier, fever_expires_at FROM users WHERE id = $1', [userId]);
+        perfMark('dupCheck');
+        // 2. Fetch ALL user data once (replaces 6+ separate SELECTs)
+        const userRes = await client.query(`SELECT rating, streak, tokens, xp, quests, last_active_date,
+              streak_repaired, longest_streak, fever_multiplier, fever_expires_at,
+              problems_solved
+       FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+        if (userRes.rows.length === 0)
+            throw new Error('User not found');
+        const u = userRes.rows[0];
+        const today = (0, gameSystemService_1.getTodayString)();
+        perfMark('userSelect');
+        // 3. Daily reset (in-memory, replaces handleDailyReset)
+        let quests = Array.isArray(u.quests) ? u.quests : [];
+        if (u.last_active_date !== today) {
+            quests = (0, gameSystemService_1.generateDailyQuests)();
+        }
+        // 4. Streak repair (replaces checkAndRepairStreak)
+        let streakAfterRepair = u.streak || 0;
+        let longestStreak = u.longest_streak || 0;
+        let streakRepaired = false;
+        let consumedRepair = false;
+        let dbLastActiveDate = u.last_active_date;
+        const kstOffset = 9 * 60 * 60 * 1000;
+        if (u.last_active_date && u.last_active_date !== today) {
+            const diff = (0, gameSystemService_1.getDaysDifference)(u.last_active_date, today);
+            if (diff >= 2) {
+                if (u.streak_repaired) {
+                    const yesterdayKst = new Date(Date.now() + kstOffset);
+                    yesterdayKst.setDate(yesterdayKst.getDate() - 1);
+                    const yesterdayStr = yesterdayKst.toISOString().split('T')[0];
+                    await client.query('INSERT INTO submissions (user_id, problem_id, is_correct, is_streak_repair, user_answer) VALUES ($1, NULL, TRUE, TRUE, $2)', [userId, '스트릭 리페어 사용']);
+                    dbLastActiveDate = yesterdayStr;
+                    streakRepaired = true;
+                    consumedRepair = true;
+                }
+                else {
+                    streakAfterRepair = 0;
+                    dbLastActiveDate = today;
+                }
+            }
+        }
+        // 5. Fever check (in-memory)
         let feverMultiplier = 1;
         let feverActive = false;
-        if (feverRes.rows.length > 0) {
-            const fm = feverRes.rows[0].fever_multiplier;
-            const expiresAt = feverRes.rows[0].fever_expires_at;
-            if (expiresAt && new Date(expiresAt) > new Date() && fm && fm > 1) {
-                feverMultiplier = fm;
-                feverActive = true;
-            }
-            else if (expiresAt && new Date(expiresAt) <= new Date()) {
-                await client.query('UPDATE users SET fever_multiplier = 1.0, fever_expires_at = NULL WHERE id = $1', [userId]);
-            }
+        if (u.fever_expires_at && new Date(u.fever_expires_at) > new Date() && u.fever_multiplier > 1) {
+            feverMultiplier = u.fever_multiplier;
+            feverActive = true;
         }
-        const feverDescription = feverActive ? ` (🔥${feverMultiplier}배 피버타임 적용)` : '';
-        const userRes = await client.query('SELECT rating FROM users WHERE id = $1 FOR UPDATE', [userId]);
-        if (userRes.rows.length === 0) {
-            throw new Error('User not found');
+        else if (u.fever_expires_at && new Date(u.fever_expires_at) <= new Date()) {
+            await client.query('UPDATE users SET fever_multiplier = 1.0, fever_expires_at = NULL WHERE id = $1', [userId]);
         }
-        const currentRating = parseFloat(userRes.rows[0].rating);
+        perfMark('streakFever');
+        // 6. Problem update + difficulty in one round trip
+        let prob;
+        const calcDifficulty = (totalAttempts, correctAttempts) => {
+            const solveRate = totalAttempts > 0 ? correctAttempts / totalAttempts : 0.5;
+            return (0, exports.calculateDifficultyFromSolveRate)(solveRate);
+        };
+        if (problemData) {
+            prob = { ...problemData };
+            const newDifficulty = calcDifficulty(prob.total_attempts, prob.correct_attempts);
+            await client.query(`UPDATE problems SET
+          total_attempts = total_attempts + 1,
+          correct_attempts = correct_attempts + $1,
+          current_difficulty = $2
+         WHERE id = $3`, [isCorrect ? 1 : 0, newDifficulty, problemId]);
+        }
+        else {
+            const probRes = await client.query(`UPDATE problems SET
+          total_attempts = total_attempts + 1,
+          correct_attempts = correct_attempts + $1,
+          current_difficulty = ROUND(150000 - 145000 * LEAST(1.0, GREATEST(0.0, (correct_attempts + $1)::float / NULLIF(total_attempts + 1, 0))))
+         WHERE id = $2
+         RETURNING is_custom, current_difficulty, total_attempts, correct_attempts`, [isCorrect ? 1 : 0, problemId]);
+            if (probRes.rows.length === 0)
+                throw new Error('Problem not found');
+            prob = probRes.rows[0];
+        }
+        perfMark('problemUpdate');
+        // 8. Daily bonus check
         let dailyBonusMultiplier = 1;
         if (isCorrect) {
-            const todayStr = (0, gameSystemService_1.getTodayString)();
-            const todayRes = await client.query("SELECT COUNT(*) as cnt FROM submissions WHERE user_id = $1 AND is_correct = TRUE AND submitted_at::date = $2::date", [userId, todayStr]);
-            const todayCorrectCount = parseInt(todayRes.rows[0]?.cnt || '0');
-            if (todayCorrectCount === 0) {
+            const todayRes = await client.query("SELECT COUNT(*) as cnt FROM submissions WHERE user_id = $1 AND is_correct = TRUE AND submitted_at::date = $2::date", [userId, today]);
+            if (parseInt(todayRes.rows[0]?.cnt || '0') === 0) {
                 dailyBonusMultiplier = 1.5;
             }
         }
+        perfMark('dailyCount');
+        // 9. Rating computation
+        const currentRating = parseFloat(u.rating);
+        const defaultDiff = getDefaultDifficulty(prob.is_custom);
+        const rewardRating = prob.current_difficulty != null ? Number(prob.current_difficulty) : defaultDiff;
         const baseDelta = isCorrect ? rewardRating : -getWrongAnswerPenalty(currentRating);
         const ratingDelta = isCorrect ? Math.round(baseDelta * feverMultiplier * dailyBonusMultiplier) : baseDelta;
         const finalRating = Math.max(0, currentRating + ratingDelta);
-        await client.query('UPDATE users SET rating = $1 WHERE id = $2', [finalRating, userId]);
-        const activityType = isCorrect ? 'correct_reward' : 'wrong_penalty';
+        // 10. Streak update (replaces updateStreak)
+        let finalStreak = streakAfterRepair;
+        let streakBonusTokens = 0;
+        if (isCorrect && dbLastActiveDate !== today) {
+            const diff = (0, gameSystemService_1.getDaysDifference)(dbLastActiveDate || '', today);
+            finalStreak = (diff === 1 || !dbLastActiveDate) ? streakAfterRepair + 1 : 1;
+            dbLastActiveDate = today;
+        }
+        if (isCorrect) {
+            if (finalStreak > longestStreak)
+                longestStreak = finalStreak;
+            if (finalStreak >= 30)
+                streakBonusTokens = 5;
+            else if (finalStreak >= 10)
+                streakBonusTokens = 3;
+            else if (finalStreak >= 5)
+                streakBonusTokens = 1;
+        }
+        // 11. Token delta (replaces updateTokens)
+        const tokenDelta = isCorrect ? 1 + streakBonusTokens : 0;
+        // 12. Quest updates in-memory (replaces 4+ updateQuests calls)
+        let xpGained = 0;
+        let questTokensGained = 0;
+        const processQuestAction = (action, data) => {
+            quests = quests.map((q) => {
+                if (q.completed)
+                    return q;
+                const updatedQ = { ...q };
+                if (q.type === 'solve' && action === 'solve') {
+                    updatedQ.current += 1;
+                    if (updatedQ.current >= updatedQ.target) {
+                        updatedQ.completed = true;
+                        xpGained += updatedQ.xpReward;
+                        questTokensGained += updatedQ.tokenReward;
+                    }
+                }
+                else if (q.type === 'streak' && action === 'streak') {
+                    updatedQ.current = 1;
+                    updatedQ.completed = true;
+                    xpGained += updatedQ.xpReward;
+                    questTokensGained += updatedQ.tokenReward;
+                }
+                else if (q.type === 'accuracy' && (action === 'attempt' || action === 'solve')) {
+                    if (action === 'solve' && data?.isCorrect === false)
+                        return updatedQ;
+                    const total = (q.totalAttempts || 0) + 1;
+                    const corrects = (q.correctCount || 0) + (action === 'solve' && data?.isCorrect ? 1 : 0);
+                    updatedQ.totalAttempts = total;
+                    updatedQ.correctCount = corrects;
+                    const accuracy = total >= q.target ? Math.round((corrects / total) * 100) : 0;
+                    updatedQ.current = accuracy;
+                    if (total >= 3 && accuracy >= q.target) {
+                        updatedQ.completed = true;
+                        xpGained += updatedQ.xpReward;
+                        questTokensGained += updatedQ.tokenReward;
+                    }
+                }
+                else if (q.type === 'earn_xp' && action === 'earn_xp' && data?.xpEarned) {
+                    updatedQ.current += data.xpEarned;
+                    if (updatedQ.current >= updatedQ.target) {
+                        updatedQ.completed = true;
+                        xpGained += updatedQ.xpReward;
+                        questTokensGained += updatedQ.tokenReward;
+                    }
+                }
+                else if (q.type === 'consecutive' && action === 'solve') {
+                    if (data?.isCorrect) {
+                        const cc = (q.consecutiveCount || 0) + 1;
+                        updatedQ.consecutiveCount = cc;
+                        updatedQ.current = cc;
+                        if (cc >= q.target) {
+                            updatedQ.completed = true;
+                            xpGained += updatedQ.xpReward;
+                            questTokensGained += updatedQ.tokenReward;
+                        }
+                    }
+                    else {
+                        updatedQ.consecutiveCount = 0;
+                        updatedQ.current = 0;
+                    }
+                }
+                else if (q.type === 'perfect' && action === 'solve') {
+                    if (data?.isCorrect) {
+                        const cc = (q.consecutiveCount || 0) + 1;
+                        updatedQ.consecutiveCount = cc;
+                        updatedQ.current = cc;
+                        if (cc >= q.target) {
+                            updatedQ.completed = true;
+                            xpGained += updatedQ.xpReward;
+                            questTokensGained += updatedQ.tokenReward;
+                        }
+                    }
+                    else {
+                        updatedQ.consecutiveCount = 0;
+                        updatedQ.current = 0;
+                    }
+                }
+                return updatedQ;
+            });
+        };
+        if (isCorrect) {
+            const xpEarnedForQuest = Math.max(1, Math.floor(rewardRating / 100));
+            processQuestAction('solve', { isCorrect: true });
+            processQuestAction('streak');
+            processQuestAction('earn_xp', { xpEarned: xpEarnedForQuest });
+            processQuestAction('solve', { isCorrect: true });
+        }
+        else {
+            processQuestAction('attempt', { isCorrect: false });
+            processQuestAction('solve', { isCorrect: false });
+        }
+        // 13. XP
+        const xpEarned = isCorrect ? Math.max(1, Math.floor(rewardRating / 100)) : 0;
+        // 14. Single batched user UPDATE (replaces 6+ separate UPDATEs)
+        const finalLastActiveDate = isCorrect ? today : dbLastActiveDate;
+        const finalStreakRepaired = consumedRepair ? false : u.streak_repaired;
+        const finalTokens = (u.tokens || 0) + tokenDelta + questTokensGained;
+        const finalXp = (u.xp || 0) + xpEarned + xpGained;
+        const finalProblemsSolved = isCorrect ? (u.problems_solved || 0) + 1 : u.problems_solved || 0;
+        await client.query(`UPDATE users SET
+        rating = $1, streak = $2, last_active_date = $3, streak_repaired = $4,
+        longest_streak = $5, tokens = $6, xp = $7, quests = $8, problems_solved = $9
+       WHERE id = $10`, [finalRating, finalStreak, finalLastActiveDate, finalStreakRepaired,
+            longestStreak, finalTokens, finalXp, JSON.stringify(quests),
+            finalProblemsSolved, userId]);
+        perfMark('userUpdate');
+        // 15. Submission + activity log in one CTE
+        const feverDescription = feverActive ? ` (🔥${feverMultiplier}배 피버타임 적용)` : '';
         const dailyDescription = dailyBonusMultiplier > 1 ? ` (☀️첫 정답 1.5배)` : '';
         const activityDescription = isCorrect
             ? `정답 제출 보상 +${Math.round(rewardRating).toLocaleString()} RP${feverDescription}${dailyDescription}`
             : `오답 패널티 -${Math.abs(Math.round(ratingDelta)).toLocaleString()} RP`;
-        await client.query(`INSERT INTO rating_activity_logs (
-        user_id, problem_id, activity_type, change_amount, before_rating, after_rating, description
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`, [
-            userId,
-            problemId,
-            activityType,
-            Math.round(ratingDelta),
-            currentRating,
-            finalRating,
-            activityDescription,
-        ]);
-        let streakResult = { newStreak: 0, bonusTokens: 0 };
-        let finalTokens = 0;
-        if (isCorrect) {
-            streakResult = await (0, gameSystemService_1.updateStreak)(userId, client);
-            finalTokens = await (0, gameSystemService_1.updateTokens)(userId, client, isCorrect);
-            await (0, gameSystemService_1.updateQuests)(userId, client, 'solve', { isCorrect: true });
-            await (0, gameSystemService_1.updateQuests)(userId, client, 'streak');
-            const xpEarned = Math.round(rewardRating) / 100;
-            await (0, gameSystemService_1.updateQuests)(userId, client, 'earn_xp', { xpEarned: Math.max(1, Math.floor(xpEarned)) });
-            await (0, gameSystemService_1.updateQuests)(userId, client, 'solve', { isCorrect: true, consecutiveCorrect: streakResult.newStreak });
-            await client.query('UPDATE users SET problems_solved = problems_solved + 1 WHERE id = $1', [userId]);
-        }
-        else {
-            await (0, gameSystemService_1.updateQuests)(userId, client, 'attempt', { isCorrect: false });
-            await (0, gameSystemService_1.updateQuests)(userId, client, 'solve', { isCorrect: false });
-        }
-        await client.query('INSERT INTO submissions (user_id, problem_id, is_correct) VALUES ($1, $2, $3)', [userId, problemId, isCorrect]);
-        await client.query(`UPDATE problems SET 
-        total_attempts = total_attempts + 1,
-        correct_attempts = correct_attempts + $1
-      WHERE id = $2`, [isCorrect ? 1 : 0, problemId]);
-        const counterRes = await client.query('SELECT total_attempts, correct_attempts FROM problems WHERE id = $1', [problemId]);
-        if (counterRes.rows.length > 0) {
-            const { total_attempts, correct_attempts } = counterRes.rows[0];
-            const solveRate = total_attempts > 0 ? correct_attempts / total_attempts : 0.5;
-            const newDifficulty = (0, exports.calculateDifficultyFromSolveRate)(solveRate);
-            await client.query('UPDATE problems SET current_difficulty = $1 WHERE id = $2', [newDifficulty, problemId]);
-        }
-        const finalUserRes = await client.query('SELECT streak, tokens, xp, quests, last_active_date, streak_repaired, longest_streak, problems_solved FROM users WHERE id = $1', [userId]);
-        const finalUser = finalUserRes.rows[0];
+        await client.query(`WITH sub_insert AS (
+        INSERT INTO submissions (user_id, problem_id, is_correct) VALUES ($1, $2, $3) RETURNING id
+      )
+      INSERT INTO rating_activity_logs (user_id, problem_id, activity_type, change_amount, before_rating, after_rating, description)
+      SELECT $1, $2, $4, $5, $6, $7, $8 FROM sub_insert`, [userId, problemId, isCorrect, isCorrect ? 'correct_reward' : 'wrong_penalty',
+            Math.round(ratingDelta), currentRating, finalRating, activityDescription]);
+        perfMark('insertLog');
         await client.query('COMMIT');
-        const xp = finalUser.xp || 0;
-        const level = Math.floor(Math.sqrt(xp / 100)) + 1;
+        perfMark('commit');
+        perfLog();
+        const level = Math.floor(Math.sqrt(finalXp / 100)) + 1;
         return {
             newUserRating: finalRating,
             tier: (0, exports.getTier)(finalRating),
             level,
-            streak: finalUser.streak,
-            tokens: finalUser.tokens,
-            xp,
-            quests: finalUser.quests,
-            streakRepaired: repairResult.repaired,
-            streakRepairedFlag: finalUser.streak_repaired,
-            problems_solved: finalUser.problems_solved,
+            streak: finalStreak,
+            tokens: finalTokens,
+            xp: finalXp,
+            quests,
+            streakRepaired,
+            streakRepairedFlag: finalStreakRepaired,
+            problems_solved: finalProblemsSolved,
             feverActive,
-            feverMultiplier
+            feverMultiplier,
         };
     }
     catch (err) {
+        perfLog();
         await client.query('ROLLBACK');
+        if (err.code === '23505') {
+            return { alreadySolved: true };
+        }
         throw err;
     }
     finally {
