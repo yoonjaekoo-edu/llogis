@@ -100,15 +100,8 @@ const processSubmission = async (userId, problemId, isCorrect, problemData) => {
     try {
         await client.query('BEGIN');
         perfMark('begin');
-        // 1. Duplicate check (must be first for correct answers)
-        if (isCorrect) {
-            const dup = await client.query('SELECT id FROM submissions WHERE user_id = $1 AND problem_id = $2 AND is_correct = true FOR UPDATE', [userId, problemId]);
-            if (dup.rows.length > 0) {
-                await client.query('ROLLBACK');
-                return { alreadySolved: true };
-            }
-        }
-        perfMark('dupCheck');
+        // 1. Duplicate protection via uq_submissions_correct unique index:
+        //    duplicate correct submission fails at the CTE INSERT with 23505 → alreadySolved (see catch)
         // 2. Fetch ALL user data once (replaces 6+ separate SELECTs)
         const userRes = await client.query(`SELECT rating, streak, tokens, xp, quests, last_active_date,
               streak_repaired, longest_streak, fever_multiplier, fever_expires_at,
@@ -160,49 +153,27 @@ const processSubmission = async (userId, problemId, isCorrect, problemData) => {
             await client.query('UPDATE users SET fever_multiplier = 1.0, fever_expires_at = NULL WHERE id = $1', [userId]);
         }
         perfMark('streakFever');
-        // 6. Problem update + difficulty in one round trip
+        // 6. Problem data (reward rating + difficulty는 JS에서 계산, UPDATE는 마지막 CTE에서 단일 수행)
         let prob;
-        const calcDifficulty = (totalAttempts, correctAttempts) => {
-            const solveRate = totalAttempts > 0 ? correctAttempts / totalAttempts : 0.5;
-            return (0, exports.calculateDifficultyFromSolveRate)(solveRate);
-        };
         if (problemData) {
             prob = { ...problemData };
-            const newDifficulty = calcDifficulty(prob.total_attempts, prob.correct_attempts);
-            await client.query(`UPDATE problems SET
-          total_attempts = total_attempts + 1,
-          correct_attempts = correct_attempts + $1,
-          current_difficulty = $2
-         WHERE id = $3`, [isCorrect ? 1 : 0, newDifficulty, problemId]);
         }
         else {
-            const probRes = await client.query(`UPDATE problems SET
-          total_attempts = total_attempts + 1,
-          correct_attempts = correct_attempts + $1,
-          current_difficulty = ROUND(150000 - 145000 * LEAST(1.0, GREATEST(0.0, (correct_attempts + $1)::float / NULLIF(total_attempts + 1, 0))))
-         WHERE id = $2
-         RETURNING is_custom, current_difficulty, total_attempts, correct_attempts`, [isCorrect ? 1 : 0, problemId]);
+            const probRes = await client.query('SELECT is_custom, current_difficulty, total_attempts, correct_attempts FROM problems WHERE id = $1', [problemId]);
             if (probRes.rows.length === 0)
                 throw new Error('Problem not found');
             prob = probRes.rows[0];
         }
-        perfMark('problemUpdate');
-        // 8. Daily bonus check
-        let dailyBonusMultiplier = 1;
-        if (isCorrect) {
-            const todayRes = await client.query("SELECT COUNT(*) as cnt FROM submissions WHERE user_id = $1 AND is_correct = TRUE AND submitted_at::date = $2::date", [userId, today]);
-            if (parseInt(todayRes.rows[0]?.cnt || '0') === 0) {
-                dailyBonusMultiplier = 1.5;
-            }
-        }
-        perfMark('dailyCount');
-        // 9. Rating computation
+        const newDifficulty = (0, exports.calculateDifficultyFromSolveRate)(prob.total_attempts > 0 ? prob.correct_attempts / prob.total_attempts : 0.5);
+        perfMark('problemData');
+        // 8. (일일 첫 정답 보너스는 마지막 CTE의 SQL 서브쿼리로 계산 — 별도 SELECT 제거)
+        // 9. Rating computation (fever는 JS 적용, 일일 보너스는 SQL에서 적용)
         const currentRating = parseFloat(u.rating);
         const defaultDiff = getDefaultDifficulty(prob.is_custom);
         const rewardRating = prob.current_difficulty != null ? Number(prob.current_difficulty) : defaultDiff;
-        const baseDelta = isCorrect ? rewardRating : -getWrongAnswerPenalty(currentRating);
-        const ratingDelta = isCorrect ? Math.round(baseDelta * feverMultiplier * dailyBonusMultiplier) : baseDelta;
-        const finalRating = Math.max(0, currentRating + ratingDelta);
+        const feverAdjustedDelta = isCorrect
+            ? Math.round(rewardRating * feverMultiplier)
+            : -getWrongAnswerPenalty(currentRating);
         // 10. Streak update (replaces updateStreak)
         let finalStreak = streakAfterRepair;
         let streakBonusTokens = 0;
@@ -316,40 +287,65 @@ const processSubmission = async (userId, problemId, isCorrect, problemData) => {
         }
         // 13. XP
         const xpEarned = isCorrect ? Math.max(1, Math.floor(rewardRating / 100)) : 0;
-        // 14. Single batched user UPDATE (replaces 6+ separate UPDATEs)
+        // 14. All writes in ONE data-modifying CTE: user UPDATE + problems UPDATE
+        //     + submissions INSERT + rating_activity_logs INSERT (단일 라운드트립)
         const finalLastActiveDate = isCorrect ? today : dbLastActiveDate;
         const finalStreakRepaired = consumedRepair ? false : u.streak_repaired;
         const finalTokens = (u.tokens || 0) + tokenDelta + questTokensGained;
         const finalXp = (u.xp || 0) + xpEarned + xpGained;
         const finalProblemsSolved = isCorrect ? (u.problems_solved || 0) + 1 : u.problems_solved || 0;
-        await client.query(`UPDATE users SET
-        rating = $1, streak = $2, last_active_date = $3, streak_repaired = $4,
-        longest_streak = $5, tokens = $6, xp = $7, quests = $8, problems_solved = $9
-       WHERE id = $10`, [finalRating, finalStreak, finalLastActiveDate, finalStreakRepaired,
-            longestStreak, finalTokens, finalXp, JSON.stringify(quests),
-            finalProblemsSolved, userId]);
-        perfMark('userUpdate');
-        // 15. Submission + activity log in one CTE
         const feverDescription = feverActive ? ` (🔥${feverMultiplier}배 피버타임 적용)` : '';
-        const dailyDescription = dailyBonusMultiplier > 1 ? ` (☀️첫 정답 1.5배)` : '';
         const activityDescription = isCorrect
-            ? `정답 제출 보상 +${Math.round(rewardRating).toLocaleString()} RP${feverDescription}${dailyDescription}`
-            : `오답 패널티 -${Math.abs(Math.round(ratingDelta)).toLocaleString()} RP`;
-        await client.query(`WITH sub_insert AS (
-        INSERT INTO submissions (user_id, problem_id, is_correct) VALUES ($1, $2, $3) RETURNING id
+            ? `정답 제출 보상 +${Math.round(rewardRating).toLocaleString()} RP${feverDescription}`
+            : `오답 패널티 -${Math.abs(Math.round(feverAdjustedDelta)).toLocaleString()} RP`;
+        const writeRes = await client.query(`WITH u AS (
+        UPDATE users SET
+          rating = GREATEST(0, rating + ROUND($5::float * CASE
+            WHEN $3 AND NOT EXISTS (
+              SELECT 1 FROM submissions
+              WHERE user_id = $1 AND is_correct = TRUE AND submitted_at::date = $16::date
+            ) THEN 1.5 ELSE 1 END)),
+          streak = $6, last_active_date = $7, streak_repaired = $8,
+          longest_streak = $9, tokens = $10, xp = $11, quests = $12::jsonb,
+          problems_solved = $13
+        WHERE id = $1
+        RETURNING rating
+      ), p AS (
+        UPDATE problems SET
+          total_attempts = total_attempts + 1,
+          correct_attempts = correct_attempts + $3::int,
+          current_difficulty = $4
+        WHERE id = $2
+      ), s AS (
+        INSERT INTO submissions (user_id, problem_id, is_correct)
+        VALUES ($1, $2, $3)
+        RETURNING id
+      ), l AS (
+        INSERT INTO rating_activity_logs (user_id, problem_id, activity_type, change_amount, before_rating, after_rating, description)
+        SELECT $1, $2,
+          CASE WHEN $3 THEN 'correct_reward' ELSE 'wrong_penalty' END,
+          ROUND(u.rating - $14::float)::integer,
+          $14::float,
+          u.rating,
+          $15 || CASE WHEN $3 AND NOT EXISTS (
+            SELECT 1 FROM submissions
+            WHERE user_id = $1 AND is_correct = TRUE AND submitted_at::date = $16::date
+          ) THEN ' (☀️첫 정답 1.5배)' ELSE '' END
+        FROM u
       )
-      INSERT INTO rating_activity_logs (user_id, problem_id, activity_type, change_amount, before_rating, after_rating, description)
-      SELECT $1, $2, $4, $5, $6, $7, $8 FROM sub_insert`, [userId, problemId, isCorrect, isCorrect ? 'correct_reward' : 'wrong_penalty',
-            Math.round(ratingDelta), currentRating, finalRating, activityDescription]);
-        perfMark('insertLog');
+      SELECT u.rating AS new_rating FROM u`, [userId, problemId, isCorrect, newDifficulty, feverAdjustedDelta,
+            finalStreak, finalLastActiveDate, finalStreakRepaired,
+            longestStreak, finalTokens, finalXp, JSON.stringify(quests),
+            finalProblemsSolved, currentRating, activityDescription, today]);
+        const finalRating = Number(writeRes.rows[0]?.new_rating ?? currentRating + feverAdjustedDelta);
+        perfMark('writeCte');
         await client.query('COMMIT');
         perfMark('commit');
         perfLog();
-        const level = Math.floor(Math.sqrt(finalXp / 100)) + 1;
         return {
             newUserRating: finalRating,
             tier: (0, exports.getTier)(finalRating),
-            level,
+            level: Math.floor(Math.sqrt(finalXp / 100)) + 1,
             streak: finalStreak,
             tokens: finalTokens,
             xp: finalXp,
