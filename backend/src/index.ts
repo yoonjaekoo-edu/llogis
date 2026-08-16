@@ -34,7 +34,9 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../uploads');
+const isVercelRuntime = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
+// Vercel의 배포 파일 시스템은 읽기 전용이므로 업로드는 임시 디렉터리를 사용한다.
+const uploadsDir = isVercelRuntime ? path.join('/tmp', 'logis-uploads') : path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -104,6 +106,7 @@ const ensureSchema = async () => {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_firework_effect BOOLEAN DEFAULT FALSE");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_developer_chango BOOLEAN DEFAULT FALSE");
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS is_custom BOOLEAN DEFAULT FALSE');
+  await pool.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS is_streak_repair BOOLEAN DEFAULT FALSE');
   await pool.query("UPDATE problems SET is_custom = FALSE WHERE is_custom IS NULL");
   await pool.query("ALTER TABLE problems ALTER COLUMN is_custom SET DEFAULT FALSE");
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS total_attempts INTEGER DEFAULT 0');

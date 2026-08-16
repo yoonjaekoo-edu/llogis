@@ -90,6 +90,7 @@ CREATE TABLE submissions (
     problem_id INTEGER REFERENCES problems(id) ON DELETE SET NULL,
     is_correct BOOLEAN NOT NULL,
     user_answer VARCHAR(255),
+    is_streak_repair BOOLEAN DEFAULT FALSE,
     submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
