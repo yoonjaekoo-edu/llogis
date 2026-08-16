@@ -22,6 +22,7 @@ import {
 } from './templateProblemGenerator';
 import { getTier, processSubmission, getTierConfig, updateTierConfig } from './rating/ratingService';
 import { getTodayString } from './rating/gameSystemService';
+import { DogeMarketError, getDogeMarketSnapshot, tradeDoge } from './dogeMarketService';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
@@ -342,6 +343,54 @@ const ensureSchema = async () => {
       ('streak_100', '시즌 챌린저', '100일 연속 스트릭', '🌟', 'streak', 100),
       ('lucky_legend', '전설의 행운', '레전더리 상자에서 획득', '🍀', NULL, 0)
     ON CONFLICT (badge_id) DO NOTHING
+  `);
+
+  // DOGE 가상 투자 게임
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS doge_wallets (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      dp NUMERIC(30, 8) NOT NULL DEFAULT 0,
+      cost_basis_rp NUMERIC(30, 8) NOT NULL DEFAULT 0,
+      last_trade_at TIMESTAMP WITH TIME ZONE
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS doge_trades (
+      id BIGSERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      side VARCHAR(4) NOT NULL CHECK (side IN ('buy', 'sell')),
+      dp_amount NUMERIC(30, 8) NOT NULL CHECK (dp_amount > 0),
+      dp_price_rp NUMERIC(30, 8) NOT NULL CHECK (dp_price_rp > 0),
+      gross_rp NUMERIC(30, 8) NOT NULL CHECK (gross_rp >= 0),
+      fee_rp NUMERIC(30, 8) NOT NULL CHECK (fee_rp >= 0),
+      rp_change NUMERIC(30, 8) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS doge_trades_user_created_idx
+    ON doge_trades (user_id, created_at DESC)
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS doge_market_price (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      price_usd NUMERIC(30, 12) NOT NULL,
+      dp_price_rp NUMERIC(30, 8) NOT NULL,
+      price_change_24h NUMERIC(20, 8) NOT NULL DEFAULT 0,
+      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS doge_market_price_history (
+      id BIGSERIAL PRIMARY KEY,
+      price_usd NUMERIC(30, 12) NOT NULL,
+      dp_price_rp NUMERIC(30, 8) NOT NULL,
+      recorded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS doge_market_price_history_recorded_idx
+    ON doge_market_price_history (recorded_at DESC)
   `);
 };
 
@@ -1919,6 +1968,68 @@ app.post('/api/problems/templates/reload', authenticateToken, async (req: any, r
     res.json({ message: '템플릿이 다시 로드되었습니다.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to reload templates' });
+  }
+});
+
+// DOGE Market: Logis 내부 가상 DP 거래 API
+app.get('/api/market/doge', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const snapshot = await getDogeMarketSnapshot(req.user.id);
+    res.json(snapshot);
+  } catch (error) {
+    if (error instanceof DogeMarketError) {
+      return res.status(error.status).json({ error: error.code, message: error.message });
+    }
+    console.error('DOGE market snapshot error:', error);
+    res.status(500).json({ error: 'DOGE 마켓 정보를 불러오지 못했습니다.' });
+  }
+});
+
+app.post('/api/market/doge/buy', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const result = await tradeDoge(req.user.id, 'buy', req.body?.rpAmount);
+    res.json({
+      success: true,
+      spentRp: Number(req.body.rpAmount),
+      feeRp: result.feeRp,
+      receivedDp: result.dpAmount,
+      dpPrice: Number(result.price.dpPriceRp),
+      rp: result.rp,
+      dp: result.dp,
+      nextTradeAt: result.nextTradeAt,
+    });
+  } catch (error) {
+    if (error instanceof DogeMarketError) {
+      const response: Record<string, unknown> = { error: error.code, message: error.message };
+      if (error.remainingSeconds !== undefined) response.remainingSeconds = error.remainingSeconds;
+      return res.status(error.status).json(response);
+    }
+    console.error('DOGE buy error:', error);
+    res.status(500).json({ error: 'DOGE 매수 중 오류가 발생했습니다.' });
+  }
+});
+
+app.post('/api/market/doge/sell', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const result = await tradeDoge(req.user.id, 'sell', req.body?.dpAmount);
+    res.json({
+      success: true,
+      soldDp: result.dpAmount,
+      feeRp: result.feeRp,
+      receivedRp: result.rpChange,
+      dpPrice: Number(result.price.dpPriceRp),
+      rp: result.rp,
+      dp: result.dp,
+      nextTradeAt: result.nextTradeAt,
+    });
+  } catch (error) {
+    if (error instanceof DogeMarketError) {
+      const response: Record<string, unknown> = { error: error.code, message: error.message };
+      if (error.remainingSeconds !== undefined) response.remainingSeconds = error.remainingSeconds;
+      return res.status(error.status).json(response);
+    }
+    console.error('DOGE sell error:', error);
+    res.status(500).json({ error: 'DOGE 매도 중 오류가 발생했습니다.' });
   }
 });
 

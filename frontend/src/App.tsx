@@ -44,6 +44,34 @@ interface User {
   profile_theme?: string;
 }
 
+interface DogeMarketSnapshot {
+  price: {
+    priceUsd: number;
+    dpPriceRp: number;
+    priceChange24h: number;
+    updatedAt: string;
+  };
+  wallet: {
+    rp: number;
+    dp: number;
+    costBasisRp: number;
+    valuationRp: number;
+    averageBuyPrice: number;
+    profitLossRp: number;
+    returnRate: number;
+    lastTradeAt: string | null;
+  };
+  trades: Array<{
+    side: 'buy' | 'sell';
+    dp_amount: string;
+    dp_price_rp: string;
+    fee_rp: string;
+    rp_change: string;
+    created_at: string;
+  }>;
+  history: Array<{ priceUsd: number; recordedAt: string }>;
+}
+
 // LaTeX Helper
 const SafeBlockMath = ({ math, index }: { math: string; index: number }) => {
   try {
@@ -233,6 +261,7 @@ const Navbar: React.FC<{
           <li><Link to="/ranking">랭킹</Link></li>
           <li><Link to="/groups">그룹</Link></li>
           <li><Link to="/shop">상점</Link></li>
+          <li><Link to="/market">🐕 DOGE Market</Link></li>
           <li><Link to="/about">소개</Link></li>
           {user ? (
             <>
@@ -4431,6 +4460,216 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
   );
 };
 
+const DogePriceChart: React.FC<{ history: DogeMarketSnapshot['history'] }> = ({ history }) => {
+  if (history.length < 2) {
+    return <div className="market-chart-empty">가격 기록이 쌓이면 최근 24시간 차트가 표시됩니다.</div>;
+  }
+
+  const prices = history.map(point => point.priceUsd);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+  const points = prices.map((price, index) => {
+    const x = (index / (prices.length - 1)) * 100;
+    const y = 92 - ((price - min) / range) * 80;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg className="market-price-chart" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="최근 DOGE 가격 차트">
+      <polyline points={points} fill="none" stroke="var(--color-4)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+};
+
+const DogeMarket: React.FC<{ user: User | null; setUser: (user: User) => void }> = ({ user, setUser }) => {
+  const navigate = useNavigate();
+  const [market, setMarket] = useState<DogeMarketSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [side, setSide] = useState<'buy' | 'sell'>('buy');
+  const [amount, setAmount] = useState('');
+  const [trading, setTrading] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  const loadMarket = useCallback(async () => {
+    if (!user) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/market/doge', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || '마켓 정보를 불러오지 못했습니다.');
+      setMarket({
+        ...data,
+        price: {
+          priceUsd: Number(data.price.priceUsd),
+          dpPriceRp: Number(data.price.dpPriceRp),
+          priceChange24h: Number(data.price.priceChange24h),
+          updatedAt: data.price.updatedAt,
+        },
+        wallet: {
+          ...data.wallet,
+          rp: Number(data.wallet.rp),
+          dp: Number(data.wallet.dp),
+          costBasisRp: Number(data.wallet.costBasisRp),
+          valuationRp: Number(data.wallet.valuationRp),
+          averageBuyPrice: Number(data.wallet.averageBuyPrice),
+          profitLossRp: Number(data.wallet.profitLossRp),
+          returnRate: Number(data.wallet.returnRate),
+        },
+      });
+      setError('');
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : '마켓 정보를 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    loadMarket();
+    const interval = window.setInterval(loadMarket, 10000);
+    return () => window.clearInterval(interval);
+  }, [user, navigate, loadMarket]);
+
+  useEffect(() => {
+    const updateCooldown = () => {
+      if (!market?.wallet.lastTradeAt) {
+        setCooldownRemaining(0);
+        return;
+      }
+      const remaining = Math.max(0, Math.ceil((new Date(market.wallet.lastTradeAt).getTime() + 30000 - Date.now()) / 1000));
+      setCooldownRemaining(remaining);
+    };
+    updateCooldown();
+    const interval = window.setInterval(updateCooldown, 1000);
+    return () => window.clearInterval(interval);
+  }, [market?.wallet.lastTradeAt]);
+
+  const submitTrade = async () => {
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      setError(side === 'buy' ? '매수할 RP를 입력해주세요.' : '매도할 DP를 입력해주세요.');
+      return;
+    }
+    setTrading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/market/doge/${side}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(side === 'buy' ? { rpAmount: numericAmount } : { dpAmount: numericAmount }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === 'TRADE_COOLDOWN') {
+          setCooldownRemaining(Number(data.remainingSeconds) || 1);
+        }
+        throw new Error(data.message || data.error || '거래에 실패했습니다.');
+      }
+      setUser({ ...user!, rating: Number(data.rp) });
+      localStorage.setItem('user', JSON.stringify({ ...user!, rating: Number(data.rp) }));
+      setAmount('');
+      await loadMarket();
+    } catch (tradeError) {
+      setError(tradeError instanceof Error ? tradeError.message : '거래에 실패했습니다.');
+    } finally {
+      setTrading(false);
+    }
+  };
+
+  const formatRp = (value: number) => `${Math.round(value).toLocaleString()} RP`;
+  const formatDp = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 8 });
+  const profitColor = (market?.wallet.profitLossRp ?? 0) >= 0 ? '#0a9b62' : '#e55353';
+
+  if (!user || loading || !market) return <main className="container market-page"><p>DOGE Market 불러오는 중...</p></main>;
+
+  return (
+    <main className="container market-page">
+      <Helmet>
+        <title>DOGE Market | Logis</title>
+        <meta name="description" content="실제 DOGE 가격을 데이터 소스로 사용하는 Logis 가상 DP 투자 게임" />
+      </Helmet>
+      <div className="market-heading">
+        <div>
+          <span className="market-kicker">VIRTUAL ASSET GAME</span>
+          <h2>🐕 DOGE Market</h2>
+          <p>실제 DOGE 가격에 연동된 Logis 내부 가상 자산 DP를 거래해보세요.</p>
+        </div>
+        <div className="market-price-main">
+          <span>1 DP</span>
+          <strong>{formatRp(market.price.dpPriceRp)}</strong>
+          <small>DOGE ${market.price.priceUsd.toFixed(5)}</small>
+        </div>
+      </div>
+
+      {error && <div className="market-alert" role="alert">{error}</div>}
+      <section className="market-grid">
+        <article className="problem-card market-card market-overview-card">
+          <div className="market-card-title"><span>시장 현황</span><small>{new Date(market.price.updatedAt).toLocaleTimeString()} 갱신</small></div>
+          <DogePriceChart history={market.history} />
+          <div className="market-price-row">
+            <span>DOGE 24시간 변동</span>
+            <strong style={{ color: market.price.priceChange24h >= 0 ? '#0a9b62' : '#e55353' }}>
+              {market.price.priceChange24h >= 0 ? '+' : ''}{market.price.priceChange24h.toFixed(2)}%
+            </strong>
+          </div>
+          <p className="market-disclaimer">DP는 현금 가치가 없으며 출금할 수 없는 게임 전용 자산입니다.</p>
+        </article>
+
+        <article className="problem-card market-card">
+          <div className="market-card-title"><span>내 포트폴리오</span><span>✨ {formatRp(market.wallet.rp)}</span></div>
+          <div className="market-stat-grid">
+            <div><small>보유 DP</small><strong>{formatDp(market.wallet.dp)} DP</strong></div>
+            <div><small>DP 평가금액</small><strong>{formatRp(market.wallet.valuationRp)}</strong></div>
+            <div><small>평균 매수가</small><strong>{formatRp(market.wallet.averageBuyPrice)}</strong></div>
+            <div><small>평가손익</small><strong style={{ color: profitColor }}>{market.wallet.profitLossRp >= 0 ? '+' : ''}{formatRp(market.wallet.profitLossRp)}</strong></div>
+          </div>
+          <div className="market-return" style={{ color: profitColor }}>수익률 {market.wallet.returnRate >= 0 ? '+' : ''}{market.wallet.returnRate.toFixed(2)}%</div>
+        </article>
+      </section>
+
+      <section className="problem-card market-card market-trade-card">
+        <div className="market-card-title"><span>DP 거래</span><span className="market-fee-label">거래 수수료 5%</span></div>
+        <div className="market-tabs">
+          <button className={side === 'buy' ? 'active' : ''} onClick={() => setSide('buy')}>DP 구매</button>
+          <button className={side === 'sell' ? 'active' : ''} onClick={() => setSide('sell')}>DP 판매</button>
+        </div>
+        <label className="market-input-label">{side === 'buy' ? '사용할 RP' : '판매할 DP'}
+          <div className="market-input-wrap">
+            <input type="number" min="0" step={side === 'buy' ? '0.01' : '0.00000001'} value={amount} onChange={event => setAmount(event.target.value)} placeholder={side === 'buy' ? '예: 1000' : '예: 5.25'} />
+            <span>{side === 'buy' ? 'RP' : 'DP'}</span>
+          </div>
+        </label>
+        <p className="market-trade-hint">{side === 'buy' ? `수수료 차감 후 약 ${formatDp(Number(amount || 0) * 0.95 / market.price.dpPriceRp)} DP를 받습니다.` : `현재 가격 기준 약 ${formatRp(Number(amount || 0) * market.price.dpPriceRp * 0.95)}를 받습니다.`}</p>
+        <button className="btn market-trade-button" onClick={submitTrade} disabled={trading || cooldownRemaining > 0}>{trading ? '처리 중...' : side === 'buy' ? 'RP로 DP 구매하기' : 'DP를 RP로 판매하기'}</button>
+        <div className="market-cooldown">{cooldownRemaining > 0 ? `⏱ 거래 가능까지 00:${String(cooldownRemaining).padStart(2, '0')}` : '✅ 지금 거래할 수 있습니다.'}</div>
+      </section>
+
+      <section className="problem-card market-card">
+        <div className="market-card-title"><span>최근 거래 내역</span><small>최근 20건</small></div>
+        {market.trades.length === 0 ? <p className="market-empty">아직 거래 내역이 없습니다.</p> : (
+          <div className="market-trades">
+            {market.trades.map((trade, index) => (
+              <div className="market-trade-row" key={`${trade.created_at}-${index}`}>
+                <strong className={trade.side === 'buy' ? 'buy-text' : 'sell-text'}>{trade.side === 'buy' ? '매수' : '매도'}</strong>
+                <span>{formatDp(Number(trade.dp_amount))} DP</span>
+                <span>{formatRp(Number(trade.dp_price_rp))}/DP</span>
+                <span>{new Date(trade.created_at).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+};
+
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
@@ -4531,6 +4770,7 @@ const AppContent: React.FC = () => {
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
           <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
           <Route path="/shop" element={<Shop user={user} setUser={setUser} />} />
+          <Route path="/market" element={<DogeMarket user={user} setUser={setUser} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/bug-report" element={<BugReport user={user} />} />
           <Route path="/goose-room" element={<GooseRoom />} />

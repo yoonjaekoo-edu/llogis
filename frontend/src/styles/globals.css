@@ -295,6 +295,56 @@ nav a.active::after {
   box-shadow: 0 16px 40px rgba(92, 149, 255, 0.18);
 }
 
+/* DOGE Market */
+.market-page { max-width: 1000px; padding-top: 3rem; padding-bottom: 3rem; }
+.market-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; margin-bottom: 1.5rem; }
+.market-heading h2 { margin: 0.35rem 0 0.5rem; color: var(--color-4); font-size: clamp(2rem, 5vw, 3rem); }
+.market-heading p { margin: 0; color: var(--text-muted); }
+.market-kicker { color: var(--color-1); font-size: 0.75rem; font-weight: 900; letter-spacing: 0.12em; }
+.market-price-main { min-width: 180px; padding: 1rem 1.2rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card-bg); box-shadow: var(--card-shadow); text-align: right; }
+.market-price-main span, .market-price-main small { display: block; color: var(--text-muted); }
+.market-price-main strong { display: block; margin: 0.15rem 0; color: var(--color-4); font-size: 1.35rem; }
+.market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.market-card { margin: 0; max-width: none; }
+.market-card-title { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; color: var(--color-4); font-size: 1.1rem; font-weight: 900; }
+.market-card-title small, .market-fee-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; }
+.market-price-chart { width: 100%; height: 150px; overflow: visible; border-bottom: 1px solid var(--border); }
+.market-chart-empty, .market-empty { padding: 3rem 1rem; color: var(--text-muted); text-align: center; }
+.market-price-row, .market-trade-row { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.market-price-row { margin-top: 1rem; font-size: 0.9rem; }
+.market-disclaimer { margin: 1rem 0 0; color: var(--text-muted); font-size: 0.75rem; }
+.market-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.market-stat-grid div { padding: 0.85rem; border-radius: var(--radius-md); background: var(--bg-color); }
+.market-stat-grid small, .market-stat-grid strong { display: block; }
+.market-stat-grid small { margin-bottom: 0.35rem; color: var(--text-muted); font-size: 0.75rem; }
+.market-stat-grid strong { font-size: 1rem; }
+.market-return { margin-top: 1rem; font-weight: 900; text-align: right; }
+.market-trade-card, .market-trades { margin-top: 1rem; }
+.market-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.market-tabs button { flex: 1; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-color); color: var(--text-muted); cursor: pointer; font-weight: 800; }
+.market-tabs button.active { border-color: var(--color-4); background: var(--color-4); color: white; }
+.market-input-label { display: block; color: var(--text-muted); font-size: 0.85rem; font-weight: 800; }
+.market-input-wrap { display: flex; align-items: center; margin-top: 0.45rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-color); }
+.market-input-wrap input { width: 100%; padding: 0.85rem 1rem; border: 0; outline: 0; background: transparent; color: var(--text-main); font-size: 1rem; }
+.market-input-wrap span { padding-right: 1rem; color: var(--text-muted); font-weight: 800; }
+.market-trade-hint, .market-cooldown { color: var(--text-muted); font-size: 0.82rem; }
+.market-trade-button { width: 100%; margin: 0.5rem 0; background: var(--color-4); color: white; }
+.market-trade-button:disabled { cursor: not-allowed; opacity: 0.5; }
+.market-cooldown { text-align: center; }
+.market-alert { margin-bottom: 1rem; padding: 0.85rem 1rem; border: 1px solid #e55353; border-radius: var(--radius-md); background: rgba(229, 83, 83, 0.1); color: #c83f3f; font-weight: 800; }
+.market-trade-row { padding: 0.85rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.market-trade-row:last-child { border-bottom: 0; }
+.market-trade-row span:last-child { color: var(--text-muted); font-size: 0.72rem; }
+.buy-text { color: #0a9b62; }
+.sell-text { color: #e55353; }
+
+@media (max-width: 760px) {
+  .market-heading, .market-grid { display: block; }
+  .market-price-main { margin-top: 1rem; text-align: left; }
+  .market-card + .market-card, .market-trade-card { margin-top: 1rem; }
+  .market-trade-row { flex-wrap: wrap; }
+}
+
 .difficulty-badge {
   background: var(--color-3);
   color: var(--color-4);
