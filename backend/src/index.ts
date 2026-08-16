@@ -129,9 +129,16 @@ const ensureSchema = async () => {
     UPDATE problems SET current_difficulty = 60000
     WHERE (total_attempts IS NULL OR total_attempts = 0) AND is_custom = TRUE
   `);
-  // Drop the CASCADE constraint and recreate with SET NULL (submissions survive problem deletion)
-  await pool.query('ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_problem_id_fkey');
-  await pool.query('ALTER TABLE submissions ADD CONSTRAINT submissions_problem_id_fkey FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE SET NULL');
+  // CASCADE 제약을 제거하고 SET NULL로 다시 만든다. Vercel cold start 동시 실행도 직렬화한다.
+  await pool.query(`
+    DO $$
+    BEGIN
+      PERFORM pg_advisory_xact_lock(721304);
+      ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_problem_id_fkey;
+      ALTER TABLE submissions ADD CONSTRAINT submissions_problem_id_fkey
+        FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE SET NULL;
+    END $$;
+  `);
   await pool.query("UPDATE users SET can_generate_problems = TRUE WHERE username = 'admin'");
   await pool.query("INSERT INTO tags (name) VALUES ('이차방정식') ON CONFLICT (name) DO NOTHING");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_title VARCHAR(100) DEFAULT ''");
@@ -2826,20 +2833,18 @@ if (fs.existsSync(frontendDist)) {
   });
 }
 
-ensureSchema()
-  .then(() => {
-    if (process.env.VERCEL !== '1') {
+if (process.env.VERCEL !== '1' && process.env.VERCEL !== 'true') {
+  ensureSchema()
+    .then(() => {
       app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
       });
-    }
-  })
-  .catch((err) => {
-    console.error('Failed to initialize database schema:', err);
-    if (process.env.VERCEL !== '1') {
+    })
+    .catch((err) => {
+      console.error('Failed to initialize database schema:', err);
       process.exit(1);
-    }
-  });
+    });
+}
 
 export { app, ensureSchema };
 export default app;

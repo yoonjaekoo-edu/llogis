@@ -8,6 +8,7 @@ export const DOGE_PRICE_MULTIPLIER = 1000;
 export const DOGE_MAX_TRADE_AMOUNT = 1_000_000_000_000;
 
 const DOGE_PRICE_API_URL = process.env.DOGE_PRICE_API_URL || 'https://api.coingecko.com/api/v3/simple/price';
+const DOGE_FALLBACK_PRICE_API_URL = process.env.DOGE_FALLBACK_PRICE_API_URL || 'https://api.binance.com/api/v3/ticker/24hr';
 const DOGE_PRICE_API_TIMEOUT_MS = 5000;
 
 export type DogeTradeSide = 'buy' | 'sell';
@@ -68,6 +69,10 @@ const toNumericString = (value: unknown): string => {
   return String(number);
 };
 
+const getErrorMessage = (error: unknown): string => (
+  error instanceof Error ? error.message : String(error)
+);
+
 export const parseTradeAmount = (value: unknown, side: DogeTradeSide): string => {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     throw new Error('거래 수량은 0보다 큰 유한한 숫자여야 합니다.');
@@ -85,7 +90,7 @@ export const parseTradeAmount = (value: unknown, side: DogeTradeSide): string =>
   return `${integerPart}${fractionPart}`;
 };
 
-const fetchRemoteDogePrice = async (): Promise<{ priceUsd: string; priceChange24h: string }> => {
+const fetchCoinGeckoDogePrice = async (): Promise<{ priceUsd: string; priceChange24h: string }> => {
   const url = new URL(DOGE_PRICE_API_URL);
   url.searchParams.set('ids', 'dogecoin');
   url.searchParams.set('vs_currencies', 'usd');
@@ -106,10 +111,45 @@ const fetchRemoteDogePrice = async (): Promise<{ priceUsd: string; priceChange24
     const priceUsd = toNumericString(dogecoin.usd);
     const priceChange24h = asFiniteNumber(dogecoin.usd_24h_change);
     return { priceUsd, priceChange24h: String(priceChange24h ?? 0) };
-  } catch (error) {
-    throw new DogeMarketError('MARKET_UNAVAILABLE', 'DOGE 가격 정보를 가져올 수 없습니다.', 503);
   } finally {
     clearTimeout(timeout);
+  }
+};
+
+const fetchBinanceDogePrice = async (): Promise<{ priceUsd: string; priceChange24h: string }> => {
+  const url = new URL(DOGE_FALLBACK_PRICE_API_URL);
+  url.searchParams.set('symbol', 'DOGEUSDT');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DOGE_PRICE_API_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    if (!response.ok) throw new Error(`DOGE fallback API returned ${response.status}`);
+
+    const payload: unknown = await response.json();
+    if (!isRecord(payload)) throw new Error('DOGE fallback price is missing');
+
+    return {
+      priceUsd: toNumericString(payload.lastPrice),
+      priceChange24h: String(asFiniteNumber(payload.priceChangePercent) ?? 0),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const fetchRemoteDogePrice = async (): Promise<{ priceUsd: string; priceChange24h: string }> => {
+  try {
+    return await fetchCoinGeckoDogePrice();
+  } catch (primaryError) {
+    console.warn('[DOGE] CoinGecko 시세 조회 실패, Binance로 전환합니다:', getErrorMessage(primaryError));
+  }
+
+  try {
+    return await fetchBinanceDogePrice();
+  } catch (fallbackError) {
+    console.error('[DOGE] 모든 시세 공급자 조회 실패:', getErrorMessage(fallbackError));
+    throw new DogeMarketError('MARKET_UNAVAILABLE', 'DOGE 가격 정보를 가져올 수 없습니다.', 503);
   }
 };
 
@@ -141,7 +181,17 @@ export const getDogePrice = async (db: Pool = getPool()): Promise<DogePrice> => 
       return getCachedPrice(cached);
     }
 
-    const remote = await fetchRemoteDogePrice();
+    let remote: { priceUsd: string; priceChange24h: string };
+    try {
+      remote = await fetchRemoteDogePrice();
+    } catch (error) {
+      if (cached && Number(cached.price_usd) > 0) {
+        await client.query('COMMIT');
+        console.warn('[DOGE] 외부 시세 장애로 마지막 캐시 가격을 반환합니다.');
+        return getCachedPrice(cached);
+      }
+      throw error;
+    }
     const updated = await client.query(`
       UPDATE doge_market_price
       SET price_usd = $1, dp_price_rp = $1::numeric * $2::numeric, price_change_24h = $3, updated_at = NOW()

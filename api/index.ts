@@ -13,10 +13,18 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     const { app, ensureSchema } = await getApp();
 
-    // Run schema on cold start
-    if (!(globalThis as any).__schemaReady) {
-      await ensureSchema();
-      (globalThis as any).__schemaReady = true;
+    // Vercel 인스턴스마다 스키마를 한 번만 실행하고 동시 cold start는 같은 Promise를 기다린다.
+    const runtimeState = globalThis as typeof globalThis & {
+      __schemaReady?: boolean;
+      __schemaReadyPromise?: Promise<void>;
+    };
+    if (!runtimeState.__schemaReady) {
+      runtimeState.__schemaReadyPromise ??= ensureSchema().catch((error) => {
+        runtimeState.__schemaReadyPromise = undefined;
+        throw error;
+      });
+      await runtimeState.__schemaReadyPromise;
+      runtimeState.__schemaReady = true;
     }
 
     return app(req, res);
