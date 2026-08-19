@@ -1,7 +1,7 @@
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { getPool } from './db';
 
-export const DOGE_TRADE_FEE_RATE = 0.025;
+export const DOGE_TRADE_FEE_RATE = 0.05;
 export const DOGE_TRADE_COOLDOWN_SECONDS = 30;
 export const DOGE_PRICE_CACHE_TTL_SECONDS = 10;
 export const DOGE_PRICE_MULTIPLIER = 1000;
