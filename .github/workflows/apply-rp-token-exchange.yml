@@ -3,7 +3,7 @@ name: Apply RP token exchange update
 on:
   push:
     paths:
-      - '.github/workflows/apply-rp-token-exchange.yml'
+      - '.github/rp-token-trigger.txt'
 
 permissions:
   contents: write
@@ -26,17 +26,19 @@ jobs:
 
           old_profile = "SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, profile_theme, profile_css FROM users WHERE id = $1"
           new_profile = "SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, tokens, profile_theme, profile_css FROM users WHERE id = $1"
-          if old_profile not in backend:
+          if old_profile in backend:
+              backend = backend.replace(old_profile, new_profile, 1)
+          elif new_profile not in backend:
               raise SystemExit('profile SELECT anchor not found')
-          backend = backend.replace(old_profile, new_profile, 1)
 
-          insert_anchor = """  res.json({ items });
+          if "app.post('/api/store/exchange-rp-token'" not in backend:
+              insert_anchor = """  res.json({ items });
 });
 
 
 
 // Purchase firework effect item"""
-          exchange_route = """  res.json({ items });
+              exchange_route = """  res.json({ items });
 });
 
 // Exchange 20,000 RP for 1 token. The exchange rate is fixed server-side.
@@ -78,9 +80,10 @@ app.post('/api/store/exchange-rp-token', authenticateToken, async (req: any, res
 
 
 // Purchase firework effect item"""
-          if insert_anchor not in backend:
-              raise SystemExit('store insertion anchor not found')
-          backend = backend.replace(insert_anchor, exchange_route, 1)
+              if insert_anchor not in backend:
+                  raise SystemExit('store insertion anchor not found')
+              backend = backend.replace(insert_anchor, exchange_route, 1)
+
           backend_path.write_text(backend, encoding='utf-8')
 
           app_path = Path('frontend/src/App.tsx')
@@ -93,20 +96,22 @@ app.post('/api/store/exchange-rp-token', authenticateToken, async (req: any, res
           shop = app[shop_start:login_start]
           after = app[login_start:]
 
-          state_anchor = """  const [loading, setLoading] = useState(true);
+          if "const [exchangingRp, setExchangingRp]" not in shop:
+              state_anchor = """  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const navigate = useNavigate();"""
-          state_new = """  const [loading, setLoading] = useState(true);
+              state_new = """  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [exchangingRp, setExchangingRp] = useState(false);
   const navigate = useNavigate();"""
-          if shop.count(state_anchor) != 1:
-              raise SystemExit(f'unexpected Shop state anchor count: {shop.count(state_anchor)}')
-          shop = shop.replace(state_anchor, state_new, 1)
+              if shop.count(state_anchor) != 1:
+                  raise SystemExit(f'unexpected Shop state anchor count: {shop.count(state_anchor)}')
+              shop = shop.replace(state_anchor, state_new, 1)
 
-          return_anchor = """  return (
+          if "const handleExchangeRpForToken" not in shop:
+              return_anchor = """  return (
     <main className=\"container\" style={{ padding: '4rem 0', maxWidth: '800px', margin: '0 auto' }}>"""
-          handle_exchange = """  const handleExchangeRpForToken = async () => {
+              handle_exchange = """  const handleExchangeRpForToken = async () => {
     if (!user || exchangingRp) return;
     if ((user.rating || 0) < 20000) {
       setMessage('❌ RP가 부족합니다. (필요: 20,000 RP)');
@@ -143,18 +148,19 @@ app.post('/api/store/exchange-rp-token', authenticateToken, async (req: any, res
 
   return (
     <main className=\"container\" style={{ padding: '4rem 0', maxWidth: '800px', margin: '0 auto' }}>"""
-          if shop.count(return_anchor) != 1:
-              raise SystemExit(f'unexpected Shop return anchor count: {shop.count(return_anchor)}')
-          shop = shop.replace(return_anchor, handle_exchange, 1)
+              if shop.count(return_anchor) != 1:
+                  raise SystemExit(f'unexpected Shop return anchor count: {shop.count(return_anchor)}')
+              shop = shop.replace(return_anchor, handle_exchange, 1)
 
-          message_anchor = """      {message && (
+          if "20,000 RP → 🪙 1 토큰" not in shop:
+              message_anchor = """      {message && (
         <div style={{ padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', marginBottom: '1.5rem', textAlign: 'center', fontWeight: 700 }}>
           {message}
         </div>
       )}
 
       {loading ?"""
-          exchange_card = """      {message && (
+              exchange_card = """      {message && (
         <div style={{ padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', marginBottom: '1.5rem', textAlign: 'center', fontWeight: 700 }}>
           {message}
         </div>
@@ -185,9 +191,10 @@ app.post('/api/store/exchange-rp-token', authenticateToken, async (req: any, res
       </div>
 
       {loading ?"""
-          if shop.count(message_anchor) != 1:
-              raise SystemExit(f'unexpected Shop message anchor count: {shop.count(message_anchor)}')
-          shop = shop.replace(message_anchor, exchange_card, 1)
+              if shop.count(message_anchor) != 1:
+                  raise SystemExit(f'unexpected Shop message anchor count: {shop.count(message_anchor)}')
+              shop = shop.replace(message_anchor, exchange_card, 1)
+
           app_path.write_text(before + shop + after, encoding='utf-8')
 
       - name: Verify changes
@@ -196,20 +203,21 @@ app.post('/api/store/exchange-rp-token', authenticateToken, async (req: any, res
           grep -F "app.post('/api/store/exchange-rp-token'" backend/src/index.ts
           grep -F "const [exchangingRp, setExchangingRp]" frontend/src/App.tsx
           grep -F "20,000 RP → 🪙 1 토큰" frontend/src/App.tsx
-          grep -F "거래 수수료 5%" frontend/src/App.tsx
 
       - name: Build
         run: |
-          npm install
           npm install --prefix backend
-          cd frontend
-          npm install
-          npm run build
+          npm install --prefix frontend
+          npm run build --prefix frontend
 
       - name: Commit source changes
         run: |
+          if git diff --quiet -- backend/src/index.ts frontend/src/App.tsx; then
+            echo "No source changes needed"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add backend/src/index.ts frontend/src/App.tsx
-          git commit -m "상점 RP 토큰 교환 및 프로필 토큰 표시 수정"
+          git commit -m "feat: RP 토큰 교환 및 프로필 토큰 표시"
           git push origin HEAD:master
