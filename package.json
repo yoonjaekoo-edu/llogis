@@ -5,7 +5,8 @@
   "description": "Logis (Math Solved) - Vercel deployment",
   "scripts": {
     "patch:rp-token": "node scripts/apply-rp-token-exchange.cjs",
-    "patch:curated-problems": "node scripts/apply-curated-custom-problems.cjs"
+    "patch:curated-problems": "node scripts/apply-curated-custom-problems.cjs",
+    "patch:combo-title": "node scripts/apply-combo-title.cjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
