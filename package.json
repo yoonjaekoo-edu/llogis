@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "description": "Logis (Math Solved) - Vercel deployment",
+  "scripts": {
+    "patch:rp-token": "node scripts/apply-rp-token-exchange.cjs",
+    "patch:curated-problems": "node scripts/apply-curated-custom-problems.cjs"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
