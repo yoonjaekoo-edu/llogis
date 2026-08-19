@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "npm install && npm run patch:rp-token && npm install --prefix backend",
+  "installCommand": "npm install && npm run patch:rp-token && npm run patch:curated-problems && npm install --prefix backend",
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
