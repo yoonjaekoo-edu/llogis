@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "npm install --include=dev && npm run patch:rp-token && npm run patch:curated-problems && cd backend && npm install --include=dev",
+  "installCommand": "npm install --include=dev && npm run patch:rp-token && npm run patch:curated-problems && npm run patch:combo-title && cd backend && npm install --include=dev",
   "buildCommand": "cd backend && npm install --include=dev && npm run build && cd ../frontend && npm install --include=dev && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
