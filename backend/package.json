@@ -4,7 +4,9 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
+    "predev": "node scripts/apply-balance-patch.cjs",
     "dev": "nodemon src/index.ts",
+    "prebuild": "node scripts/apply-balance-patch.cjs",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
