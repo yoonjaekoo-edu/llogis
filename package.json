@@ -7,6 +7,7 @@
     "patch:rp-token": "node scripts/apply-rp-token-exchange.cjs",
     "patch:doge-market": "node scripts/apply-doge-market.cjs",
     "patch:logiscoin": "node scripts/apply-logiscoin-branding.cjs",
+    "patch:market-integrity": "node scripts/apply-market-integrity.cjs",
     "patch:curated-problems": "node scripts/apply-curated-custom-problems.cjs",
     "patch:combo-title": "node scripts/apply-combo-title.cjs"
   },
