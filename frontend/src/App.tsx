@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import GooseRoom from './GooseRoom';
 import CatRoom from './CatRoom';
+import DogeMarketPage from './DogeMarketNav';
 
 // --- Types ---
 interface Problem {
@@ -233,6 +234,7 @@ const Navbar: React.FC<{
           <li><Link to="/ranking">랭킹</Link></li>
           <li><Link to="/groups">그룹</Link></li>
           <li><Link to="/shop">상점</Link></li>
+          <li><Link to="/doge-market">로지코인</Link></li>
           <li><Link to="/about">소개</Link></li>
           {user ? (
             <>
@@ -4576,6 +4578,7 @@ const AppContent: React.FC = () => {
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
           <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
           <Route path="/shop" element={<Shop user={user} setUser={setUser} />} />
+          <Route path="/doge-market" element={<DogeMarketPage />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/bug-report" element={<BugReport user={user} />} />
           <Route path="/goose-room" element={<GooseRoom />} />
