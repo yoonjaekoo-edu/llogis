@@ -285,6 +285,6 @@ function DogeMarketPage() {
   );
 }
 
-export default function DogeMarketPage() {
+export default function DogeMarketRoute() {
   return <DogeMarketPage />;
 }
