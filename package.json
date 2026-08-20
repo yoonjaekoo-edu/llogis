@@ -5,6 +5,7 @@
   "description": "Logis (Math Solved) - Vercel deployment",
   "scripts": {
     "patch:rp-token": "node scripts/apply-rp-token-exchange.cjs",
+    "patch:doge-market": "node scripts/apply-doge-market.cjs",
     "patch:curated-problems": "node scripts/apply-curated-custom-problems.cjs",
     "patch:combo-title": "node scripts/apply-combo-title.cjs"
   },
@@ -22,7 +23,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/multer": "^2.1.0",
+    "@types/multer": "^2.1.1",
     "@types/node": "^20.12.7",
     "@types/pg": "^8.11.5",
     "typescript": "^5.4.5"
