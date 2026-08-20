@@ -141,6 +141,17 @@ export default function DogeMarketNav() {
 
   useEffect(() => {
     const updatePath = () => setPath(window.location.pathname);
+    const originalPushState = window.history.pushState.bind(window.history);
+    const originalReplaceState = window.history.replaceState.bind(window.history);
+
+    window.history.pushState = ((...args: Parameters<History['pushState']>) => {
+      originalPushState(...args);
+      updatePath();
+    }) as History['pushState'];
+    window.history.replaceState = ((...args: Parameters<History['replaceState']>) => {
+      originalReplaceState(...args);
+      updatePath();
+    }) as History['replaceState'];
     window.addEventListener('popstate', updatePath);
 
     const install = () => {
@@ -159,7 +170,6 @@ export default function DogeMarketNav() {
       link.addEventListener('click', (event) => {
         event.preventDefault();
         window.history.pushState({}, '', DOGE_PATH);
-        updatePath();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
 
@@ -181,6 +191,8 @@ export default function DogeMarketNav() {
     return () => {
       observer.disconnect();
       window.removeEventListener('popstate', updatePath);
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
     };
   }, []);
 
