@@ -82,13 +82,7 @@ export const getTier = (rating: number): string => {
   return getTierName(rating, tiers);
 };
 
-const getWrongAnswerPenalty = (rating: number): number => {
-  const tier = getTier(rating);
-  if (tier === 'Bronze') return 500;
-  if (tier === 'Silver') return 1000;
-  if (tier === 'Gold') return 2000;
-  return 3000;
-};
+const getWrongAnswerPenalty = (): number => 3000;
 
 export const calculateDifficultyFromSolveRate = (solveRate: number): number => {
   if (solveRate < 0 || solveRate > 1 || isNaN(solveRate)) return 10000;
@@ -206,7 +200,7 @@ export const processSubmission = async (
     const rewardRating = prob.current_difficulty != null ? Number(prob.current_difficulty) : defaultDiff;
     const feverAdjustedDelta = isCorrect
       ? Math.round(rewardRating * feverMultiplier)
-      : -getWrongAnswerPenalty(currentRating);
+      : -getWrongAnswerPenalty();
 
     // 10. Streak update (replaces updateStreak)
     let finalStreak = streakAfterRepair;
