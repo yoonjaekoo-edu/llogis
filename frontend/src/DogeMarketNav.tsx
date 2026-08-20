@@ -1,6 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-
 type StoredUser = {
   username?: string;
   rating?: number;
@@ -287,62 +285,6 @@ function DogeMarketPage() {
   );
 }
 
-export default function DogeMarketNav() {
-  const [path, setPath] = useState(() => window.location.pathname);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const updatePath = () => setPath(window.location.pathname);
-    const originalPushState = window.history.pushState.bind(window.history);
-    const originalReplaceState = window.history.replaceState.bind(window.history);
-
-    window.history.pushState = ((...args: Parameters<History['pushState']>) => {
-      originalPushState(...args);
-      updatePath();
-    }) as History['pushState'];
-    window.history.replaceState = ((...args: Parameters<History['replaceState']>) => {
-      originalReplaceState(...args);
-      updatePath();
-    }) as History['replaceState'];
-    window.addEventListener('popstate', updatePath);
-
-    const install = () => {
-      const nav = document.querySelector('header nav ul');
-      const target = document.getElementById('main-content');
-      if (target) setPortalTarget(target);
-      if (!nav || nav.querySelector('[data-doge-market-nav]')) return;
-
-      const item = document.createElement('li');
-      item.setAttribute('data-doge-market-nav', 'true');
-      const link = document.createElement('a');
-      link.href = DOGE_PATH;
-      link.textContent = '도지 마켓';
-      link.setAttribute('aria-label', '도지 마켓 열기');
-      link.addEventListener('click', (event) => {
-        event.preventDefault();
-        window.history.pushState({}, '', DOGE_PATH);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-      item.appendChild(link);
-
-      const shopLink = Array.from(nav.querySelectorAll('a')).find((a) => a.getAttribute('href') === '/shop');
-      const shopItem = shopLink?.closest('li');
-      if (shopItem?.nextSibling) nav.insertBefore(item, shopItem.nextSibling);
-      else nav.appendChild(item);
-    };
-
-    install();
-    const observer = new MutationObserver(install);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('popstate', updatePath);
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
-    };
-  }, []);
-
-  if (path !== DOGE_PATH || !portalTarget) return null;
-  return createPortal(<DogeMarketPage />, portalTarget);
+export default function DogeMarketPage() {
+  return <DogeMarketPage />;
 }
