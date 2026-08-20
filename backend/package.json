@@ -9,6 +9,7 @@
     "prebuild": "node scripts/apply-balance-patch.cjs",
     "build": "tsc",
     "start": "node dist/index.js",
+    "pretest": "node scripts/apply-balance-patch.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "worker:dev": "wrangler dev --port 8787",
