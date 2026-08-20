@@ -9,6 +9,8 @@ function patchFrontend() {
   let source = fs.readFileSync(path, 'utf8');
 
   source = replaceAll(source, "const DOGE_PATH = '/doge-market';", "const DOGE_PATH = '/logis-coin';");
+  source = replaceAll(source, '/api/doge-market/order', '/api/logis-coin/order');
+  source = replaceAll(source, '/api/doge-market', '/api/logis-coin');
   source = replaceAll(source, '도지 마켓', '로지코인');
   source = replaceAll(source, 'DOGE / RP', 'LOGIS / RP');
   source = replaceAll(source, 'DOGE(토큰)', '로지코인');
