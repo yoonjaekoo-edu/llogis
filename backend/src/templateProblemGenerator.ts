@@ -10,6 +10,7 @@ import type { ProblemTemplateInput, GeneratedProblem } from './generation/types.
 import templatesJson from '../data/templates.json';
 
 const TEMPLATES_PATH = join(__dirname, '..', 'data', 'templates.json');
+const EXCLUDED_UNITS = new Set(['확률', '경우의 수']);
 
 let templates: ProblemTemplateInput[] | null = null;
 
@@ -52,6 +53,10 @@ function loadTemplates(): ProblemTemplateInput[] {
       const raw = readFileSync(TEMPLATES_PATH, 'utf-8');
       parsed = JSON.parse(raw) as ProblemTemplateInput[];
     }
+
+    // 의도: 확률/경우의 수만 생성 풀에서 제외하고 나머지 템플릿은 모두 유지한다.
+    parsed = parsed.filter((template) => !EXCLUDED_UNITS.has(template.unit ?? ''));
+
     if (!Array.isArray(parsed) || parsed.length === 0) {
       throw new Error('templates.json is empty or invalid');
     }
