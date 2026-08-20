@@ -1,168 +1,1122 @@
 [
   {
+    "id": "MS-EQ1-001",
+    "unit": "일차방정식",
+    "title": "연속하는 세 자연수의 합",
+    "difficulty": 12000,
+    "variables": {
+      "S": {
+        "type": "integer",
+        "min": 30,
+        "max": 300
+      }
+    },
+    "constraints": [
+      "S % 3 == 0"
+    ],
+    "problem_template": "연속하는 세 자연수의 합이 {{S}}일 때, 이 중 가장 큰 수를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(S / 3) + 1"
+    },
+    "concepts": [
+      "일차방정식의 활용",
+      "연속하는 수"
+    ]
+  },
+  {
+    "id": "MS-EQ1-002",
+    "unit": "일차방정식",
+    "title": "나이 문제",
+    "difficulty": 15000,
+    "variables": {
+      "age_diff": {
+        "type": "integer",
+        "min": 24,
+        "max": 36
+      },
+      "multiplier": {
+        "type": "integer",
+        "min": 3,
+        "max": 5
+      }
+    },
+    "constraints": [
+      "age_diff % (multiplier - 1) == 0"
+    ],
+    "problem_template": "현재 아버지의 나이는 아들의 나이보다 {{age_diff}}살 많고, 아버지의 나이가 아들의 나이의 {{multiplier}}배가 된다고 한다. 현재 아들의 나이를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "age_diff / (multiplier - 1)"
+    },
+    "concepts": [
+      "일차방정식의 활용",
+      "나이 계산"
+    ]
+  },
+  {
+    "id": "MS-NUM-001",
+    "unit": "정수와 유리수",
+    "title": "절댓값의 성질",
+    "difficulty": 13000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 10
+      },
+      "b": {
+        "type": "integer",
+        "min": -10,
+        "max": -2
+      }
+    },
+    "constraints": [
+      "a > 0",
+      "b < 0"
+    ],
+    "problem_template": "두 수 $a, b$에 대하여 $|a| = {{a}}$, $|b| = {{-b}}$이고 $a > b$일 때, $a - b$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a - b"
+    },
+    "concepts": [
+      "절댓값",
+      "유리수의 뺄셈"
+    ]
+  },
+  {
+    "id": "MS-CONC-001",
+    "unit": "농도 문제",
+    "title": "소금물의 농도와 물 증발",
+    "difficulty": 18000,
+    "variables": {
+      "initial_conc": {
+        "type": "integer",
+        "min": 5,
+        "max": 10
+      },
+      "initial_water": {
+        "type": "integer",
+        "min": 200,
+        "max": 500
+      },
+      "target_conc": {
+        "type": "integer",
+        "min": 12,
+        "max": 20
+      }
+    },
+    "constraints": [
+      "(initial_conc * initial_water) % target_conc == 0",
+      "target_conc > initial_conc"
+    ],
+    "problem_template": "{{initial_conc}}\\%의 소금물 {{initial_water}}g이 있다. 이 소금물에서 물을 몇 g 증발시켜야 {{target_conc}}\\%의 소금물이 되는지 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "initial_water - (initial_conc * initial_water / target_conc)"
+    },
+    "concepts": [
+      "일차방정식의 활용",
+      "농도"
+    ]
+  },
+  {
+    "id": "MS-SPD-001",
+    "unit": "거리·속력·시간",
+    "title": "왕복 이동 시간",
+    "difficulty": 17000,
+    "variables": {
+      "dist": {
+        "type": "integer",
+        "min": 10,
+        "max": 30
+      },
+      "speed1": {
+        "type": "integer",
+        "min": 3,
+        "max": 5
+      },
+      "speed2": {
+        "type": "integer",
+        "min": 2,
+        "max": 4
+      }
+    },
+    "constraints": [
+      "speed1 > speed2",
+      "(dist * (speed1 + speed2)) % (speed1 * speed2) == 0"
+    ],
+    "problem_template": "집에서 학교까지 갈 때는 시속 {{speed1}}km로 걷고, 올 때는 시속 {{speed2}}km로 걸어서 왕복하는 데 총 $\\frac{{{dist * (speed1 + speed2)}}}{{{speed1 * speed2}}}$시간이 걸렸다. 집과 학교 사이의 거리를 구하시오. (단, 단위는 km)",
+    "answer_formula": {
+      "type": "expression",
+      "value": "dist"
+    },
+    "concepts": [
+      "일차방정식의 활용",
+      "거리 속력 시간"
+    ]
+  },
+  {
+    "id": "MS-POLY-001",
+    "unit": "다항식",
+    "title": "다항식의 전개와 계수",
+    "difficulty": 14000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 1,
+        "max": 5
+      },
+      "b": {
+        "type": "integer",
+        "min": 1,
+        "max": 5
+      }
+    },
+    "constraints": [],
+    "problem_template": "$(ax + {{a}})(x - {{b}})$를 전개했을 때, $x$의 계수가 ${{a - a*b}}$라면 $a$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a"
+    },
+    "concepts": [
+      "다항식의 전개",
+      "계수 비교법"
+    ]
+  },
+  {
+    "id": "MS-FACT-001",
+    "unit": "인수분해",
+    "title": "완전제곱식이 될 조건",
+    "difficulty": 16000,
+    "variables": {
+      "k": {
+        "type": "integer",
+        "min": 2,
+        "max": 20
+      }
+    },
+    "constraints": [
+      "k % 2 == 0"
+    ],
+    "problem_template": "$x^2 + {{k}}x + a$가 완전제곱식이 되도록 하는 상수 $a$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(k / 2) * (k / 2)"
+    },
+    "concepts": [
+      "인수분해",
+      "완전제곱식"
+    ]
+  },
+  {
+    "id": "MS-QUAD-001",
+    "unit": "이차방정식",
+    "title": "근의 공식과 해",
+    "difficulty": 19000,
+    "variables": {
+      "b": {
+        "type": "integer",
+        "min": 3,
+        "max": 9
+      }
+    },
+    "constraints": [
+      "b % 2 == 1"
+    ],
+    "problem_template": "이차방정식 $x^2 - {{b}}x + 1 = 0$의 해가 $x = \\frac{A \\pm \\sqrt{B}}{2}$일 때, $A+B$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "b + (b*b - 4)"
+    },
+    "concepts": [
+      "이차방정식",
+      "근의 공식"
+    ]
+  },
+  {
+    "id": "MS-FUNC-001",
+    "unit": "일차함수",
+    "title": "기울기와 절편",
+    "difficulty": 15000,
+    "variables": {
+      "m": {
+        "type": "integer",
+        "min": 2,
+        "max": 5
+      },
+      "x1": {
+        "type": "integer",
+        "min": 1,
+        "max": 3
+      },
+      "y1": {
+        "type": "integer",
+        "min": 5,
+        "max": 15
+      }
+    },
+    "constraints": [],
+    "problem_template": "기울기가 {{m}}이고 점 $({{x1}}, {{y1}})$을 지나는 일차함수의 $y$절편을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "y1 - m * x1"
+    },
+    "concepts": [
+      "일차함수",
+      "기울기",
+      "y절편"
+    ]
+  },
+  {
+    "id": "MS-SYSEQ-001",
+    "unit": "연립방정식",
+    "title": "두 수의 합과 차",
+    "difficulty": 14000,
+    "variables": {
+      "sum": {
+        "type": "integer",
+        "min": 50,
+        "max": 100
+      },
+      "diff": {
+        "type": "integer",
+        "min": 10,
+        "max": 40
+      }
+    },
+    "constraints": [
+      "(sum + diff) % 2 == 0"
+    ],
+    "problem_template": "합이 {{sum}}이고 차가 {{diff}}인 두 자연수 중 큰 수를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(sum + diff) / 2"
+    },
+    "concepts": [
+      "연립방정식",
+      "방정식의 활용"
+    ]
+  },
+  {
+    "id": "MS-INEQ-001",
+    "unit": "부등식",
+    "title": "부등식의 해와 자연수",
+    "difficulty": 16000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 4
+      },
+      "b": {
+        "type": "integer",
+        "min": 10,
+        "max": 20
+      }
+    },
+    "constraints": [],
+    "problem_template": "부등식 ${{a}}x - 5 < {{b}}$를 만족하는 자연수 $x$의 개수를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "ceil((b + 5) / a) - 1"
+    },
+    "concepts": [
+      "일차부등식",
+      "자연수 해"
+    ]
+  },
+  {
+    "id": "MS-EXPR-001",
+    "unit": "식의 계산",
+    "title": "지수법칙의 활용",
+    "difficulty": 15500,
+    "variables": {
+      "n": {
+        "type": "integer",
+        "min": 3,
+        "max": 7
+      }
+    },
+    "constraints": [],
+    "problem_template": "$2^{{n}} + 2^{{n}} + 2^{{n}} + 2^{{n}} = 2^x$일 때, $x$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "n + 2"
+    },
+    "concepts": [
+      "지수법칙",
+      "식의 단순화"
+    ]
+  },
+  {
+    "id": "MS-COORD-001",
+    "unit": "좌표평면",
+    "title": "사분면 위의 점",
+    "difficulty": 12000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      },
+      "b": {
+        "type": "integer",
+        "min": -10,
+        "max": -1
+      }
+    },
+    "constraints": [],
+    "problem_template": "점 $P({{a}}, {{b}})$를 $x$축에 대하여 대칭이동한 점이 속하는 사분면을 구하시오. (예: 1, 2, 3, 4)",
+    "answer_formula": {
+      "type": "expression",
+      "value": "1"
+    },
+    "concepts": [
+      "좌표평면",
+      "대칭이동",
+      "사분면"
+    ]
+  },
+  {
+    "id": "MS-QUADF-001",
+    "unit": "이차함수",
+    "title": "이차함수의 꼭짓점",
+    "difficulty": 18000,
+    "variables": {
+      "p": {
+        "type": "integer",
+        "min": 1,
+        "max": 5
+      },
+      "q": {
+        "type": "integer",
+        "min": -5,
+        "max": 5
+      }
+    },
+    "constraints": [],
+    "problem_template": "이차함수 $y = (x - {{p}})^2 + {{q}}$의 꼭짓점의 좌표가 $(a, b)$일 때, $a+b$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "p + q"
+    },
+    "concepts": [
+      "이차함수",
+      "꼭짓점"
+    ]
+  },
+  {
+    "id": "MS-RATIO-001",
+    "unit": "비례식",
+    "title": "비례식과 일차방정식",
+    "difficulty": 14000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 5
+      },
+      "b": {
+        "type": "integer",
+        "min": 3,
+        "max": 7
+      }
+    },
+    "constraints": [
+      "a != b"
+    ],
+    "problem_template": "비례식 $x : {{a}} = (x + {{b}}) : {{a + 2}}$를 만족하는 $x$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(a * b) / 2"
+    },
+    "concepts": [
+      "비례식",
+      "일차방정식"
+    ]
+  },
+  {
+    "id": "MS-WORK-001",
+    "unit": "방정식 활용",
+    "title": "일에 대한 문제",
+    "difficulty": 19000,
+    "variables": {
+      "days_a": {
+        "type": "integer",
+        "min": 6,
+        "max": 30
+      },
+      "multiplier": {
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    },
+    "constraints": [
+      "days_a * multiplier % (1 + multiplier) == 0"
+    ],
+    "problem_template": "어떤 일을 완성하는 데 $A$는 {{days_a}}일, $B$는 {{days_a * multiplier}}일이 걸린다고 한다. 두 사람이 함께 이 일을 하면 며칠이 걸리는지 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "days_a * multiplier / (1 + multiplier)"
+    },
+    "concepts": [
+      "일차방정식의 활용",
+      "일의 양"
+    ]
+  },
+  {
     "id": "MS-COUNT-001",
     "unit": "경우의 수",
     "title": "두 주사위의 눈의 합",
     "difficulty": 13000,
-    "variables": { "target": { "type": "integer", "min": 4, "max": 10 } },
+    "variables": {
+      "target": {
+        "type": "integer",
+        "min": 4,
+        "max": 10
+      }
+    },
     "constraints": [],
     "problem_template": "두 개의 주사위를 동시에 던질 때, 나오는 눈의 수의 합이 {{target}}이 되는 경우의 수를 구하시오.",
-    "answer_formula": { "type": "expression", "value": "target <= 7 ? target - 1 : 13 - target" },
-    "concepts": ["경우의 수", "합의 법칙"]
+    "answer_formula": {
+      "type": "expression",
+      "value": "target <= 7 ? target - 1 : 13 - target"
+    },
+    "concepts": [
+      "경우의 수",
+      "합의 법칙"
+    ]
+  },
+  {
+    "id": "MS-FACT-002",
+    "unit": "인수분해",
+    "title": "합차 공식의 활용",
+    "difficulty": 15000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 50,
+        "max": 100
+      }
+    },
+    "constraints": [],
+    "problem_template": "인수분해 공식을 이용하여 ${{a}}^2 - {{a-1}}^2$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a + (a-1)"
+    },
+    "concepts": [
+      "인수분해 공식",
+      "합차 공식"
+    ]
+  },
+  {
+    "id": "MS-QUAD-002",
+    "unit": "이차방정식",
+    "title": "중근을 가질 조건",
+    "difficulty": 17000,
+    "variables": {
+      "m": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      }
+    },
+    "constraints": [],
+    "problem_template": "$x^2 - 2{{m}}x + k = 0$이 중근을 가질 때, 상수 $k$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "m * m"
+    },
+    "concepts": [
+      "이차방정식",
+      "중근"
+    ]
+  },
+  {
+    "id": "MS-FUN-002",
+    "unit": "일차함수",
+    "title": "함수값의 계산",
+    "difficulty": 11000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 5
+      },
+      "b": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      },
+      "x": {
+        "type": "integer",
+        "min": -5,
+        "max": 5
+      }
+    },
+    "constraints": [],
+    "problem_template": "함수 $f(x) = {{a}}x + {{b}}$에 대하여 $f({{x}})$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a * x + b"
+    },
+    "concepts": [
+      "함수",
+      "함수값"
+    ]
+  },
+  {
+    "id": "MS-SYSEQ-002",
+    "unit": "연립방정식",
+    "title": "해의 조건 (일치)",
+    "difficulty": 18500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 4
+      }
+    },
+    "constraints": [],
+    "problem_template": "연립방정식 $\\begin{cases} x + 2y = 4 \\\\ {{a}}x + by = {{4*a}} \\end{cases}$의 해가 무수히 많을 때, 상수 $b$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "2 * a"
+    },
+    "concepts": [
+      "연립방정식",
+      "해의 개수"
+    ]
+  },
+  {
+    "id": "MS-ROOT-001",
+    "unit": "근의 공식 활용",
+    "title": "무리수의 정수 부분",
+    "difficulty": 10000,
+    "variables": {
+      "n": {
+        "type": "integer",
+        "min": 10,
+        "max": 20
+      }
+    },
+    "constraints": [
+      "n == 10 || n == 11 || n == 12 || n == 13 || n == 14 || n == 15"
+    ],
+    "problem_template": "$\\sqrt{{{n}}}$의 정수 부분을 $a$라 할 때, $a$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "3"
+    },
+    "concepts": [
+      "제곱근",
+      "정수 부분"
+    ]
+  },
+  {
+    "id": "MS-EQ-PR-001",
+    "unit": "방정식 활용",
+    "title": "원가와 정가",
+    "difficulty": 19500,
+    "variables": {
+      "cost": {
+        "type": "integer",
+        "min": 5000,
+        "max": 10000
+      },
+      "rate": {
+        "type": "integer",
+        "min": 10,
+        "max": 30
+      }
+    },
+    "constraints": [
+      "cost % 10 == 0"
+    ],
+    "problem_template": "원가가 {{cost}}원인 물건에 {{rate}}\\%의 이익을 붙여서 정가를 정하였다. 이 물건의 정가를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "cost * (1 + rate / 100)"
+    },
+    "concepts": [
+      "일차방정식의 활용",
+      "원가 정가"
+    ]
+  },
+  {
+    "id": "MS-QUADF-002",
+    "unit": "이차함수",
+    "title": "그래프의 평행이동",
+    "difficulty": 17000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 4
+      },
+      "m": {
+        "type": "integer",
+        "min": 1,
+        "max": 5
+      },
+      "n": {
+        "type": "integer",
+        "min": 1,
+        "max": 5
+      }
+    },
+    "constraints": [],
+    "problem_template": "이차함수 $y = {{a}}x^2$의 그래프를 $x$축 방향으로 ${{m}}$, $y$축 방향으로 ${{n}}$만큼 평행이동한 식의 $y$절편을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a * m * m + n"
+    },
+    "concepts": [
+      "이차함수",
+      "평행이동"
+    ]
+  },
+  {
+    "id": "MS-NUM-002",
+    "unit": "정수와 유리수",
+    "title": "역수의 계산",
+    "difficulty": 11000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 5
+      },
+      "b": {
+        "type": "integer",
+        "min": 3,
+        "max": 7
+      }
+    },
+    "constraints": [],
+    "problem_template": "$\\frac{{{a}}}{{{b}}}$의 역수를 $x$, $-{{a}}$의 역수를 $y$라 할 때, $x \\times y$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "-b / (a * a)"
+    },
+    "concepts": [
+      "역수",
+      "유리수의 곱셈"
+    ]
+  },
+  {
+    "id": "MS-INEQ-002",
+    "unit": "부등식",
+    "title": "부등식의 성질",
+    "difficulty": 12000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": -5,
+        "max": -2
+      }
+    },
+    "constraints": [],
+    "problem_template": "$x < y$일 때, 다음 중 옳은 것을 고르면? (정답: ${{a}}x > {{a}}y$)",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a"
+    },
+    "concepts": [
+      "부등식의 성질"
+    ]
+  },
+  {
+    "id": "MS-FACT-003",
+    "unit": "인수분해",
+    "title": "공통인수 추출",
+    "difficulty": 13000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      }
+    },
+    "constraints": [],
+    "problem_template": "${{a}}x^2 - {{a*a}}x$를 인수분해했을 때 인수가 아닌 것은? (단, 보기 생략하고 공통인수 구하기)",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a"
+    },
+    "concepts": [
+      "인수분해",
+      "공통인수"
+    ]
+  },
+  {
+    "id": "MS-POLY-002",
+    "unit": "식의 계산",
+    "title": "문자의 대입",
+    "difficulty": 12500,
+    "variables": {
+      "x": {
+        "type": "integer",
+        "min": -3,
+        "max": 3
+      },
+      "y": {
+        "type": "integer",
+        "min": 2,
+        "max": 5
+      }
+    },
+    "constraints": [
+      "x != 0"
+    ],
+    "problem_template": "$x = {{x}}, y = {{y}}$일 때, $2x + 3y$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "2*x + 3*y"
+    },
+    "concepts": [
+      "식의 값",
+      "대입"
+    ]
+  },
+  {
+    "id": "MS-SYSEQ-003",
+    "unit": "연립방정식",
+    "title": "속력차를 이용한 연립방정식",
+    "difficulty": 20000,
+    "variables": {
+      "sum_v": {
+        "type": "integer",
+        "min": 10,
+        "max": 20
+      },
+      "diff_v": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      }
+    },
+    "constraints": [
+      "(sum_v + diff_v) % 2 == 0"
+    ],
+    "problem_template": "강물이 시속 $v_w$km로 흐를 때, 배의 정지 상태 속력을 $v_b$라 하자. 강을 거슬러 올라갈 때의 속력이 {{ (sum_v - diff_v)/2 }}km/h, 내려갈 때의 속력이 {{ (sum_v + diff_v)/2 }}km/h라면 배의 원래 속력 $v_b$를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "sum_v / 2"
+    },
+    "concepts": [
+      "연립방정식",
+      "강물의 속력"
+    ]
+  },
+  {
+    "id": "MS-QUAD-003",
+    "unit": "이차방정식",
+    "title": "두 근의 합",
+    "difficulty": 16000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 10
+      }
+    },
+    "constraints": [],
+    "problem_template": "이차방정식 $x^2 - {{a}}x + 5 = 0$의 두 근의 합을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a"
+    },
+    "concepts": [
+      "이차방정식",
+      "근과 계수의 관계"
+    ]
+  },
+  {
+    "id": "MS-GEO-TRI-001",
+    "unit": "도형",
+    "title": "삼각형의 내각의 합",
+    "difficulty": 11000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 30,
+        "max": 80
+      },
+      "b": {
+        "type": "integer",
+        "min": 30,
+        "max": 80
+      }
+    },
+    "constraints": [
+      "180 - a - b > 0"
+    ],
+    "problem_template": "삼각형의 두 내각의 크기가 각각 ${{a}}^\\circ$, ${{b}}^\\circ$일 때, 나머지 한 각의 크기를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "180 - a - b"
+    },
+    "concepts": [
+      "도형",
+      "삼각형의 내각"
+    ]
+  },
+  {
+    "id": "MS-GEO-PYTH-001",
+    "unit": "도형",
+    "title": "피타고라스 정리",
+    "difficulty": 17000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 3,
+        "max": 8
+      },
+      "b": {
+        "type": "integer",
+        "min": 4,
+        "max": 6
+      }
+    },
+    "constraints": [],
+    "problem_template": "직각삼각형의 두 변의 길이가 각각 ${{a}}$, ${{b}}$이고 빗변의 길이가 $c$일 때, $c^2$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a*a + b*b"
+    },
+    "concepts": [
+      "도형",
+      "피타고라스 정리"
+    ]
+  },
+  {
+    "id": "MS-GEO-CIR-001",
+    "unit": "도형",
+    "title": "원의 넓이",
+    "difficulty": 14000,
+    "variables": {
+      "r": {
+        "type": "integer",
+        "min": 2,
+        "max": 10
+      }
+    },
+    "constraints": [],
+    "problem_template": "반지름의 길이가 ${{r}}$인 원의 넓이를 구하시오. (단, $\\pi = 3.14$)",
+    "answer_formula": {
+      "type": "expression",
+      "value": "3.14 * r * r"
+    },
+    "concepts": [
+      "도형",
+      "원의 넓이"
+    ]
+  },
+  {
+    "id": "MS-GEO-SIM-001",
+    "unit": "도형",
+    "title": "닮음비와 넓이비",
+    "difficulty": 16000,
+    "variables": {
+      "k": {
+        "type": "integer",
+        "min": 2,
+        "max": 4
+      }
+    },
+    "constraints": [],
+    "problem_template": "두 닮은 도형의 닮음비가 ${{k}}:1$일 때, 넓이의 비를 가장 간단한 자연수의 비로 나타내시오. (예: 4:1)",
+    "answer_formula": {
+      "type": "expression",
+      "value": "k*k"
+    },
+    "concepts": [
+      "도형",
+      "닮음"
+    ]
+  },
+  {
+    "id": "MS-STAT-001",
+    "unit": "통계",
+    "title": "평균 계산",
+    "difficulty": 12000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 5,
+        "max": 20
+      },
+      "b": {
+        "type": "integer",
+        "min": 5,
+        "max": 20
+      },
+      "c": {
+        "type": "integer",
+        "min": 5,
+        "max": 20
+      },
+      "d": {
+        "type": "integer",
+        "min": 5,
+        "max": 20
+      },
+      "e": {
+        "type": "integer",
+        "min": 5,
+        "max": 20
+      }
+    },
+    "constraints": [
+      "(a + b + c + d + e) % 5 == 0"
+    ],
+    "problem_template": "다음 자료의 평균을 구하시오. ${{a}}, {{b}}, {{c}}, {{d}}, {{e}}$",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(a + b + c + d + e) / 5"
+    },
+    "concepts": [
+      "통계",
+      "평균"
+    ]
+  },
+  {
+    "id": "MS-STAT-002",
+    "unit": "통계",
+    "title": "중앙값",
+    "difficulty": 13000,
+    "variables": {
+      "x": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      },
+      "y": {
+        "type": "integer",
+        "min": 11,
+        "max": 20
+      },
+      "z": {
+        "type": "integer",
+        "min": 21,
+        "max": 30
+      }
+    },
+    "constraints": [
+      "x < y",
+      "y < z"
+    ],
+    "problem_template": "다섯 개의 자료 ${{x}}, 5, {{y}}, 8, {{z}}$를 작은 값부터 순서대로 나열할 때, 중앙값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "y"
+    },
+    "concepts": [
+      "통계",
+      "중앙값"
+    ]
   },
   {
     "id": "MS-PROB-001",
     "unit": "확률",
     "title": "동시에 일어나는 경우",
     "difficulty": 14000,
-    "variables": { "n": { "type": "integer", "min": 2, "max": 6 }, "m": { "type": "integer", "min": 2, "max": 6 } },
+    "variables": {
+      "n": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      },
+      "m": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      }
+    },
     "constraints": [],
     "problem_template": "$A$에서 일어날 수 있는 경우의 수가 {{n}}가지, $B$에서 일어날 수 있는 경우의 수가 {{m}}가지일 때, $A$와 $B$가 동시에 일어날 수 있는 모든 경우의 수를 구하시오.",
-    "answer_formula": { "type": "expression", "value": "n * m" },
-    "concepts": ["확률", "경우의 수"]
-  },
-  {
-    "id": "MS-STAT-001",
-    "unit": "통계",
-    "title": "다섯 수의 평균",
-    "difficulty": 7000,
-    "variables": {
-      "a": { "type": "integer", "min": 2, "max": 20 },
-      "b": { "type": "integer", "min": 2, "max": 20 },
-      "c": { "type": "integer", "min": 2, "max": 20 },
-      "d": { "type": "integer", "min": 2, "max": 20 },
-      "e": { "type": "integer", "min": 2, "max": 20 }
+    "answer_formula": {
+      "type": "expression",
+      "value": "n * m"
     },
-    "constraints": ["(a + b + c + d + e) % 5 == 0"],
-    "problem_template": "다섯 수 {{a}}, {{b}}, {{c}}, {{d}}, {{e}}의 평균을 구하시오.",
-    "answer_formula": { "type": "expression", "value": "(a + b + c + d + e) / 5" },
-    "concepts": ["평균", "대표값"]
+    "concepts": [
+      "확률",
+      "경우의 수"
+    ]
   },
   {
-    "id": "MS-ALG-001",
-    "unit": "문자와 식",
-    "title": "일차식의 값",
-    "difficulty": 6000,
-    "variables": {
-      "a": { "type": "integer", "min": 2, "max": 9 },
-      "x": { "type": "integer", "min": -8, "max": 8 },
-      "b": { "type": "integer", "min": -12, "max": 12 }
-    },
-    "constraints": [],
-    "problem_template": "$x={{x}}$일 때, ${{a}}x+({{b}})$의 값을 구하시오.",
-    "answer_formula": { "type": "expression", "value": "a * x + b" },
-    "concepts": ["문자와 식", "대입"]
-  },
-  {
-    "id": "MS-EQ-001",
-    "unit": "일차방정식",
-    "title": "ax+b=c 꼴 방정식",
-    "difficulty": 9000,
-    "variables": {
-      "a": { "type": "integer", "min": 2, "max": 9 },
-      "x": { "type": "integer", "min": -10, "max": 10 },
-      "b": { "type": "integer", "min": -15, "max": 15 }
-    },
-    "constraints": [],
-    "problem_template": "방정식 ${{a}}x+({{b}})={{a}}\\times{{x}}+({{b}})$를 풀어 $x$의 값을 구하시오.",
-    "answer_formula": { "type": "expression", "value": "x" },
-    "concepts": ["일차방정식", "등식의 성질"]
-  },
-  {
-    "id": "MS-RATIO-001",
-    "unit": "비와 비율",
-    "title": "비례식의 미지수",
-    "difficulty": 8000,
-    "variables": {
-      "a": { "type": "integer", "min": 2, "max": 9 },
-      "b": { "type": "integer", "min": 2, "max": 9 },
-      "k": { "type": "integer", "min": 2, "max": 8 }
-    },
-    "constraints": [],
-    "problem_template": "비례식 ${{a}}:{{b}}={{a}}\\times{{k}}:x$에서 $x$의 값을 구하시오.",
-    "answer_formula": { "type": "expression", "value": "b * k" },
-    "concepts": ["비례식", "비율"]
-  },
-  {
-    "id": "MS-GEO-001",
-    "unit": "평면도형",
-    "title": "직사각형의 넓이",
-    "difficulty": 5000,
-    "variables": {
-      "w": { "type": "integer", "min": 3, "max": 20 },
-      "h": { "type": "integer", "min": 3, "max": 20 }
-    },
-    "constraints": [],
-    "problem_template": "가로의 길이가 {{w}} cm, 세로의 길이가 {{h}} cm인 직사각형의 넓이를 구하시오.",
-    "answer_formula": { "type": "expression", "value": "w * h" },
-    "concepts": ["직사각형", "넓이"]
-  },
-  {
-    "id": "MS-GEO-002",
-    "unit": "평면도형",
-    "title": "삼각형의 넓이",
-    "difficulty": 6500,
-    "variables": {
-      "b": { "type": "integer", "min": 4, "max": 20 },
-      "h": { "type": "integer", "min": 2, "max": 18 }
-    },
-    "constraints": ["(b * h) % 2 == 0"],
-    "problem_template": "밑변의 길이가 {{b}} cm, 높이가 {{h}} cm인 삼각형의 넓이를 구하시오.",
-    "answer_formula": { "type": "expression", "value": "b * h / 2" },
-    "concepts": ["삼각형", "넓이"]
-  },
-  {
-    "id": "MS-FUNC-001",
-    "unit": "일차함수",
-    "title": "일차함수의 함숫값",
-    "difficulty": 11000,
-    "variables": {
-      "a": { "type": "integer", "min": -5, "max": 5 },
-      "b": { "type": "integer", "min": -10, "max": 10 },
-      "x": { "type": "integer", "min": -8, "max": 8 }
-    },
-    "constraints": ["a != 0"],
-    "problem_template": "일차함수 $y={{a}}x+({{b}})$에서 $x={{x}}$일 때 $y$의 값을 구하시오.",
-    "answer_formula": { "type": "expression", "value": "a * x + b" },
-    "concepts": ["일차함수", "함숫값"]
-  },
-  {
-    "id": "MS-PYTH-001",
-    "unit": "피타고라스 정리",
-    "title": "직각삼각형의 빗변",
-    "difficulty": 15000,
-    "variables": {
-      "k": { "type": "integer", "min": 1, "max": 6 }
-    },
-    "constraints": [],
-    "problem_template": "두 직각변의 길이가 각각 $3\\times{{k}}$ cm, $4\\times{{k}}$ cm인 직각삼각형의 빗변의 길이를 구하시오.",
-    "answer_formula": { "type": "expression", "value": "5 * k" },
-    "concepts": ["피타고라스 정리", "직각삼각형"]
-  },
-  {
-    "id": "MS-PROB-002",
-    "unit": "확률",
-    "title": "주사위의 짝수 확률",
-    "difficulty": 8500,
-    "variables": {},
-    "constraints": [],
-    "problem_template": "한 개의 주사위를 한 번 던질 때 짝수의 눈이 나올 확률을 소수로 나타내시오.",
-    "answer_formula": { "type": "expression", "value": "3 / 6" },
-    "concepts": ["확률", "주사위"]
-  },
-  {
-    "id": "MS-SEQ-001",
-    "unit": "규칙성과 수열",
-    "title": "등차수열의 항",
+    "id": "MS-ALG-SIM-001",
+    "unit": "식의 계산",
+    "title": "동류항의 계산",
     "difficulty": 12000,
     "variables": {
-      "a": { "type": "integer", "min": 1, "max": 10 },
-      "d": { "type": "integer", "min": 2, "max": 8 },
-      "n": { "type": "integer", "min": 4, "max": 12 }
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 5
+      },
+      "b": {
+        "type": "integer",
+        "min": 3,
+        "max": 7
+      },
+      "x": {
+        "type": "integer",
+        "min": 1,
+        "max": 4
+      }
     },
     "constraints": [],
-    "problem_template": "첫째항이 {{a}}, 공차가 {{d}}인 등차수열의 제{{n}}항을 구하시오.",
-    "answer_formula": { "type": "expression", "value": "a + (n - 1) * d" },
-    "concepts": ["수열", "등차수열"]
+    "problem_template": "${{a}}x + {{b}}x - {{x}}x$를 계산하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a + b - x"
+    },
+    "concepts": [
+      "식의 계산",
+      "동류항"
+    ]
+  },
+  {
+    "id": "MS-GEO-VOL-001",
+    "unit": "도형",
+    "title": "직육면체의 부피",
+    "difficulty": 13000,
+    "variables": {
+      "w": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      },
+      "h": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      },
+      "d": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      }
+    },
+    "constraints": [],
+    "problem_template": "가로 {{w}}, 세로 {{h}}, 높이 {{d}}인 직육면체의 부피를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "w * h * d"
+    },
+    "concepts": [
+      "도형",
+      "부피"
+    ]
   }
 ]
