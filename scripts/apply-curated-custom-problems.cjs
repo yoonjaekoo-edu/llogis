@@ -22,5 +22,27 @@ if (!source.includes('CURATED-CUSTOM-2026-08-19')) {
   replaceOnce(anchor, seed, 'curated custom problem seed');
 }
 
+
+if (!source.includes('CURATED-CUSTOM-2026-08-22')) {
+  const anchor = '  // Drop the CASCADE constraint and recreate with SET NULL (submissions survive problem deletion)';
+  const seed = `  // CURATED-CUSTOM-2026-08-22: hard hand-checked custom problems. Idempotent by title.
+  await pool.query(\`
+    INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, is_custom, custom_reward_rating, reward_rating)
+    SELECT v.title, v.content, v.answer, v.difficulty, v.difficulty, 'Calculation', TRUE, v.difficulty, v.difficulty
+    FROM (VALUES
+      ('[검수 II] 나머지 조건의 자연수', '1000보다 작은 자연수 $n$이 있다. $n$을 7로 나누면 나머지가 3, 9로 나누면 나머지가 5, 11로 나누면 나머지가 7이다. $n$의 값을 구하시오.', '689', 20000),
+      ('[검수 II] 이차방정식 근의 세제곱합', '이차방정식 $x^2-8x+10=0$의 두 근을 $\\alpha, \\beta$라 할 때, $\\alpha^3+\\beta^3$의 값을 구하시오.', '272', 21000),
+      ('[검수 II] 삼각형 내접원의 반지름', '세 변의 길이가 각각 13, 14, 15인 삼각형의 내접원의 반지름을 구하시오.', '4', 19000),
+      ('[검수 II] 합이 3의 배수인 조합', '숫자 1, 2, 3, 4, 5, 6, 7 중 서로 다른 세 수를 고를 때, 세 수의 합이 3의 배수인 경우의 수를 구하시오.', '13', 21000),
+      ('[검수 II] 부정방정식의 양의 정수해', '양의 정수 $x, y$가 $3x+5y=100$을 만족할 때, 순서쌍 $(x,y)$의 개수를 구하시오.', '6', 19000),
+      ('[검수 II] 제곱수가 되는 곱', '1부터 9까지 적힌 카드 중 서로 다른 두 장을 고를 때, 두 수의 곱이 완전제곱수가 되는 경우의 수를 구하시오.', '4', 20000),
+      ('[검수 II] 세 변수의 음이 아닌 정수해', '음이 아닌 정수 $x, y, z$가 $x+2y+3z=12$를 만족할 때, 순서쌍 $(x,y,z)$의 개수를 구하시오.', '19', 22000),
+      ('[검수 II] 배수 조건과 포함배제', '1부터 100까지의 자연수 중 2 또는 3의 배수이면서 5의 배수가 아닌 수의 개수를 구하시오.', '54', 20000)
+    ) AS v(title, content, answer, difficulty)
+    WHERE NOT EXISTS (SELECT 1 FROM problems p WHERE p.title = v.title);
+  \`);`;
+  replaceOnce(anchor, `${seed}\n\n${anchor}`, 'hard curated custom problem seed');
+}
+
 fs.writeFileSync(path, source, 'utf8');
 console.log('Curated custom problems patch applied successfully.');
