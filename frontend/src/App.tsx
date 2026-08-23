@@ -219,58 +219,86 @@ const Navbar: React.FC<{
   theme: string; 
   toggleTheme: () => void;
   onLogoClick: (e: React.MouseEvent) => void
-}> = ({ user, onLogout, theme, toggleTheme, onLogoClick }) => (
-  <header role="banner">
-    <div className="container">
-      <h1>
-        <Link to="/" aria-label="Logis 홈으로 이동" onClick={onLogoClick} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', color: 'white', textDecoration: 'none' }}>
-          <img src="/logo_new.png" alt="Logis 로고" width="36" height="36" style={{ borderRadius: '8px', objectFit: 'cover' }} />
-          <span style={{ letterSpacing: '-1px', fontWeight: 900, fontSize: '1.5rem' }}>Logis</span>
-        </Link>
-      </h1>
-      <nav aria-label="주 메뉴">
-        <ul>
-          <li><Link to="/">문제</Link></li>
-          <li><Link to="/ranking">랭킹</Link></li>
-          <li><Link to="/groups">그룹</Link></li>
-          <li><Link to="/shop">상점</Link></li>
-          <li><Link to="/doge-market">로지코인</Link></li>
-          <li><Link to="/about">소개</Link></li>
-          {user ? (
-            <>
-              {user.username === 'admin' && <li><Link to="/admin" className="nav-admin-link">관@리</Link></li>}
-              <li>
-                <Link to="/profile" aria-label={`${user.username} 프로필`} className="nav-user-link">
-                  {user.profile_image_url ? (
-                    <img src={user.profile_image_url} alt={`${user.username} 프로필`} width="26" height="26" loading="lazy" className="nav-user-avatar" />
-                  ) : (
-                    <div aria-hidden="true" className="nav-user-avatar-fallback">
-                      {user.username[0].toUpperCase()}
-                    </div>
-                  )}
-                  {user.username}
+}> = ({ user, onLogout, theme, toggleTheme, onLogoClick }) => {
+  const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
+  const isActive = (path: string) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  const navLinks = [
+    { to: '/solve', label: '문제 풀기' },
+    { to: '/ranking', label: '랭킹' },
+    { to: '/groups', label: '그룹' },
+    { to: '/shop', label: '상점' },
+    { to: '/doge-market', label: '로지코인' },
+    { to: '/about', label: '소개' },
+  ];
+
+  return (
+    <header role="banner">
+      <div className="container navbar-inner">
+        <h1>
+          <Link to="/" aria-label="Logis 홈으로 이동" onClick={onLogoClick} className="brand-link">
+            <img src="/logo_new.png" alt="Logis 로고" width="36" height="36" />
+            <span>Logis</span>
+          </Link>
+        </h1>
+        <button
+          type="button"
+          className="nav-menu-toggle"
+          aria-label={isMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+          aria-expanded={isMenuOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setIsMenuOpen(open => !open)}
+        >
+          <span /><span /><span />
+        </button>
+        <nav id="primary-navigation" className={isMenuOpen ? 'is-open' : ''} aria-label="주 메뉴">
+          <ul>
+            {navLinks.map(link => (
+              <li key={link.to}>
+                <Link to={link.to} className={isActive(link.to) ? 'active' : undefined} aria-current={isActive(link.to) ? 'page' : undefined}>
+                  {link.label}
                 </Link>
               </li>
-              <li><span className="nav-level">Lv.{user.level || 1}</span></li>
-              <li><span className="nav-rp">✨ {Math.round(user.rating).toLocaleString()} RP</span></li>
-              <li><button onClick={onLogout} aria-label="로그아웃" className="nav-logout-btn">로그아웃</button></li>
-            </>
-          ) : (
-            <>
-              <li><Link to="/login" className="nav-auth-link">로그인</Link></li>
-              <li><Link to="/signup" className="nav-auth-link">가입</Link></li>
-            </>
-          )}
-          <li>
-            <button onClick={toggleTheme} className="theme-toggle" aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}>
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
-          </li>
-        </ul>
-      </nav>
-    </div>
-  </header>
-);
+            ))}
+            {user ? (
+              <>
+                {user.username === 'admin' && <li><Link to="/admin" className="nav-admin-link">관리</Link></li>}
+                <li>
+                  <Link to="/profile" aria-label={`${user.username} 프로필`} className={`nav-user-link ${isActive('/profile') ? 'active' : ''}`}>
+                    {user.profile_image_url ? (
+                      <img src={user.profile_image_url} alt={`${user.username} 프로필`} width="26" height="26" loading="lazy" className="nav-user-avatar" />
+                    ) : (
+                      <span aria-hidden="true" className="nav-user-avatar-fallback">{user.username[0]?.toUpperCase()}</span>
+                    )}
+                    {user.username}
+                  </Link>
+                </li>
+                <li><span className="nav-level">Lv.{user.level || 1}</span></li>
+                <li><span className="nav-rp">✨ {Math.round(user.rating).toLocaleString()} RP</span></li>
+                <li><button onClick={onLogout} aria-label="로그아웃" className="nav-logout-btn">로그아웃</button></li>
+              </>
+            ) : (
+              <>
+                <li><Link to="/login" className="nav-auth-link">로그인</Link></li>
+                <li><Link to="/signup" className="nav-auth-link nav-signup-link">무료 가입</Link></li>
+              </>
+            )}
+            <li>
+              <button onClick={toggleTheme} className="theme-toggle" aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}>
+                {theme === 'light' ? '🌙' : '☀️'}
+              </button>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+  );
+};
 
 const About: React.FC<{ user: User | null }> = ({ user }) => {
   const [pageContent, setPageContent] = useState('');
@@ -2926,7 +2954,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
     try {
       const res = await fetch('/api/users/profile', {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -3726,6 +3754,9 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loadingProblems, setLoadingProblems] = useState(false);
+  const [problemError, setProblemError] = useState('');
+  const [submittingProblemId, setSubmittingProblemId] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [showFirework, setShowFirework] = useState(false);
   const [wrongGlowTrigger, setWrongGlowTrigger] = useState(0);
   const [lastWrongAnswer, setLastWrongAnswer] = useState<{problemId: number} | null>(null);
@@ -3771,6 +3802,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
 
   const fetchProblems = () => {
     setLoadingProblems(true);
+    setProblemError('');
     const token = localStorage.getItem('token');
     const headers: any = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -3785,10 +3817,15 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
           setProblems(data.problems);
           setTotalPages(data.pagination?.totalPages || 1);
           setSelectedProblemId(prev => data.problems.some((prob: Problem) => prob.id === prev) ? prev : (data.problems.length > 0 ? data.problems[0].id : null));
+        } else {
+          setProblemError(data.error || '문제를 불러오지 못했습니다.');
         }
         setLoadingProblems(false);
       })
-      .catch(() => setLoadingProblems(false));
+      .catch(() => {
+        setProblemError('네트워크 오류로 문제를 불러오지 못했습니다.');
+        setLoadingProblems(false);
+      });
   };
 
   useEffect(() => { fetchProblems(); }, [page, problemType]);
@@ -3797,25 +3834,32 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
     setAnswers(prev => ({ ...prev, [id]: val }));
   };
 
-  const handleSubmit = (problemId: number) => {
+  const handleSubmit = async (problemId: number) => {
     if (!user) return navigate('/login');
+    if (submittingProblemId !== null) return;
 
     const userAnswer = answers[problemId];
-    if (!userAnswer || userAnswer.trim() === '') return alert('정답을 입력해주세요!');
+    if (!userAnswer || userAnswer.trim() === '') {
+      setLastWrongAnswer(null);
+      setProblemError('정답을 입력한 뒤 제출해주세요.');
+      return;
+    }
 
     const token = localStorage.getItem('token');
-    fetch('/api/submissions', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ problemId, userAnswer })
-    })
-    .then(res => res.json().then(data => ({ ok: res.ok, data })))
-    .then(({ ok, data }) => {
-      if (!ok) {
-        alert(data.error || '제출 처리 중 오류가 발생했습니다.');
+    setSubmittingProblemId(problemId);
+    setProblemError('');
+    try {
+      const res = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ problemId, userAnswer: userAnswer.trim() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setProblemError(data.error || '제출 처리 중 오류가 발생했습니다.');
         return;
       }
       if (data.isCorrect) {
@@ -3843,8 +3887,11 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setAnswers(prev => ({ ...prev, [problemId]: '' }));
-    })
-    .catch(() => alert('네트워크 오류가 발생했습니다.'));
+    } catch {
+      setProblemError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setSubmittingProblemId(null);
+    }
   };
 
   const handleGenerate = () => {
@@ -3853,6 +3900,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
 
   const confirmGenerate = () => {
     const token = localStorage.getItem('token');
+    setIsGenerating(true);
     fetch('/api/problems/generate', {
       method: 'POST',
       headers: {
@@ -3863,20 +3911,23 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
     })
     .then(async res => {
       const data = await res.json();
-      if (!res.ok) { alert(data.error || '문제 생성에 실패했습니다.'); return; }
+      if (!res.ok) { setProblemError(data.error || '문제 생성에 실패했습니다.'); return; }
       if (data.problems && data.problems.length > 0) {
         setProblems(data.problems);
         setSelectedProblemId(data.problems[0].id);
         setShowGenerateModal(false);
         setPage(1);
       } else {
-        alert('생성된 문제가 없습니다.');
+        setProblemError('생성된 문제가 없습니다.');
       }
-    });
+    })
+    .catch(() => setProblemError('네트워크 오류로 문제를 생성하지 못했습니다.'))
+    .finally(() => setIsGenerating(false));
   };
 
   const confirmGenerateTemplate = () => {
     const token = localStorage.getItem('token');
+    setIsGenerating(true);
     const body: any = { count: generationCount };
     if (selectedTemplateIds.length > 0) body.templateIds = selectedTemplateIds;
     else if (selectedUnit) body.unit = selectedUnit;
@@ -3891,16 +3942,18 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
     })
     .then(async res => {
       const data = await res.json();
-      if (!res.ok) { alert(data.error || '템플릿 문제 생성에 실패했습니다.'); return; }
+      if (!res.ok) { setProblemError(data.error || '템플릿 문제 생성에 실패했습니다.'); return; }
       if (data.problems && data.problems.length > 0) {
         setProblems(data.problems);
         setSelectedProblemId(data.problems[0].id);
         setShowGenerateModal(false);
         setPage(1);
       } else {
-        alert('생성된 문제가 없습니다.');
+        setProblemError('생성된 문제가 없습니다.');
       }
-    });
+    })
+    .catch(() => setProblemError('네트워크 오류로 문제를 생성하지 못했습니다.'))
+    .finally(() => setIsGenerating(false));
   };
 
   const handleCreateCustom = async (e: React.FormEvent) => {
@@ -3950,6 +4003,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
           🔥 {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
         </div>
       )}
+      {problemError && <div className="inline-feedback error" role="alert">{problemError}</div>}
       <nav className="problem-sidebar" aria-label="문제 목록" style={{ width: '300px', flexShrink: 0 }}>
         {/* 탭: 일반 / 커스텀 */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
@@ -4006,6 +4060,10 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
               <div 
                 key={p.id} 
                 onClick={() => setSelectedProblemId(p.id)}
+                role="option"
+                aria-selected={selectedProblemId === p.id}
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProblemId(p.id); } }}
                 style={{ 
                   padding: '0.8rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border)',
                   background: selectedProblemId === p.id ? 'var(--color-3)' : 'transparent',
@@ -4076,8 +4134,9 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
               </div>
             )}
             <div style={{ marginTop: '2rem' }}>
-              <input type="text" placeholder="정답" className="answer-input" value={answers[selectedProblem.id] || ''} onChange={(e) => handleInputChange(selectedProblem.id, e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubmit(selectedProblem.id)} />
-              <button onClick={() => handleSubmit(selectedProblem.id)} className="btn btn-solve">제출</button>
+              <label htmlFor={`answer-${selectedProblem.id}`} className="sr-only">정답 입력</label>
+              <input id={`answer-${selectedProblem.id}`} type="text" placeholder="정답을 입력하세요" className="answer-input" value={answers[selectedProblem.id] || ''} onChange={(e) => handleInputChange(selectedProblem.id, e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubmit(selectedProblem.id)} disabled={submittingProblemId !== null} />
+              <button onClick={() => handleSubmit(selectedProblem.id)} className="btn btn-solve" disabled={submittingProblemId !== null}>{submittingProblemId === selectedProblem.id ? '채점 중...' : '정답 제출'}</button>
             </div>
           </div>
         ) : <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>문제를 선택해주세요.</div>}
@@ -4219,8 +4278,8 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
               >
                 취소
               </button>
-              <button onClick={templateMode ? confirmGenerateTemplate : confirmGenerate} className="btn" style={{ background: 'var(--color-2)', color: 'white', width: 'auto' }}>
-                {generationCount}개 생성
+              <button onClick={templateMode ? confirmGenerateTemplate : confirmGenerate} className="btn" style={{ background: 'var(--color-2)', color: 'white', width: 'auto' }} disabled={isGenerating}>
+                {isGenerating ? '생성 중...' : `${generationCount}개 생성`}
               </button>
             </div>
           </div>
@@ -4251,38 +4310,37 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       .catch(() => setLoading(false));
   }, [user, navigate]);
 
-  const handleBuy = async (itemId: string) => {
+  const handleBuy = async (itemId: string, itemCost: number) => {
     if (!window.confirm('정말 구매하시겠습니까?')) return;
     const token = localStorage.getItem('token');
     let url = '';
-    let cost = 0;
     if (itemId === 'streak_repair') {
       url = '/api/store/buy-streak-repair';
-      cost = 30;
     } else if (itemId === 'firework_effect') {
       url = '/api/store/buy-firework-effect';
-      cost = 100;
     } else if (itemId === 'developer_chango') {
       url = '/api/store/buy-developer-chango';
-      cost = 500;
     } else if (itemId === 'fever_2x' || itemId === 'fever_5x') {
       url = '/api/store/buy-fever';
-      cost = itemId === 'fever_2x' ? 100 : 500;
     }
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      ...(itemId === 'fever_2x' || itemId === 'fever_5x' ? { body: JSON.stringify({ type: itemId }) } : {})
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        ...(itemId === 'fever_2x' || itemId === 'fever_5x' ? { body: JSON.stringify({ type: itemId }) } : {})
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(`❌ ${data.error || '구매에 실패했습니다.'}`);
+        return;
+      }
       let msg = '';
       if (itemId === 'streak_repair') msg = '스트릭이 복구되었습니다.';
       else if (itemId === 'firework_effect') msg = '폭죽 이펙트가 활성화되었습니다.';
       else if (itemId === 'developer_chango') msg = '🎫 개발자의 칭호를 구매했습니다! 프로필에서 칭호를 입력하세요.';
       else if (itemId === 'fever_2x' || itemId === 'fever_5x') msg = data.message || '🔥 피버타임이 활성화되었습니다!';
       setMessage(`✅ 구매 완료! ${msg}`);
-      const updatedUser = { ...user!, tokens: (user!.tokens || 0) - cost };
+      const updatedUser = { ...user!, tokens: data.tokens ?? (user!.tokens || 0) - itemCost };
       if (itemId === 'streak_repair') {
         updatedUser.streak = 0;
         updatedUser.streak_repaired = true;
@@ -4294,8 +4352,8 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       }
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
-    } else {
-      setMessage(`❌ ${data.error}`);
+    } catch {
+      setMessage('❌ 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -4326,7 +4384,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontWeight: 800, fontSize: '1.1rem', marginBottom: '0.5rem', color: '#e6a800' }}>🪙 {item.cost} 토큰</div>
                 <button
-                  onClick={() => handleBuy(item.id)}
+                  onClick={() => handleBuy(item.id, Number(item.cost) || 0)}
                   disabled={(user?.tokens || 0) < item.cost}
                   className="btn"
                   style={{ width: 'auto', padding: '0.6rem 1.5rem', background: (user?.tokens || 0) >= item.cost ? 'var(--color-4)' : 'var(--border)', color: (user?.tokens || 0) >= item.cost ? 'white' : 'var(--text-muted)', cursor: (user?.tokens || 0) >= item.cost ? 'pointer' : 'not-allowed', opacity: (user?.tokens || 0) >= item.cost ? 1 : 0.6 }}
@@ -4345,21 +4403,33 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
 const Login: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (res.ok) {
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || '로그인에 실패했습니다. 입력 정보를 확인해주세요.');
+        return;
+      }
       onLogin(data.token, data.user);
       navigate('/');
-    } else alert(data.error);
+    } catch {
+      setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -4375,11 +4445,16 @@ const Login: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ onL
           <img src="/logo_new.png" alt="Logis 로고" loading="lazy" style={{ width: '80px', height: '80px', borderRadius: '1.5rem', boxShadow: 'var(--card-shadow)' }} />
         </div>
         <h2 style={{ color: 'var(--color-4)' }}>로그인</h2>
+        <p className="auth-subtitle">다시 만나서 반가워요. 오늘의 문제를 이어서 풀어볼까요?</p>
+        {error && <div className="inline-feedback error" role="alert">{error}</div>}
         <form onSubmit={handleSubmit}>
-          <input type="text" placeholder="아이디/이메일" value={email} onChange={e => setEmail(e.target.value)} required aria-label="아이디 또는 이메일" />
-          <input type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required aria-label="비밀번호" />
-          <button type="submit" aria-label="로그인 제출">로그인</button>
+          <label htmlFor="login-email">아이디 또는 이메일</label>
+          <input id="login-email" type="text" placeholder="아이디/이메일" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" />
+          <label htmlFor="login-password">비밀번호</label>
+          <input id="login-password" type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+          <button type="submit" aria-label="로그인 제출" disabled={isSubmitting}>{isSubmitting ? '로그인 중...' : '로그인'}</button>
         </form>
+        <p className="auth-switch">아직 계정이 없나요? <Link to="/signup">무료로 가입하기</Link></p>
       </section>
     </main>
   );
@@ -4390,6 +4465,8 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const turnstileRef = useRef<HTMLDivElement>(null);
@@ -4426,28 +4503,35 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (siteKey && !turnstileToken) {
-      alert('캡차 인증을 완료해주세요.');
+      setError('캡차 인증을 완료해주세요.');
       return;
     }
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        turnstileToken,
-      })
-    });
-    if (res.ok) {
-      const data = await res.json();
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: username.trim(),
+          email: email.trim(),
+          password,
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          turnstileToken,
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || '회원가입에 실패했습니다. 입력 정보를 확인해주세요.');
+        return;
+      }
       onLogin(data.token, data.user);
       navigate('/');
-    } else {
-      const data = await res.json();
-      alert(data.error);
+    } catch {
+      setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -4464,15 +4548,21 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
           <img src="/logo_new.png" alt="Logis 로고" loading="lazy" style={{ width: '80px', height: '80px', borderRadius: '1.5rem', boxShadow: 'var(--card-shadow)' }} />
         </div>
         <h2 style={{ color: 'var(--color-4)' }}>가입하기</h2>
+        <p className="auth-subtitle">문제를 풀며 성장하는 습관, 오늘부터 시작해요.</p>
+        {error && <div className="inline-feedback error" role="alert">{error}</div>}
         <form onSubmit={handleSubmit}>
-          <input type="text" placeholder="이름" value={username} onChange={e => setUsername(e.target.value)} required aria-label="사용자 이름" />
-          <input type="email" placeholder="이메일" value={email} onChange={e => setEmail(e.target.value)} required aria-label="이메일 주소" />
-          <input type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required aria-label="비밀번호" />
+          <label htmlFor="signup-username">사용자 이름</label>
+          <input id="signup-username" type="text" placeholder="이름" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
+          <label htmlFor="signup-email">이메일</label>
+          <input id="signup-email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
+          <label htmlFor="signup-password">비밀번호</label>
+          <input id="signup-password" type="password" placeholder="8자 이상 권장" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
           {siteKey && (
             <div ref={turnstileRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }} />
           )}
-          <button type="submit" aria-label="회원가입 제출">가입</button>
+          <button type="submit" aria-label="회원가입 제출" disabled={isSubmitting}>{isSubmitting ? '가입 처리 중...' : '무료로 시작하기'}</button>
         </form>
+        <p className="auth-switch">이미 계정이 있나요? <Link to="/login">로그인하기</Link></p>
       </section>
     </main>
   );
@@ -4480,7 +4570,7 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
 
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
   const [themeToggleCount, setThemeToggleCount] = useState(() => Number(localStorage.getItem('theme-toggle-count') || '0'));
   const [logoClickCount, setLogoClickCount] = useState(() => Number(localStorage.getItem('logo-click-count') || '0'));
   const navigate = useNavigate();
@@ -4488,7 +4578,14 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-    if (token && savedUser) setUser(JSON.parse(savedUser));
+    if (token && savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
   }, []);
 
   useEffect(() => {
