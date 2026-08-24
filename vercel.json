@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "npm install --include=dev && npm run patch:doge-market && npm run patch:logiscoin && npm run patch:market-integrity && npm run patch:curated-problems && npm run patch:combo-title && cd backend && npm install --include=dev",
-  "buildCommand": "cd backend && npm install --include=dev && npm run build && cd ../frontend && npm install --include=dev && npm run build",
+  "buildCommand": "cd backend && npm install --include=dev && npm run build && node dist/migrate.js && cd ../frontend && npm install --include=dev && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
