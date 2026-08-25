@@ -19,7 +19,7 @@ export const templates: ProblemTemplate[] = [
       c: { min: 21, max: 50 }
     },
     tags: ['일차방정식', '계산'],
-    difficulty: 65000
+    difficulty: 5000
   },
   {
     title: '연립방정식 연습',
@@ -30,7 +30,7 @@ export const templates: ProblemTemplate[] = [
       b: { min: 2, max: 10 }
     },
     tags: ['연립방정식', '계산'],
-    difficulty: 85000
+    difficulty: 6000
   },
   {
     title: '지수법칙 곱셈',
@@ -42,7 +42,7 @@ export const templates: ProblemTemplate[] = [
       c: { min: 6, max: 12 }
     },
     tags: ['지수법칙', '계산'],
-    difficulty: 80000
+    difficulty: 5500
   },
   {
     title: '삼각형의 내각',
@@ -53,7 +53,7 @@ export const templates: ProblemTemplate[] = [
       b: { min: 30, max: 80 }
     },
     tags: ['도형', '계산'],
-    difficulty: 70000
+    difficulty: 5000
   },
   {
       title: '일차함수 함숫값',
@@ -65,7 +65,7 @@ export const templates: ProblemTemplate[] = [
           c: { min: -5, max: 5 }
       },
       tags: ['일차함수', '계산'],
-      difficulty: 82000
+      difficulty: 6000
   },
   {
       title: '식의 값 계산',
@@ -76,7 +76,7 @@ export const templates: ProblemTemplate[] = [
           b: { min: -10, max: 10 }
       },
       tags: ['식의계산', '계산'],
-      difficulty: 75000
+      difficulty: 5500
   },
   {
       title: '이차방정식 - 제곱근',
@@ -84,7 +84,7 @@ export const templates: ProblemTemplate[] = [
       answerFormula: (v) => (v.r).toString(),
       vars: { r: { min: 2, max: 15 } },
       tags: ['이차방정식', '계산'],
-      difficulty: 78000
+      difficulty: 5500
   },
   {
       title: '이차방정식 - 인수분해',
@@ -92,7 +92,7 @@ export const templates: ProblemTemplate[] = [
       answerFormula: (v) => (v.a).toString(),
       vars: { a: { min: 2, max: 12 }, b: { min: 1, max: 11 } },
       tags: ['이차방정식', '인수분해'],
-      difficulty: 88000
+      difficulty: 6500
   },
   {
       title: '이차방정식 - 완전제곱',
@@ -100,7 +100,7 @@ export const templates: ProblemTemplate[] = [
       answerFormula: (v) => (v.a + v.c).toString(),
       vars: { a: { min: 1, max: 10 }, c: { min: 2, max: 8 } },
       tags: ['이차방정식', '계산'],
-      difficulty: 90000
+      difficulty: 6500
   },
   {
       title: '이차방정식 - 근의 합',
@@ -108,7 +108,7 @@ export const templates: ProblemTemplate[] = [
       answerFormula: (v) => (v.r1 + v.r2).toString(),
       vars: { r1: { min: 2, max: 12 }, r2: { min: 2, max: 12 } },
       tags: ['이차방정식', '계산'],
-      difficulty: 92000
+      difficulty: 7000
   }
 ];
 
