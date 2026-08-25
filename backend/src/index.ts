@@ -267,6 +267,7 @@ const ensureSchema = async () => {
       ('goose_room', '꽥?', '거위의 방에 방문하세요', 'goose_room', 1),
       ('cat_room', '개냥이', '개냥이의 방에 방문하세요', 'cat_room', 1),
       ('dark_mode', '어둠의 Logis', '다크 모드를 1회 활성화하세요', 'dark_mode', 1),
+      ('culture_language', '위쪽인가?', '조선말 화면을 1회 활성화하세요', 'culture_language', 1),
       ('solve_10', '막 입문함', '문제 10개를 해결하세요', 'solve_count', 10),
       ('solve_50', '좀 풀어봤다', '문제 50개를 해결하세요', 'solve_count', 50),
       ('solve_100', '수학 좀 친다', '문제 100개를 해결하세요', 'solve_count', 100),
@@ -1104,6 +1105,9 @@ app.post('/api/titles/check', authenticateToken, async (req: any, res: Response)
           break;
         case 'dark_mode':
           if (action === 'dark_mode' && value >= title.condition_value) shouldUnlock = true;
+          break;
+        case 'culture_language':
+          if (action === 'culture_language' && value >= title.condition_value) shouldUnlock = true;
           break;
         case 'solve_count':
           if (correctCount >= title.condition_value) shouldUnlock = true;
