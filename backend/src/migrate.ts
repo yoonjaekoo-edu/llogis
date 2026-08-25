@@ -24,7 +24,9 @@ async function runMigration() {
   }
 }
 
-runMigration().catch((error) => {
-  console.error('DB 스키마 초기화 실패:', error);
-  process.exit(1);
-});
+runMigration()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('DB 스키마 초기화 실패:', error);
+    process.exit(1);
+  });
