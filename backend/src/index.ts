@@ -132,6 +132,8 @@ const ensureSchema = async () => {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_firework_effect BOOLEAN DEFAULT FALSE");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_developer_chango BOOLEAN DEFAULT FALSE");
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS is_custom BOOLEAN DEFAULT FALSE');
+  await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS custom_reward_rating FLOAT');
+  await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS reward_rating FLOAT');
   await pool.query("UPDATE problems SET is_custom = FALSE WHERE is_custom IS NULL");
   await pool.query("ALTER TABLE problems ALTER COLUMN is_custom SET DEFAULT FALSE");
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS total_attempts INTEGER DEFAULT 0');
@@ -155,6 +157,28 @@ const ensureSchema = async () => {
     WHERE (total_attempts IS NULL OR total_attempts = 0) AND is_custom = TRUE
   `);
   // Drop the CASCADE constraint and recreate with SET NULL (submissions survive problem deletion)
+  // 레이팅 보정: 커스텀은 45,000~55,000(평균 50,000), 양산 문제는 5,000~7,000으로 유지한다.
+  // id 기반 분배라 재배포해도 값이 흔들리지 않고, 새로 들어온 기존 데이터도 같은 기준을 따른다.
+  await pool.query(`
+    UPDATE problems SET
+      initial_difficulty = CASE
+        WHEN is_custom = TRUE THEN 45000 + MOD(id, 5) * 2500
+        ELSE 5000 + MOD(id, 5) * 500
+      END,
+      current_difficulty = CASE
+        WHEN is_custom = TRUE THEN GREATEST(45000, LEAST(55000, COALESCE(current_difficulty, 50000)))
+        ELSE GREATEST(5000, LEAST(7000, COALESCE(current_difficulty, 6000)))
+      END,
+      reward_rating = CASE
+        WHEN is_custom = TRUE THEN 45000 + MOD(id, 5) * 2500
+        ELSE 5000 + MOD(id, 5) * 500
+      END,
+      custom_reward_rating = CASE
+        WHEN is_custom = TRUE THEN 45000 + MOD(id, 5) * 2500
+        ELSE custom_reward_rating
+      END
+  `);
+
   await pool.query('ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_problem_id_fkey');
   await pool.query('ALTER TABLE submissions ADD CONSTRAINT submissions_problem_id_fkey FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE SET NULL');
   await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS uq_submissions_correct ON submissions (user_id, problem_id) WHERE is_correct = true');
@@ -1719,10 +1743,12 @@ app.post('/api/problems/custom', authenticateToken, async (req: any, res: Respon
     return res.status(400).json({ error: '필수 필드가 누락되었습니다.' });
   }
 
+  const normalizedReward = Math.max(45000, Math.min(55000, Math.round((parseFloat(ratingReward) || 50000) / 2500) * 2500));
+
   try {
     const result = await pool.query(
       'INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, is_custom, custom_reward_rating, reward_rating) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
-      [title, content, answer, ratingReward, 60000, 'Calculation', true, parseFloat(ratingReward), parseFloat(ratingReward)]
+      [title, content, answer, normalizedReward, normalizedReward, 'Calculation', true, normalizedReward, normalizedReward]
     );
     const problemId = result.rows[0].id;
     for (const tagName of tags) {
@@ -1879,7 +1905,7 @@ app.post('/api/problems/generate-nim', authenticateToken, async (req: any, res: 
     for (const p of generatedProblems) {
       const result = await pool.query(
         'INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type) VALUES ($1, $2, $3, $4, $4, $5) RETURNING id',
-        [p.title, p.content, p.answer, p.difficulty, 'Calculation']
+        [p.title, p.content, p.answer, 6000, 'Calculation']
       );
       const problemId = result.rows[0].id;
 
@@ -1910,7 +1936,7 @@ app.post('/api/problems/generate', authenticateToken, async (req: any, res: Resp
       const p = generateProblem(tags);
       const result = await pool.query(
         'INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-        [p.title, p.content, p.answer, p.difficulty, 10000, 'Calculation']
+        [p.title, p.content, p.answer, p.difficulty, p.difficulty, 'Calculation']
       );
       const problemId = result.rows[0].id;
       
@@ -2000,7 +2026,7 @@ app.post('/api/problems/templates/generate', authenticateToken, async (req: any,
     for (const p of problems) {
       const result = await pool.query(
         'INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, reward_rating) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-        [p.title, p.problem, String(p.answer), p.difficulty, 10000, 'Calculation', p.rewardRating],
+        [p.title, p.problem, String(p.answer), p.difficulty, p.rewardRating, 'Calculation', p.rewardRating],
       );
       const problemId = result.rows[0].id;
       newProblems.push({ id: problemId, title: p.title, content: p.problem, difficulty: p.difficulty, rewardRating: p.rewardRating, answer: p.answer, tags: [], current_difficulty: 10000 });
