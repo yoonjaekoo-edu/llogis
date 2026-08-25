@@ -3768,7 +3768,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   const [customTitle, setCustomTitle] = useState('');
   const [customContent, setCustomContent] = useState('');
   const [customAnswer, setCustomAnswer] = useState('');
-  const [customRewardRating, setCustomRewardRating] = useState(10000);
+  const [customRewardRating, setCustomRewardRating] = useState(50000);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -3998,7 +3998,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       setCustomTitle('');
       setCustomContent('');
       setCustomAnswer('');
-      setCustomRewardRating(10000);
+      setCustomRewardRating(50000);
       setPage(1);
       fetchProblems();
     } else {
