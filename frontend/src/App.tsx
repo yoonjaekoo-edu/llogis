@@ -8,6 +8,7 @@ import { InlineMath, BlockMath } from 'react-katex';
 import GooseRoom from './GooseRoom';
 import CatRoom from './CatRoom';
 import DogeMarketPage from './DogeMarketNav';
+import { applyCultureLanguage } from './cultureLanguage';
 
 // --- Types ---
 interface Problem {
@@ -218,8 +219,10 @@ const Navbar: React.FC<{
   onLogout: () => void; 
   theme: string; 
   toggleTheme: () => void;
+  cultureLanguage: boolean;
+  toggleCultureLanguage: () => void;
   onLogoClick: (e: React.MouseEvent) => void
-}> = ({ user, onLogout, theme, toggleTheme, onLogoClick }) => {
+}> = ({ user, onLogout, theme, toggleTheme, cultureLanguage, toggleCultureLanguage, onLogoClick }) => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -291,6 +294,11 @@ const Navbar: React.FC<{
             <li>
               <button onClick={toggleTheme} className="theme-toggle" aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}>
                 {theme === 'light' ? '🌙' : '☀️'}
+              </button>
+            </li>
+            <li data-nk-skip>
+              <button onClick={toggleCultureLanguage} className={`culture-language-toggle ${cultureLanguage ? 'active' : ''}`} aria-pressed={cultureLanguage} aria-label="조선말 화면 전환">
+                {cultureLanguage ? '조선말' : '조선말'}
               </button>
             </li>
           </ul>
@@ -4592,6 +4600,7 @@ const AppContent: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
   const [themeToggleCount, setThemeToggleCount] = useState(() => Number(localStorage.getItem('theme-toggle-count') || '0'));
+  const [cultureLanguage, setCultureLanguage] = useState(() => localStorage.getItem('culture-language') === 'true');
   const [logoClickCount, setLogoClickCount] = useState(() => Number(localStorage.getItem('logo-click-count') || '0'));
   const navigate = useNavigate();
 
@@ -4611,6 +4620,27 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  useEffect(() => applyCultureLanguage(cultureLanguage), [cultureLanguage]);
+
+  const toggleCultureLanguage = () => {
+    const next = !cultureLanguage;
+    setCultureLanguage(next);
+    localStorage.setItem('culture-language', String(next));
+    if (!next) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/titles/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'culture_language', value: 1 })
+    }).then(r => r.json()).then(data => {
+      if (data.newlyUnlocked?.length) {
+        setTimeout(() => alert(`🎉 새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 300);
+      }
+    }).catch(() => {});
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -4676,7 +4706,7 @@ const AppContent: React.FC = () => {
   return (
     <>
       <a href="#main-content" className="skip-link" style={{ position: 'absolute', left: '-9999px', top: 0, zIndex: 9999, padding: '1rem', background: '#5c95ff', color: 'white' }} onFocus={e => e.currentTarget.style.left = '0'} onBlur={e => e.currentTarget.style.left = '-9999px'}>본문으로 바로가기</a>
-      <Navbar user={user} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} onLogoClick={handleLogoClick} />
+      <Navbar user={user} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} cultureLanguage={cultureLanguage} toggleCultureLanguage={toggleCultureLanguage} onLogoClick={handleLogoClick} />
       {user?.fever_expires_at && new Date(user.fever_expires_at) > new Date() && (
         <div style={{ textAlign: 'center', padding: '0.5rem', background: 'linear-gradient(90deg, #ff6b6b22, #ff6b6b44, #ff6b6b22)', borderBottom: '1px solid #ff6b6b', fontWeight: 800, color: '#ff6b6b', fontSize: '1rem' }}>
           🔥 {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
