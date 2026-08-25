@@ -14,32 +14,25 @@ const EXCLUDED_UNITS = new Set(['확률', '경우의 수']);
 
 let templates: ProblemTemplateInput[] | null = null;
 
-function getDefaultRewardRatingByRank(rank: number, total: number): number {
-  if (total <= 1) return 5000;
+const clampMassProducedRating = (value: number): number =>
+  Math.round(Math.max(5000, Math.min(7000, value)) / 500) * 500;
 
-  const ratio = rank / (total - 1);
-  if (ratio < 1 / 3) {
-    const t = ratio * 3;
-    return Math.round(5000 + t * 5000);
-  }
-  if (ratio < 2 / 3) {
-    const t = (ratio - 1 / 3) * 3;
-    return Math.round(10000 + t * 4000);
-  }
-  const t = (ratio - 2 / 3) * 3;
-  return Math.round(15000 + t * 5000);
+function getDefaultRewardRatingByRank(rank: number, total: number): number {
+  if (total <= 1) return 6000;
+  return clampMassProducedRating(5000 + (rank * 2000) / (total - 1));
 }
 
 function normalizeTemplate(
   template: ProblemTemplateInput,
   defaultRewardRating?: number,
 ): ProblemTemplateInput {
+  const fallback = defaultRewardRating ?? template.difficulty;
   return {
     ...template,
-    reward_rating:
-      typeof template.reward_rating === 'number'
-        ? template.reward_rating
-        : defaultRewardRating ?? template.difficulty,
+    difficulty: clampMassProducedRating(Number(template.difficulty) || 6000),
+    reward_rating: clampMassProducedRating(
+      typeof template.reward_rating === 'number' ? template.reward_rating : fallback,
+    ),
   };
 }
 
