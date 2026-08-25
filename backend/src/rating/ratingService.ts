@@ -8,10 +8,12 @@ import {
 
 const pool = getPool();
 
-const MIN_REWARD = 5000;
-const MAX_REWARD = 150000;
+const MASS_PRODUCED_MIN_REWARD = 5000;
+const MASS_PRODUCED_MAX_REWARD = 7000;
+const CUSTOM_MIN_REWARD = 45000;
+const CUSTOM_MAX_REWARD = 55000;
 
-const getDefaultDifficulty = (isCustom: boolean): number => isCustom ? 60000 : 10000;
+const getDefaultDifficulty = (isCustom: boolean): number => isCustom ? 50000 : 6000;
 
 export interface TierEntry {
   name: string;
@@ -84,9 +86,11 @@ export const getTier = (rating: number): string => {
 
 const getWrongAnswerPenalty = (): number => 3000;
 
-export const calculateDifficultyFromSolveRate = (solveRate: number): number => {
-  if (solveRate < 0 || solveRate > 1 || isNaN(solveRate)) return 10000;
-  return Math.round(MAX_REWARD - (MAX_REWARD - MIN_REWARD) * solveRate);
+export const calculateDifficultyFromSolveRate = (solveRate: number, isCustom = false): number => {
+  const minReward = isCustom ? CUSTOM_MIN_REWARD : MASS_PRODUCED_MIN_REWARD;
+  const maxReward = isCustom ? CUSTOM_MAX_REWARD : MASS_PRODUCED_MAX_REWARD;
+  if (solveRate < 0 || solveRate > 1 || isNaN(solveRate)) return (minReward + maxReward) / 2;
+  return Math.round(maxReward - (maxReward - minReward) * solveRate);
 };
 
 
@@ -188,7 +192,8 @@ export const processSubmission = async (
       prob = probRes.rows[0];
     }
     const newDifficulty = calculateDifficultyFromSolveRate(
-      prob.total_attempts > 0 ? prob.correct_attempts / prob.total_attempts : 0.5
+      prob.total_attempts > 0 ? prob.correct_attempts / prob.total_attempts : 0.5,
+      Boolean(prob.is_custom),
     );
     perfMark('problemData');
 
