@@ -285,7 +285,7 @@ const Navbar: React.FC<{
             ) : (
               <>
                 <li><Link to="/login" className="nav-auth-link">로그인</Link></li>
-                <li><Link to="/signup" className="nav-auth-link nav-signup-link">무료 가입</Link></li>
+                <li><Link to="/signup" className="nav-auth-link nav-signup-link">가입</Link></li>
               </>
             )}
             <li>
@@ -3738,6 +3738,8 @@ const WrongAnswerGlow: React.FC<{ trigger: number }> = ({ trigger }) => {
 const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ user, setUser }) => {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [selectedProblemId, setSelectedProblemId] = useState<number | null>(null);
+  const problemListRef = useRef<HTMLDivElement>(null);
+  const problemListScrollTopRef = useRef(0);
   const [answers, setAnswers] = useState<{[key: number]: string}>({});
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -3800,7 +3802,10 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       });
   }, []);
 
-  const fetchProblems = () => {
+  const fetchProblems = (preferredProblemId?: number | null) => {
+    if (problemListRef.current) {
+      problemListScrollTopRef.current = problemListRef.current.scrollTop;
+    }
     setLoadingProblems(true);
     setProblemError('');
     const token = localStorage.getItem('token');
@@ -3816,7 +3821,12 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
         if (data.problems) {
           setProblems(data.problems);
           setTotalPages(data.pagination?.totalPages || 1);
-          setSelectedProblemId(prev => data.problems.some((prob: Problem) => prob.id === prev) ? prev : (data.problems.length > 0 ? data.problems[0].id : null));
+          setSelectedProblemId(prev => {
+            const targetProblemId = preferredProblemId ?? prev;
+            return data.problems.some((prob: Problem) => prob.id === targetProblemId)
+              ? targetProblemId
+              : (data.problems.length > 0 ? data.problems[0].id : null);
+          });
         } else {
           setProblemError(data.error || '문제를 불러오지 못했습니다.');
         }
@@ -3829,6 +3839,12 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   };
 
   useEffect(() => { fetchProblems(); }, [page, problemType]);
+
+  useEffect(() => {
+    if (problemListRef.current) {
+      problemListRef.current.scrollTop = problemListScrollTopRef.current;
+    }
+  }, [problems]);
 
   const handleInputChange = (id: number, val: string) => {
     setAnswers(prev => ({ ...prev, [id]: val }));
@@ -3868,7 +3884,11 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
         const rpGained = Math.round(data.newUserRating - user.rating);
         setLastCorrectFeedback({ rpGained });
         setTimeout(() => setLastCorrectFeedback(null), 4000);
-        fetchProblems();
+        const currentProblemIndex = problems.findIndex(problem => problem.id === problemId);
+        const nextProblemId = currentProblemIndex >= 0
+          ? (problems[currentProblemIndex + 1]?.id ?? problems[currentProblemIndex - 1]?.id ?? null)
+          : null;
+        fetchProblems(nextProblemId);
       } else {
         setWrongGlowTrigger(prev => prev + 1);
         setLastWrongAnswer({ problemId });
@@ -4052,7 +4072,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
           </form>
         )}
         
-        <div role="listbox" aria-label="문제 선택" style={{ maxHeight: '50vh', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '1rem', background: 'var(--card-bg)' }}>
+        <div ref={problemListRef} role="listbox" aria-label="문제 선택" style={{ maxHeight: '50vh', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '1rem', background: 'var(--card-bg)' }}>
           {loadingProblems ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
           ) : (
