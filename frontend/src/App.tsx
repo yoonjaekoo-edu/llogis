@@ -3128,7 +3128,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
           {u.profile_image_url ? (
             <img src={u.profile_image_url} alt="프로필" className="profile-avatar-img" />
           ) : (
-            <div className="profile-avatar-fallback" style={{ background: `linear-gradient(135deg, ${tierColor}, var(--color-4))` }}>
+            <div className="profile-avatar-fallback" style={{ background: tierColor }}>
               {u.username[0].toUpperCase()}
             </div>
           )}
@@ -3214,31 +3214,31 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
 
       {/* ─── 스탯 카드 그리드 ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div className="stat-card-premium" style={{ '--stat-accent': 'linear-gradient(90deg, var(--color-4), #7b5ff5)' } as React.CSSProperties}>
+        <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-4)' } as React.CSSProperties}>
           <span className="stat-icon">✨</span>
           <div className="stat-label">레이팅</div>
           <div className="stat-value" style={{ color: 'var(--color-4)' }}>{Math.round(u.rating).toLocaleString()}</div>
           <div className="stat-sub">{u.tier} 등급</div>
         </div>
-        <div className="stat-card-premium" style={{ '--stat-accent': 'linear-gradient(90deg, #f87575, #ffa9a3)' } as React.CSSProperties}>
+        <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-1)' } as React.CSSProperties}>
           <span className="stat-icon">🔥</span>
           <div className="stat-label">연속 스트릭</div>
           <div className="stat-value" style={{ color: '#f87575' }}>{u.streak || 0}일</div>
           <div className="stat-sub">최장 {u.longest_streak || 0}일{u.streak_repaired ? ' · 🩹 수리됨' : ''}</div>
         </div>
-        <div className="stat-card-premium" style={{ '--stat-accent': 'linear-gradient(90deg, #ffd700, #ffb347)' } as React.CSSProperties}>
+        <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-2)' } as React.CSSProperties}>
           <span className="stat-icon">🪙</span>
           <div className="stat-label">보유 토큰</div>
           <div className="stat-value" style={{ color: '#e6a800' }}>{u.tokens || 0}</div>
           <div className="stat-sub">수리 1회 30토큰</div>
         </div>
-        <div className="stat-card-premium" style={{ '--stat-accent': 'linear-gradient(90deg, #00e676, #00bcd4)' } as React.CSSProperties}>
+        <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-1)' } as React.CSSProperties}>
           <span className="stat-icon">⚡</span>
           <div className="stat-label">레벨</div>
           <div className="stat-value" style={{ color: '#00b360' }}>Lv.{u.level || 1}</div>
           <div className="stat-sub">XP {(u.xp || 0).toLocaleString()}</div>
         </div>
-        <div className="stat-card-premium" style={{ '--stat-accent': 'linear-gradient(90deg, var(--color-3), var(--color-4))' } as React.CSSProperties}>
+        <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-2)' } as React.CSSProperties}>
           <span className="stat-icon">✅</span>
           <div className="stat-label">정답 문제</div>
           <div className="stat-value">{u.problems_solved}</div>
@@ -4027,7 +4027,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
         <link rel="canonical" href={`https://llogis.xyz${location.pathname}`} />
       </Helmet>
       {user?.fever_expires_at && new Date(user.fever_expires_at) > new Date() && (
-        <div style={{ textAlign: 'center', padding: '0.6rem', background: 'linear-gradient(90deg, #ff6b6b22, #ff6b6b44, #ff6b6b22)', border: '1px solid #ff6b6b', borderRadius: '0.5rem', marginBottom: '1rem', fontWeight: 800, color: '#ff6b6b', fontSize: '1.1rem' }}>
+        <div style={{ textAlign: 'center', padding: '0.6rem', background: '#ff6b6b33', border: '1px solid #ff6b6b', borderRadius: '0.5rem', marginBottom: '1rem', fontWeight: 800, color: '#ff6b6b', fontSize: '1.1rem' }}>
           🔥 {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
         </div>
       )}
@@ -4708,7 +4708,7 @@ const AppContent: React.FC = () => {
       <a href="#main-content" className="skip-link" style={{ position: 'absolute', left: '-9999px', top: 0, zIndex: 9999, padding: '1rem', background: '#5c95ff', color: 'white' }} onFocus={e => e.currentTarget.style.left = '0'} onBlur={e => e.currentTarget.style.left = '-9999px'}>본문으로 바로가기</a>
       <Navbar user={user} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} cultureLanguage={cultureLanguage} toggleCultureLanguage={toggleCultureLanguage} onLogoClick={handleLogoClick} />
       {user?.fever_expires_at && new Date(user.fever_expires_at) > new Date() && (
-        <div style={{ textAlign: 'center', padding: '0.5rem', background: 'linear-gradient(90deg, #ff6b6b22, #ff6b6b44, #ff6b6b22)', borderBottom: '1px solid #ff6b6b', fontWeight: 800, color: '#ff6b6b', fontSize: '1rem' }}>
+        <div style={{ textAlign: 'center', padding: '0.5rem', background: '#ff6b6b33', borderBottom: '1px solid #ff6b6b', fontWeight: 800, color: '#ff6b6b', fontSize: '1rem' }}>
           🔥 {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
         </div>
       )}
