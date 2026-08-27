@@ -534,7 +534,7 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
                 transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
                 style={{ willChange: 'transform' }}
               >
-                {user.username}!
+                <span className="landing-hero-username">{user.username}</span>!
               </motion.h1>
             </>
           ) : (
