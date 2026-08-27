@@ -1,20 +1,20 @@
 :root {
   /* Logis palette */
-  --color-1: #767b91;
-  --color-2: #c7ccdb;
-  --color-3: #e1e5ee;
-  --color-4: #767b91;
+  --color-1: #034078;
+  --color-2: #8fb3d2;
+  --color-3: #e6f0f7;
+  --color-4: #034078;
 
   /* Light theme */
-  --bg-color: #f7f8fb;
-  --text-main: #2f3445;
-  --text-muted: #767b91;
+  --bg-color: #f5f8fc;
+  --text-main: #16324f;
+  --text-muted: #49657f;
   --card-bg: #ffffff;
-  --card-shadow: 0 6px 18px rgba(118, 123, 145, 0.10);
-  --nav-bg: #767b91;
-  --primary: #767b91;
-  --accent: #767b91;
-  --border: #c7ccdb;
+  --card-shadow: 0 6px 18px rgba(3, 64, 120, 0.10);
+  --nav-bg: #034078;
+  --primary: #034078;
+  --accent: #034078;
+  --border: #c5d6e5;
   --transition: all 0.18s ease;
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -24,15 +24,15 @@
 
 [data-theme='dark'] {
   /* Dark theme */
-  --bg-color: #171a24;
-  --text-main: #e1e5ee;
-  --text-muted: #aeb4c5;
-  --card-bg: #222634;
-  --card-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
-  --nav-bg: #202431;
-  --primary: #c7ccdb;
-  --accent: #c7ccdb;
-  --border: #4b5268;
+  --bg-color: #071a2e;
+  --text-main: #e6f0f7;
+  --text-muted: #aec4d8;
+  --card-bg: #0d2943;
+  --card-shadow: 0 10px 26px rgba(0, 0, 0, 0.30);
+  --nav-bg: #08233d;
+  --primary: #8fb3d2;
+  --accent: #8fb3d2;
+  --border: #2b5477;
   color-scheme: dark;
 }
 
@@ -295,7 +295,7 @@ nav a.active::after {
 .problem-card:hover {
   border-color: var(--color-4);
   transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(92, 149, 255, 0.18);
+  box-shadow: 0 16px 40px rgba(3, 64, 120, 0.18);
 }
 
 .difficulty-badge {
@@ -352,7 +352,7 @@ nav a.active::after {
 .answer-input:focus {
   border-color: var(--color-4);
   outline: none;
-  box-shadow: 0 0 15px rgba(92, 149, 255, 0.2);
+  box-shadow: 0 0 15px rgba(3, 64, 120, 0.2);
 }
 
 /* Buttons */
@@ -376,10 +376,10 @@ nav a.active::after {
 .btn-solve { 
   background-color: var(--color-4); 
   color: white;
-  box-shadow: 0 4px 15px rgba(92, 149, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(3, 64, 120, 0.3);
 }
 .btn-solve:hover { 
-  background-color: #4a84f0;
+  background-color: #022f5b;
   transform: scale(1.02);
 }
 
@@ -656,7 +656,7 @@ nav a.active::after {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 4px 20px rgba(92,149,255,0.25));
+  filter: drop-shadow(0 4px 20px rgba(3,64,120,0.25));
 }
 
 .landing-hero-sub {
@@ -691,12 +691,12 @@ nav a.active::after {
 .btn-hero-primary {
   background: var(--card-bg);
   color: white;
-  box-shadow: 0 8px 24px rgba(92,149,255,0.4);
+  box-shadow: 0 8px 24px rgba(3,64,120,0.4);
 }
 
 .btn-hero-primary:hover {
   transform: translateY(-3px);
-  box-shadow: 0 14px 32px rgba(92,149,255,0.5);
+  box-shadow: 0 14px 32px rgba(3,64,120,0.5);
 }
 
 .btn-hero-secondary {
@@ -748,7 +748,7 @@ nav a.active::after {
 
 .feature-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 20px 48px rgba(92,149,255,0.16);
+  box-shadow: 0 20px 48px rgba(3,64,120,0.16);
   border-color: var(--color-4);
 }
 
@@ -887,7 +887,7 @@ nav a.active::after {
 
 .stat-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 16px 40px rgba(92,149,255,0.16);
+  box-shadow: 0 16px 40px rgba(3,64,120,0.16);
 }
 
 .stat-card-icon {
@@ -926,8 +926,8 @@ nav a.active::after {
 }
 
 .quest-card.completed {
-  background: rgba(92,149,255,0.05);
-  border-color: rgba(92,149,255,0.3);
+  background: rgba(3,64,120,0.05);
+  border-color: rgba(3,64,120,0.3);
 }
 
 .progress-bar {
@@ -1105,7 +1105,7 @@ nav a.active::after {
 }
 .stat-card-premium:hover {
   transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 20px 50px rgba(92,149,255,0.18);
+  box-shadow: 0 20px 50px rgba(3,64,120,0.18);
 }
 .stat-card-premium:hover::after {
   height: 6px;
@@ -1160,7 +1160,7 @@ nav a.active::after {
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
   transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 0 12px rgba(92,149,255,0.3);
+  box-shadow: 0 0 12px rgba(3,64,120,0.3);
 }
 @keyframes shimmer {
   0%, 100% { background-position: 200% 0; }
@@ -1187,7 +1187,7 @@ nav a.active::after {
 .activity-item:hover {
   border-color: var(--color-4);
   transform: translateX(4px);
-  box-shadow: 0 4px 16px rgba(92,149,255,0.1);
+  box-shadow: 0 4px 16px rgba(3,64,120,0.1);
 }
 .activity-item::before {
   content: '';
@@ -1609,20 +1609,20 @@ nav a.active { background: rgba(255,255,255,0.14); }
 button, input, textarea, select { font: inherit; }
 
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: 3px solid rgba(92, 149, 255, 0.45);
+  outline: 3px solid rgba(3, 64, 120, 0.45);
   outline-offset: 2px;
 }
 
 .auth-form input:focus {
   outline: none;
   border-color: var(--color-4);
-  box-shadow: 0 0 0 4px rgba(92, 149, 255, 0.12);
+  box-shadow: 0 0 0 4px rgba(3, 64, 120, 0.12);
 }
 
 .auth-form button { transition: var(--transition); }
 .auth-form button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(92, 149, 255, 0.28);
+  box-shadow: 0 8px 20px rgba(3, 64, 120, 0.28);
 }
 .auth-form button:disabled { cursor: wait; opacity: 0.65; }
 
@@ -1792,7 +1792,7 @@ nav a::after { background: var(--color-3); }
 .problem-card:hover {
   border-color: var(--color-1);
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(118,123,145,0.14);
+  box-shadow: 0 10px 24px rgba(3,64,120,0.14);
 }
 .difficulty-badge { border-radius: 4px; background: var(--color-3); color: var(--color-1); }
 
@@ -1805,15 +1805,15 @@ input, textarea, select, .answer-input {
 input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: .8; }
 input:focus, textarea:focus, select:focus, .answer-input:focus {
   border-color: var(--color-1);
-  box-shadow: 0 0 0 3px rgba(118,123,145,0.16);
+  box-shadow: 0 0 0 3px rgba(3,64,120,0.16);
 }
 
 .btn, .btn-solve, .btn-hero, .auth-form button { border-radius: 4px; }
 .btn-solve, .btn-hero-primary {
   background: var(--color-1);
-  box-shadow: 0 4px 12px rgba(118,123,145,0.22);
+  box-shadow: 0 4px 12px rgba(3,64,120,0.22);
 }
-.btn-solve:hover, .btn-hero-primary:hover { background: #646a80; }
+.btn-solve:hover, .btn-hero-primary:hover { background: #022f5b; }
 .btn-hero-secondary { color: var(--color-1); border-color: var(--color-2); background: var(--card-bg); }
 
 .auth-form, .landing-hero {
