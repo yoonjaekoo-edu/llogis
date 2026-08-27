@@ -66,11 +66,11 @@ export function rateLimit(options: RateLimitOptions) {
   };
 }
 
-// 회원가입용 rate limit (IP 기준 24시간에 1회)
+// 회원가입용 rate limit (IP 기준 24시간에 3회)
 export const signupRateLimit = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24시간
-  max: 1,
-  message: '회원가입은 하루에 1회만 가능합니다.',
+  max: 3,
+  message: '회원가입은 하루에 3회까지만 가능합니다.',
 });
 
 // 프로필 수정용 rate limit (IP 기준 10분에 10회)
