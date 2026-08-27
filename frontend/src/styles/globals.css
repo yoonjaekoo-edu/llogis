@@ -1859,3 +1859,85 @@ html, body { background: var(--bg-color); }
 .feature-card::after { background: var(--color-1) !important; }
 .landing-stats-strip { background: var(--color-1) !important; }
 .tier-progress-fill { background: var(--color-1) !important; background-size: auto !important; animation: none !important; }
+
+
+/* Welcome page artwork */
+.landing-hero {
+  isolation: isolate;
+  background:
+    linear-gradient(90deg, rgba(3, 64, 120, 0.16), rgba(1, 89, 166, 0.08)),
+    url('/welcome-background.jpg') center center / cover no-repeat;
+}
+
+.landing-hero::before {
+  z-index: -2;
+  background: linear-gradient(105deg, rgba(245, 248, 252, 0.92) 0%, rgba(245, 248, 252, 0.80) 48%, rgba(245, 248, 252, 0.62) 100%);
+}
+
+.landing-hero::after {
+  z-index: -1;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.30), transparent 54%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(3, 64, 120, 0.12));
+  background-size: auto;
+}
+
+.landing-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-hero-glow {
+  z-index: 0;
+  background: rgba(255, 255, 255, 0.28);
+  opacity: 0.7;
+}
+
+.landing-hero-orb {
+  z-index: 0;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.landing-hero-title {
+  background: linear-gradient(135deg, #022f5b 10%, #034078 52%, #0879c9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.btn-hero-primary {
+  background: #034078;
+}
+
+[data-theme='dark'] .landing-hero {
+  background-image:
+    linear-gradient(90deg, rgba(2, 23, 43, 0.52), rgba(3, 64, 120, 0.32)),
+    url('/welcome-background.jpg');
+}
+
+[data-theme='dark'] .landing-hero::before {
+  background: linear-gradient(105deg, rgba(7, 26, 46, 0.86), rgba(7, 26, 46, 0.72) 55%, rgba(7, 26, 46, 0.56));
+}
+
+[data-theme='dark'] .landing-hero::after {
+  background: linear-gradient(180deg, rgba(6, 25, 45, 0.10), rgba(1, 13, 28, 0.48));
+}
+
+[data-theme='dark'] .landing-hero-title {
+  background: linear-gradient(135deg, #ffffff 10%, #b9dcf4 56%, #70c7ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@media (max-width: 768px) {
+  .landing-hero {
+    background-position: 56% center;
+  }
+
+  .landing-hero::before {
+    background: linear-gradient(180deg, rgba(245, 248, 252, 0.88), rgba(245, 248, 252, 0.72));
+  }
+
+  [data-theme='dark'] .landing-hero::before {
+    background: linear-gradient(180deg, rgba(7, 26, 46, 0.80), rgba(7, 26, 46, 0.62));
+  }
+}
