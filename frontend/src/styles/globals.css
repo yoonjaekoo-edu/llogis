@@ -565,10 +565,7 @@ nav a.active::after {
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(92,149,255,0.18) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(167,139,250,0.1) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(248,117,117,0.08) 0%, transparent 60%);
+  background: var(--card-bg);
   pointer-events: none;
 }
 
@@ -576,9 +573,7 @@ nav a.active::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(92,149,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(92,149,255,0.03) 1px, transparent 1px);
+  background-image: none;
   background-size: 60px 60px;
   pointer-events: none;
 }
@@ -608,7 +603,7 @@ nav a.active::after {
   width: min(72vw, 760px);
   height: min(72vw, 760px);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(185, 230, 255, 0.42) 0%, rgba(92, 149, 255, 0.18) 35%, transparent 68%);
+  background: var(--card-bg);
   filter: blur(20px);
   opacity: 0.9;
   top: -12%;
@@ -630,7 +625,7 @@ nav a.active::after {
   height: 220px;
   top: 12%;
   left: 8%;
-  background: radial-gradient(circle at 30% 30%, rgba(248, 117, 117, 0.65), rgba(248, 117, 117, 0.08) 62%, transparent 72%);
+  background: var(--card-bg);
 }
 
 .landing-hero-orb-b {
@@ -638,7 +633,7 @@ nav a.active::after {
   height: 300px;
   right: 5%;
   bottom: 8%;
-  background: radial-gradient(circle at 30% 30%, rgba(92, 149, 255, 0.6), rgba(92, 149, 255, 0.08) 62%, transparent 72%);
+  background: var(--card-bg);
 }
 
 .landing-hero-welcome {
@@ -657,7 +652,7 @@ nav a.active::after {
   line-height: 1.05;
   letter-spacing: -3px;
   margin: 0 0 1rem;
-  background: linear-gradient(135deg, var(--color-4) 0%, #a78bfa 40%, var(--color-1) 100%);
+  background: var(--card-bg);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -694,7 +689,7 @@ nav a.active::after {
 }
 
 .btn-hero-primary {
-  background: linear-gradient(135deg, var(--color-4), #7b5ff5);
+  background: var(--card-bg);
   color: white;
   box-shadow: 0 8px 24px rgba(92,149,255,0.4);
 }
@@ -746,7 +741,7 @@ nav a.active::after {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-4), var(--color-1));
+  background: var(--card-bg);
   opacity: 0;
   transition: var(--transition);
 }
@@ -782,7 +777,7 @@ nav a.active::after {
 }
 
 .landing-stats-strip {
-  background: linear-gradient(135deg, var(--color-4) 0%, #7b5ff5 100%);
+  background: var(--card-bg);
   padding: 3.5rem 1.5rem;
   text-align: center;
 }
@@ -992,7 +987,7 @@ nav a.active::after {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(92,149,255,0.06), transparent 60%);
+  background: var(--card-bg);
   pointer-events: none;
   z-index: 0;
 }
@@ -1008,7 +1003,7 @@ nav a.active::after {
   position: absolute;
   inset: -12px;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, var(--tier-color, var(--color-4)), transparent 60%, var(--tier-color, var(--color-4)));
+  background: var(--card-bg);
   opacity: 0.35;
   animation: avatar-spin 4s linear infinite;
   filter: blur(8px);
@@ -1043,7 +1038,7 @@ nav a.active::after {
   font-size: 2.2rem;
   font-weight: 900;
   margin-bottom: 0.2rem;
-  background: linear-gradient(135deg, var(--text-main) 30%, var(--color-4));
+  background: var(--card-bg);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1161,7 +1156,7 @@ nav a.active::after {
 .tier-progress-fill {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--color-4), #7b5ff5, var(--color-4));
+  background: var(--card-bg);
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
   transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1220,9 +1215,7 @@ nav a.active::after {
 .goose-room-page {
   min-height: calc(100vh - 160px);
   padding: 3rem 0 4rem;
-  background:
-    radial-gradient(circle at top left, rgba(92, 149, 255, 0.24), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(248, 117, 117, 0.18), transparent 30%);
+  background: var(--card-bg);
 }
 
 .goose-room-shell {
@@ -1345,9 +1338,7 @@ nav a.active::after {
 .cat-room-page {
   min-height: calc(100vh - 160px);
   padding: 3rem 0 4rem;
-  background:
-    radial-gradient(circle at top left, rgba(255, 165, 50, 0.24), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(255, 100, 150, 0.18), transparent 30%);
+  background: var(--card-bg);
 }
 
 .cat-room-shell {
@@ -1840,3 +1831,31 @@ input:focus, textarea:focus, select:focus, .answer-input:focus {
   .problem-card { padding: 1.25rem; }
   header nav { border: 1px solid rgba(225,229,238,0.16); background: var(--nav-bg); }
 }
+
+
+/* Logis flat surface overrides */
+html, body { background: var(--bg-color); }
+.landing-hero::before,
+.landing-hero::after,
+.landing-hero-glow,
+.landing-hero-orb-a,
+.landing-hero-orb-b,
+.profile-header-card::before { background: transparent !important; }
+.landing-hero-glow,
+.landing-hero-orb-a,
+.landing-hero-orb-b,
+.profile-avatar-glow { opacity: 0 !important; animation: none !important; filter: none !important; }
+.landing-hero-title,
+.profile-username {
+  background: none !important;
+  background-clip: initial !important;
+  -webkit-background-clip: initial !important;
+  color: var(--color-1) !important;
+  -webkit-text-fill-color: var(--color-1) !important;
+  filter: none !important;
+}
+.btn-hero-primary,
+.btn-solve { background: var(--color-1) !important; }
+.feature-card::after { background: var(--color-1) !important; }
+.landing-stats-strip { background: var(--color-1) !important; }
+.tier-progress-fill { background: var(--color-1) !important; background-size: auto !important; animation: none !important; }
