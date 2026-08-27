@@ -4492,6 +4492,11 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
