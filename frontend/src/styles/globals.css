@@ -1941,3 +1941,23 @@ html, body { background: var(--bg-color); }
     background: linear-gradient(180deg, rgba(7, 26, 46, 0.80), rgba(7, 26, 46, 0.62));
   }
 }
+
+
+.landing-hero-username {
+  display: inline-block;
+  padding: 0.08em 0.28em 0.12em;
+  margin: 0 0.04em;
+  border-radius: 0.18em;
+  color: #fff;
+  background: #022f5b;
+  -webkit-text-fill-color: #fff;
+  box-shadow: 0 0.08em 0.22em rgba(2, 47, 91, 0.30);
+  text-shadow: none;
+}
+
+[data-theme='dark'] .landing-hero-username {
+  color: #071a2e;
+  background: #e6f0f7;
+  -webkit-text-fill-color: #071a2e;
+  box-shadow: 0 0.08em 0.24em rgba(0, 0, 0, 0.32);
+}
