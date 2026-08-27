@@ -139,7 +139,7 @@ export async function checkAbuse(
     return { blocked: true, reason: '이미 가입된 이메일입니다.' };
   }
 
-  // 2. 동일 기기(fingerprint) 최근 24시간 내 가입 수 체크
+  // 2. 동일 기기(fingerprint) 최근 24시간 내 가입 수 체크 (최대 3회)
   const fpResult = await pool.query(
     `SELECT COUNT(*) as count FROM signup_fingerprints
      WHERE visitor_id = $1
@@ -147,11 +147,11 @@ export async function checkAbuse(
     [fingerprint]
   );
   const fpCount = parseInt(fpResult.rows[0].count, 10);
-  if (fpCount >= 1) {
-    return { blocked: true, reason: '동일 기기에서는 하루에 1개의 계정만 만들 수 있습니다.' };
+  if (fpCount >= 3) {
+    return { blocked: true, reason: '동일 기기에서는 하루에 3개의 계정까지만 만들 수 있습니다.' };
   }
 
-  // 3. 동일 IP 서브넷 최근 24시간 내 가입 수 체크
+  // 3. 동일 IP 서브넷 최근 24시간 내 가입 수 체크 (최대 3회)
   const ipResult = await pool.query(
     `SELECT COUNT(*) as count FROM signup_fingerprints
      WHERE ip_subnet = $1
@@ -159,8 +159,8 @@ export async function checkAbuse(
     [ipSubnet]
   );
   const ipCount = parseInt(ipResult.rows[0].count, 10);
-  if (ipCount >= 1) {
-    return { blocked: true, reason: '해당 네트워크에서는 하루에 1개의 계정만 만들 수 있습니다.' };
+  if (ipCount >= 3) {
+    return { blocked: true, reason: '해당 네트워크에서는 하루에 3개의 계정까지만 만들 수 있습니다.' };
   }
 
   return { blocked: false };
