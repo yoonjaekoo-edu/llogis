@@ -34,7 +34,6 @@ import {
   checkAbuse,
   recordFingerprint,
 } from './security/signupGuard';
-import { verifyTurnstile } from './security/turnstile';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
@@ -434,7 +433,7 @@ const canGenerateProblems = async (userId: number) => {
 };
 
 app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response) => {
-  const { username, email, password, userAgent, language, turnstileToken } = req.body;
+  const { username, email, password, userAgent, language } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields are required' });
 
   // 1. 입력값 유효성 검사
@@ -453,14 +452,9 @@ app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response
   const ip = getClientIp(req);
   const ipSubnet = getIpSubnet(ip);
 
-  // 2. Cloudflare Turnstile 캡차 검증 (TURNSTILE_SECRET 설정 시에만)
-  const turnstileResult = await verifyTurnstile(turnstileToken || '', ip);
-  if (!turnstileResult.success) {
-    return res.status(400).json({ error: turnstileResult.error || '캡차 인증에 실패했습니다.' });
-  }
 
   try {
-    // 3. 다중계정 어뷰징 체크 (기기 fingerprint + IP 서브넷)
+    // 2. 다중계정 어뷰징 체크 (기기 fingerprint + IP 서브넷)
     const fingerprint = generateServerFingerprint(
       typeof userAgent === 'string' ? userAgent : String(req.headers['user-agent'] || ''),
       typeof language === 'string' ? language : String(req.headers['accept-language'] || '')
@@ -477,7 +471,7 @@ app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response
     );
     const user = result.rows[0];
 
-    // 4. 가입 기록 저장 (다중계정 추적용)
+    // 3. 가입 기록 저장 (다중계정 추적용)
     try {
       await recordFingerprint(pool, {
         visitorId: fingerprint,
