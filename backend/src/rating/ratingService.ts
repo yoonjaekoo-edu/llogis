@@ -84,7 +84,9 @@ export const getTier = (rating: number): string => {
   return getTierName(rating, tiers);
 };
 
-const getWrongAnswerPenalty = (): number => 3000;
+export const WRONG_ANSWER_PENALTY = 3000;
+
+const getWrongAnswerPenalty = (): number => WRONG_ANSWER_PENALTY;
 
 export const calculateDifficultyFromSolveRate = (solveRate: number, isCustom = false): number => {
   const minReward = isCustom ? CUSTOM_MIN_REWARD : MASS_PRODUCED_MIN_REWARD;
