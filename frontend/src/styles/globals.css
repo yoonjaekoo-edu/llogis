@@ -2173,3 +2173,136 @@ nav a.active {
     font-size: 0.7rem;
   }
 }
+
+
+/* Global dark-only visual system */
+:root,
+[data-theme='light'],
+[data-theme='dark'] {
+  --color-1: #eeeeee;
+  --color-2: #767676;
+  --color-3: #1b1b1b;
+  --color-4: #f0f0f0;
+  --bg-color: #090a0b;
+  --text-main: #f0f1f2;
+  --text-muted: #999fa7;
+  --card-bg: #121315;
+  --card-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --nav-bg: #090909;
+  --primary: #eeeeee;
+  --accent: #dfc130;
+  --border: #2b2d31;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background: var(--bg-color);
+  color: var(--text-main);
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.045) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+
+header {
+  background: #090909 !important;
+  border-bottom-color: #292929 !important;
+}
+
+.problem-card,
+.feature-card,
+.stat-card,
+.quest-card,
+.auth-form,
+.activity-item,
+.goose-room-copy,
+.goose-stage-frame,
+.cat-room-copy,
+.cat-stage-frame {
+  background: var(--card-bg);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.problem-card:hover,
+.feature-card:hover,
+.stat-card:hover,
+.activity-item:hover {
+  border-color: #5b5d61;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.26);
+}
+
+input,
+textarea,
+select,
+.answer-input,
+.auth-form input {
+  background: #0d0e10;
+  color: var(--text-main);
+  border-color: #393b40;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+.answer-input:focus,
+.auth-form input:focus {
+  border-color: #ddd;
+  box-shadow: 0 0 0 3px rgba(238, 238, 238, 0.14);
+}
+
+.btn-solve,
+.btn-hero-primary,
+.auth-form button {
+  background: #eeeeee !important;
+  color: #0a0a0a !important;
+  box-shadow: none;
+}
+
+.btn-solve:hover,
+.btn-hero-primary:hover,
+.auth-form button:hover:not(:disabled) {
+  background: #ffffff !important;
+  box-shadow: none;
+}
+
+.btn-hero-secondary {
+  background: #171719;
+  color: #eeeeee;
+  border-color: #454545;
+}
+
+.difficulty-badge {
+  background: #222326;
+  color: #e6e6e6;
+  border: 1px solid #3a3b3f;
+}
+
+.landing-stats-strip {
+  background: #0f1012 !important;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.landing-stat-item,
+.landing-stat-number {
+  color: #f2f2f2;
+}
+
+.landing-stat-label,
+.feature-desc,
+.auth-subtitle,
+.auth-switch,
+.stat-card-label,
+.stat-card-sub {
+  color: var(--text-muted);
+}
+
+.theme-toggle {
+  display: none !important;
+}
