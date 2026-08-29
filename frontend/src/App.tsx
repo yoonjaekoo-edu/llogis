@@ -217,12 +217,10 @@ const RadarChart: React.FC<{ data: { tag: string; count: number }[]; maxValue: n
 const Navbar: React.FC<{ 
   user: User | null; 
   onLogout: () => void; 
-  theme: string; 
-  toggleTheme: () => void;
   cultureLanguage: boolean;
   toggleCultureLanguage: () => void;
   onLogoClick: (e: React.MouseEvent) => void
-}> = ({ user, onLogout, theme, toggleTheme, cultureLanguage, toggleCultureLanguage, onLogoClick }) => {
+}> = ({ user, onLogout, cultureLanguage, toggleCultureLanguage, onLogoClick }) => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -291,11 +289,6 @@ const Navbar: React.FC<{
                 <li><Link to="/signup" className="nav-auth-link nav-signup-link">가입</Link></li>
               </>
             )}
-            <li>
-              <button onClick={toggleTheme} className="theme-toggle" aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}>
-                {theme === 'light' ? '🌙' : '☀️'}
-              </button>
-            </li>
             <li data-nk-skip>
               <button onClick={toggleCultureLanguage} className={`culture-language-toggle ${cultureLanguage ? 'active' : ''}`} aria-pressed={cultureLanguage} aria-label="조선말 화면 전환">
                 {cultureLanguage ? '조선말' : '조선말'}
@@ -4567,8 +4560,7 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
 
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') === 'dark' ? 'dark' : 'light');
-  const [themeToggleCount, setThemeToggleCount] = useState(() => Number(localStorage.getItem('theme-toggle-count') || '0'));
+  const [theme] = useState<'dark'>('dark');
   const [cultureLanguage, setCultureLanguage] = useState(() => localStorage.getItem('culture-language') === 'true');
   const [logoClickCount, setLogoClickCount] = useState(() => Number(localStorage.getItem('logo-click-count') || '0'));
   const navigate = useNavigate();
@@ -4611,36 +4603,6 @@ const AppContent: React.FC = () => {
     }).catch(() => {});
   };
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    const nextCount = themeToggleCount + 1;
-
-    setTheme(newTheme);
-    setThemeToggleCount(nextCount >= 20 ? 0 : nextCount);
-    localStorage.setItem('theme', newTheme);
-    localStorage.setItem('theme-toggle-count', String(nextCount >= 20 ? 0 : nextCount));
-
-    // 다크모드 활성화 시 즉시 '어둠의 Logis' 칭호 체크
-    if (newTheme === 'dark') {
-      const token = localStorage.getItem('token');
-      if (token) {
-        fetch('/api/titles/check', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ action: 'dark_mode', value: 1 })
-        }).then(r => r.json()).then(data => {
-          if (data.newlyUnlocked && data.newlyUnlocked.length > 0) {
-            setTimeout(() => alert(`🎉 새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 500);
-          }
-        }).catch(() => {});
-      }
-    }
-
-    if (nextCount >= 20) {
-      navigate('/goose-room');
-    }
-  };
-
   const handleLogoClick = (e: React.MouseEvent) => {
     const nextCount = logoClickCount + 1;
     setLogoClickCount(nextCount >= 20 ? 0 : nextCount);
@@ -4675,7 +4637,7 @@ const AppContent: React.FC = () => {
   return (
     <>
       <a href="#main-content" className="skip-link" style={{ position: 'absolute', left: '-9999px', top: 0, zIndex: 9999, padding: '1rem', background: '#5c95ff', color: 'white' }} onFocus={e => e.currentTarget.style.left = '0'} onBlur={e => e.currentTarget.style.left = '-9999px'}>본문으로 바로가기</a>
-      <Navbar user={user} onLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} cultureLanguage={cultureLanguage} toggleCultureLanguage={toggleCultureLanguage} onLogoClick={handleLogoClick} />
+      <Navbar user={user} onLogout={handleLogout} cultureLanguage={cultureLanguage} toggleCultureLanguage={toggleCultureLanguage} onLogoClick={handleLogoClick} />
       {user?.fever_expires_at && new Date(user.fever_expires_at) > new Date() && (
         <div style={{ textAlign: 'center', padding: '0.5rem', background: '#ff6b6b33', borderBottom: '1px solid #ff6b6b', fontWeight: 800, color: '#ff6b6b', fontSize: '1rem' }}>
           🔥 {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
