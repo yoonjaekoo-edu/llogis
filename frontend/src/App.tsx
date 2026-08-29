@@ -517,6 +517,7 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
         />
 
         <SectionReveal style={{ position: 'relative', zIndex: 1, maxWidth: '720px' }}>
+          <p className="landing-hero-eyebrow"><span />REAL-TIME MATH RATING ARENA</p>
           {user ? (
             <>
               <motion.div
@@ -545,7 +546,8 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
               transition={{ duration: 0.7, ease: 'easeOut' }}
               style={{ willChange: 'transform' }}
             >
-              수학 실력을<br />레이팅으로 증명하세요
+              <span className="landing-hero-title-primary">수학 실력을</span><br />
+              <span className="landing-hero-title-muted">레이팅으로 증명하세요</span>
             </motion.h1>
           )}
            <motion.p
@@ -601,6 +603,12 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
                 내 대시보드
               </motion.button>
             )}
+          </div>
+
+          <div className="landing-hero-trust" aria-label="Logis의 장점">
+            <span>✓ 100% 무료 가입</span>
+            <span>✓ 실시간 ELO 랭킹</span>
+            <span>✓ 로지코인 보상</span>
           </div>
         </SectionReveal>
       </section>
