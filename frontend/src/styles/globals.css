@@ -1983,3 +1983,193 @@ body {
 .landing-hero-title {
   font-size: clamp(1.6rem, 4vw, 3.25rem) !important;
 }
+
+
+/* Dark math arena landing page */
+header {
+  background: #090909;
+  border-bottom: 1px solid #242424;
+  box-shadow: none;
+}
+
+header .container {
+  min-height: 78px;
+}
+
+.brand-link span {
+  font-family: 'Nanum Myeongjo', serif;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+}
+
+nav a {
+  color: #a9a9a9;
+}
+
+nav a:hover,
+nav a.active {
+  background: #181818;
+  color: #fff;
+}
+
+.landing-hero {
+  min-height: 540px;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 6.8rem max(2rem, calc((100vw - 1180px) / 2));
+  background-color: #090a0b;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.12) 1px, transparent 1.2px),
+    radial-gradient(ellipse 60% 80% at 24% 42%, rgba(45, 45, 45, 0.26), transparent 70%);
+  background-size: 18px 18px, auto;
+  border-bottom: 1px solid #252525;
+  isolation: isolate;
+}
+
+.landing-hero::before,
+.landing-hero::after {
+  display: none;
+}
+
+.landing-hero-glow,
+.landing-hero-orb {
+  display: none;
+}
+
+.landing-hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  color: #a9bfd0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.landing-hero-eyebrow span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f4f4f4;
+}
+
+.landing-hero-title {
+  margin-bottom: 2.4rem;
+  color: #f4f4f4 !important;
+  font-family: 'Nanum Myeongjo', serif;
+  font-size: clamp(1.6rem, 4vw, 3.25rem) !important;
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.07em;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  filter: none !important;
+}
+
+.landing-hero-title-primary {
+  color: #f5f5f5;
+}
+
+.landing-hero-title-muted {
+  color: #a7a7a7;
+  font-style: italic;
+}
+
+.landing-hero-sub {
+  max-width: 600px;
+  margin: 0 0 2.7rem;
+  color: #aeb4bc;
+  font-size: 1.05rem;
+  line-height: 1.9;
+}
+
+.landing-cta-group {
+  justify-content: flex-start;
+  gap: 0.75rem;
+}
+
+.btn-hero {
+  min-width: 174px;
+  padding: 1rem 1.45rem;
+  border-radius: 0;
+  font-family: 'Nanum Myeongjo', serif;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.btn-hero-primary {
+  background: #f2f2f2 !important;
+  color: #0b0b0b;
+  box-shadow: none;
+}
+
+.btn-hero-primary:hover {
+  background: #fff !important;
+  box-shadow: none;
+}
+
+.btn-hero-secondary {
+  background: #151515;
+  border: 1px solid #454545;
+  color: #f2f2f2;
+}
+
+.btn-hero-secondary:hover {
+  background: #232323;
+  border-color: #707070;
+  color: #fff;
+}
+
+.landing-hero-trust {
+  display: flex;
+  gap: 2.2rem;
+  margin-top: 4rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid #2c2c2c;
+  color: #888f99;
+  font-size: 0.78rem;
+}
+
+.landing-hero-trust span::first-letter {
+  color: #f0ca2c;
+}
+
+@media (max-width: 768px) {
+  header .container { min-height: 62px; }
+
+  .landing-hero {
+    min-height: 0;
+    padding: 4rem 1.25rem 2.25rem;
+    background-size: 16px 16px, auto;
+  }
+
+  .landing-hero-title {
+    margin-bottom: 1.5rem;
+    line-height: 1.3;
+  }
+
+  .landing-hero-sub {
+    margin-bottom: 2rem;
+    font-size: 0.92rem;
+  }
+
+  .landing-cta-group {
+    align-items: stretch;
+  }
+
+  .btn-hero {
+    min-width: 0;
+    flex: 1;
+    padding: 0.9rem 0.7rem;
+  }
+
+  .landing-hero-trust {
+    flex-wrap: wrap;
+    gap: 0.6rem 1.1rem;
+    margin-top: 2.5rem;
+    font-size: 0.7rem;
+  }
+}
