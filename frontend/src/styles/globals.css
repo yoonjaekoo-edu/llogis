@@ -1961,3 +1961,19 @@ html, body { background: var(--bg-color); }
   -webkit-text-fill-color: #071a2e;
   box-shadow: 0 0.08em 0.24em rgba(0, 0, 0, 0.32);
 }
+
+
+/* Global typography and compact problem text */
+body {
+  font-family: 'Nanum Myeongjo', serif;
+}
+
+.math-content {
+  font-size: 0.7rem;
+}
+
+@media (max-width: 768px) {
+  .math-content {
+    font-size: 0.65rem;
+  }
+}
