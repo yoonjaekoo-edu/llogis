@@ -22,6 +22,7 @@ import {
 } from './templateProblemGenerator';
 import { getTier, processSubmission, getTierConfig, updateTierConfig } from './rating/ratingService';
 import { getTodayString } from './rating/gameSystemService';
+import { calculateExchangeQuote, canReceiveTokens, MAX_TOKEN_BALANCE, MIN_EXCHANGE_RP } from './rpExchange.js';
 import { DogeMarketError, getDogeMarketSnapshot, tradeDoge } from './dogeMarketService';
 import path from 'path';
 import fs from 'fs';
@@ -694,6 +695,93 @@ app.get('/api/store/items', authenticateToken, async (req: any, res: Response) =
   ];
   res.json({ items });
 });
+// Exchange RP for integer tokens. Only the RP needed for whole tokens is charged,
+// so the fractional token remainder from the progressive calculation is not lost.
+app.post('/api/store/exchange-rp', authenticateToken, async (
+  req: Request<Record<string, string>, unknown, { rp?: unknown }>,
+  res: Response,
+) => {
+  // authenticateToken이 주입한 인증 사용자 ID만 사용한다.
+  const authenticatedRequest = req as Request & { user: { id: number } };
+  const userId = authenticatedRequest.user.id;
+  const requestedRp = req.body?.rp;
+  if (typeof requestedRp !== 'number' || !Number.isSafeInteger(requestedRp) || requestedRp < MIN_EXCHANGE_RP) {
+    return res.status(400).json({ error: '환전 RP는 5,000 이상의 안전한 정수여야 합니다.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const userRes = await client.query(
+      'SELECT username, rating, tokens FROM users WHERE id = $1 FOR UPDATE',
+      [userId],
+    );
+    if (userRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userRes.rows[0];
+    if (user.username === 'admin') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: '관리자 계정은 RP를 환전할 수 없습니다.' });
+    }
+
+    const currentRp = Number(user.rating);
+    const currentTokens = Number(user.tokens);
+    if (!Number.isFinite(currentRp) || currentRp < 0 || !Number.isSafeInteger(currentTokens) || currentTokens < 0) {
+      await client.query('ROLLBACK');
+      return res.status(500).json({ error: '사용자 잔액을 확인할 수 없습니다.' });
+    }
+    if (requestedRp > currentRp) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: '보유 RP보다 많이 환전할 수 없습니다.' });
+    }
+
+    const quote = calculateExchangeQuote(requestedRp);
+    if (quote.exchangedRp > currentRp || quote.tokensReceived < 1) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: '환전 가능한 RP가 부족합니다.' });
+    }
+    if (!canReceiveTokens(currentTokens, quote.tokensReceived)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `토큰 잔액 한도를 초과합니다. (최대 ${MAX_TOKEN_BALANCE.toLocaleString()} 토큰)` });
+    }
+
+    const updatedRes = await client.query(
+      `UPDATE users
+       SET rating = rating - $1::double precision,
+           tokens = tokens + $2::integer
+       WHERE id = $3
+       RETURNING rating, tokens`,
+      [quote.exchangedRp, quote.tokensReceived, userId],
+    );
+    if (updatedRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: '잔액이 변경되었습니다. 다시 시도해주세요.' });
+    }
+
+    await client.query('COMMIT');
+    const updated = updatedRes.rows[0];
+    const remainingRp = Number(updated.rating);
+    const tokenBalance = Number(updated.tokens);
+    return res.json({
+      exchangedRp: quote.exchangedRp,
+      tokensReceived: quote.tokensReceived,
+      bonusTokens: quote.bonusTokens,
+      remainingRp,
+      tokenBalance,
+      tier: getTier(remainingRp),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('RP exchange error:', err);
+    return res.status(500).json({ error: 'RP 환전 중 오류가 발생했습니다.' });
+  } finally {
+    client.release();
+  }
+});
+
 
 
 

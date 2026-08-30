@@ -8,6 +8,7 @@ import { InlineMath, BlockMath } from 'react-katex';
 import GooseRoom from './GooseRoom';
 import CatRoom from './CatRoom';
 
+import { calculateExchangeQuote, getMaxExchangeRp, MIN_EXCHANGE_RP } from './rpExchange';
 // --- Types ---
 interface Problem {
   id: number;
@@ -4258,11 +4259,32 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
 };
 
 const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ user, setUser }) => {
-  const [items, setItems] = useState<any[]>([]);
+  type StoreItem = { id: string; name: string; cost: number; description: string };
+  type ExchangeResponse = {
+    error?: string;
+    exchangedRp?: number;
+    tokensReceived?: number;
+    bonusTokens?: number;
+    remainingRp?: number;
+    tokenBalance?: number;
+    tier?: string;
+  };
+  const [items, setItems] = useState<StoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [exchangeRpInput, setExchangeRpInput] = useState('');
+  const [exchanging, setExchanging] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const currentRp = Math.max(0, Math.floor(user?.rating || 0));
+  const maxExchangeRp = getMaxExchangeRp(user?.rating || 0);
+  const parsedExchangeRp = Number(exchangeRpInput);
+  const quote = Number.isSafeInteger(parsedExchangeRp) && parsedExchangeRp >= MIN_EXCHANGE_RP
+    ? calculateExchangeQuote(parsedExchangeRp)
+    : null;
+  const validQuote = quote && quote.requestedRp <= (user?.rating || 0) && quote.exchangedRp <= (user?.rating || 0)
+    ? quote
+    : null;
 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
@@ -4271,7 +4293,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => {
+      .then((data: { items?: StoreItem[] }) => {
         if (data.items) setItems(data.items);
         setLoading(false);
       })
@@ -4301,7 +4323,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       ...(itemId === 'fever_2x' || itemId === 'fever_5x' ? { body: JSON.stringify({ type: itemId }) } : {})
     });
-    const data = await res.json();
+    const data = await res.json() as { message?: string; error?: string; fever_multiplier?: number; fever_expires_at?: string };
     if (res.ok) {
       let msg = '';
       if (itemId === 'streak_repair') msg = '스트릭이 복구되었습니다.';
@@ -4322,7 +4344,51 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } else {
-      setMessage(`❌ ${data.error}`);
+      setMessage(`❌ ${data.error || '구매에 실패했습니다.'}`);
+    }
+  };
+
+  const selectExchangeAmount = (amount: number) => {
+    if (maxExchangeRp < MIN_EXCHANGE_RP) return;
+    setExchangeRpInput(String(Math.min(amount, maxExchangeRp)));
+    setMessage('');
+  };
+
+  const handleExchange = async () => {
+    if (!validQuote || exchanging) return;
+    const confirmed = window.confirm(
+      `${validQuote.exchangedRp.toLocaleString()} RP를 ${validQuote.tokensReceived.toLocaleString()} Token으로 환전하시겠습니까?\n\n환전한 RP는 복구할 수 없으며, 현재 레이팅과 랭크가 내려갈 수 있습니다.`,
+    );
+    if (!confirmed) return;
+
+    setExchanging(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/store/exchange-rp', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rp: validQuote.requestedRp }),
+      });
+      const data = await res.json() as ExchangeResponse;
+      if (!res.ok || data.remainingRp === undefined || data.tokenBalance === undefined) {
+        setMessage(`❌ ${data.error || 'RP 환전에 실패했습니다.'}`);
+        return;
+      }
+
+      const updatedUser = {
+        ...user!,
+        rating: data.remainingRp,
+        tokens: data.tokenBalance,
+        tier: data.tier || user!.tier,
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      setExchangeRpInput('');
+      setMessage(`✅ ${(data.exchangedRp || validQuote.exchangedRp).toLocaleString()} RP를 사용하여 ${(data.tokensReceived || validQuote.tokensReceived).toLocaleString()} Token을 획득했습니다.`);
+    } catch {
+      setMessage('❌ 네트워크 오류로 RP 환전에 실패했습니다.');
+    } finally {
+      setExchanging(false);
     }
   };
 
@@ -4337,9 +4403,60 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       <p style={{ textAlign: 'center', opacity: 0.7, marginBottom: '2.5rem' }}>보유 토큰: <b style={{ color: '#e6a800', fontSize: '1.2rem' }}>{user?.tokens || 0} 토큰</b></p>
 
       {message && (
-        <div style={{ padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', marginBottom: '1.5rem', textAlign: 'center', fontWeight: 700 }}>
+        <div style={{ padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', marginBottom: '1.5rem', textAlign: 'center', fontWeight: 700, whiteSpace: 'pre-line' }}>
           {message}
         </div>
+      )}
+
+      {user?.username !== 'admin' && (
+        <section className="problem-card" style={{ margin: '0 0 1.5rem' }}>
+          <h3 style={{ marginTop: 0, color: 'var(--color-4)' }}>RP 환전</h3>
+          <div style={{ display: 'grid', gap: '0.6rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>현재 RP</span>
+              <b>{Math.round(user?.rating || 0).toLocaleString()} RP</b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>현재 Token</span>
+              <b style={{ color: '#e6a800' }}>{(user?.tokens || 0).toLocaleString()} Token</b>
+            </div>
+          </div>
+          <label htmlFor="rp-exchange-input" style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.9rem', fontWeight: 700 }}>환전할 RP</label>
+          <input
+            id="rp-exchange-input"
+            type="number"
+            min={MIN_EXCHANGE_RP}
+            max={currentRp || undefined}
+            step={1}
+            value={exchangeRpInput}
+            onChange={e => setExchangeRpInput(e.target.value)}
+            placeholder={`최소 ${MIN_EXCHANGE_RP.toLocaleString()} RP`}
+            style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '0.75rem 0 1rem' }}>
+            {[5_000, 50_000, 100_000, 500_000].map(amount => (
+              <button key={amount} type="button" onClick={() => selectExchangeAmount(amount)} disabled={amount > currentRp} className="btn" style={{ width: 'auto', padding: '0.4rem 0.7rem', opacity: amount > currentRp ? 0.5 : 1 }}>
+                {amount.toLocaleString()}
+              </button>
+            ))}
+            <button type="button" onClick={() => selectExchangeAmount(maxExchangeRp)} disabled={maxExchangeRp < MIN_EXCHANGE_RP} className="btn" style={{ width: 'auto', padding: '0.4rem 0.7rem' }}>
+              최대
+            </button>
+          </div>
+          {validQuote ? (
+            <div style={{ display: 'grid', gap: '0.45rem', padding: '0.8rem', borderRadius: '0.5rem', background: 'var(--bg-color)', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>예상 획득</span><b>{validQuote.tokensReceived.toLocaleString()} Token</b></div>
+              {validQuote.bonusTokens > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-4)' }}><span>대량 환전 보너스</span><b>+{validQuote.bonusTokens.toLocaleString()} Token</b></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>환전 후 RP</span><b>{Math.max(0, (user?.rating || 0) - validQuote.exchangedRp).toLocaleString()} RP</b></div>
+              {validQuote.exchangedRp !== validQuote.requestedRp && <small style={{ opacity: 0.65 }}>정수 Token 지급을 위해 실제 차감 RP는 {validQuote.exchangedRp.toLocaleString()} RP입니다.</small>}
+            </div>
+          ) : (
+            <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>5,000 RP 이상, 보유 RP 이하의 정수로 입력하세요.</p>
+          )}
+          <button type="button" onClick={handleExchange} disabled={!validQuote || exchanging} className="btn" style={{ width: '100%', background: validQuote && !exchanging ? 'var(--color-4)' : 'var(--border)', color: validQuote && !exchanging ? 'white' : 'var(--text-muted)' }}>
+            {exchanging ? '환전 중...' : '환전하기'}
+          </button>
+        </section>
       )}
 
       {loading ? <p style={{ textAlign: 'center' }}>로딩 중...</p> : (
@@ -4353,7 +4470,6 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontWeight: 800, fontSize: '1.1rem', marginBottom: '0.5rem', color: '#e6a800' }}>🪙 {item.cost} 토큰</div>
                 <button
-                  onClick={() => handleBuy(item.id)}
                   disabled={(user?.tokens || 0) < item.cost}
                   className="btn"
                   style={{ width: 'auto', padding: '0.6rem 1.5rem', background: (user?.tokens || 0) >= item.cost ? 'var(--color-4)' : 'var(--border)', color: (user?.tokens || 0) >= item.cost ? 'white' : 'var(--text-muted)', cursor: (user?.tokens || 0) >= item.cost ? 'pointer' : 'not-allowed', opacity: (user?.tokens || 0) >= item.cost ? 1 : 0.6 }}
