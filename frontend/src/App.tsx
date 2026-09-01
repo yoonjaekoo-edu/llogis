@@ -247,6 +247,11 @@ const Navbar: React.FC<{
             <span>Logis</span>
           </Link>
         </h1>
+        {user?.username === 'admin' && (
+          <Link to="/admin" className="mobile-admin-link" aria-label="관리자 패널로 이동">
+            관리
+          </Link>
+        )}
         <button
           type="button"
           className="nav-menu-toggle"
