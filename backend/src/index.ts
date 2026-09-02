@@ -35,7 +35,6 @@ import {
   recordFingerprint,
 } from './security/signupGuard';
 import { calculateExchangeQuote, canReceiveTokens, MAX_TOKEN_BALANCE, MIN_EXCHANGE_RP } from './rpExchange.js';
-import { DogeMarketError, getDogeMarketSnapshot, tradeDoge } from './dogeMarketService';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
