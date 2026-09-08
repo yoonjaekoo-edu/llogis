@@ -372,6 +372,7 @@ export const processSubmission = async (
        finalProblemsSolved, currentRating, activityDescription, today]
     );
     const finalRating = Number(writeRes.rows[0]?.new_rating ?? currentRating + feverAdjustedDelta);
+    const ratingChange = finalRating - currentRating;
     perfMark('writeCte');
 
     await client.query('COMMIT');
@@ -380,6 +381,7 @@ export const processSubmission = async (
 
     return {
       newUserRating: finalRating,
+      ratingChange,
       tier: getTier(finalRating),
       level: Math.floor(Math.sqrt(finalXp / 100)) + 1,
       streak: finalStreak,

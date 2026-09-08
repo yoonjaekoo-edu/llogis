@@ -74,7 +74,7 @@ function Sparkline({ history }: { history: PricePoint[] }) {
   );
 }
 
-function DogeMarketPage() {
+function DogeMarketPage({ onUserUpdate }: { onUserUpdate?: (user: StoredUser) => void }) {
   const [user, setUser] = useState<StoredUser | null>(() => readStoredUser());
   const [market, setMarket] = useState<MarketData | null>(null);
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
@@ -103,13 +103,14 @@ function DogeMarketPage() {
         const next = { ...current, rating: data.balance.rating, tokens: data.balance.doge };
         localStorage.setItem('user', JSON.stringify(next));
         setUser(next);
+        onUserUpdate?.(next);
       }
     } catch (err) {
       if (!silent) setMessage(err instanceof Error ? err.message : '마켓 정보를 불러오지 못했어.');
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [onUserUpdate]);
 
   useEffect(() => {
     fetchMarket();
@@ -157,6 +158,7 @@ function DogeMarketPage() {
       const next = { ...current, rating: Number(data.rating) || 0, tokens: Number(data.doge) || 0 };
       localStorage.setItem('user', JSON.stringify(next));
       setUser(next);
+      onUserUpdate?.(next);
       const navRp = document.querySelector('.nav-rp');
       if (navRp) navRp.textContent = `✨ ${Math.round(Number(data.rating) || 0).toLocaleString()} RP`;
       setMessage(`✅ ${data.message} 체결가 ${formatRp(Number(data.price))} · 수수료 ${formatRp(Number(data.fee))}`);
@@ -285,6 +287,6 @@ function DogeMarketPage() {
   );
 }
 
-export default function DogeMarketRoute() {
-  return <DogeMarketPage />;
+export default function DogeMarketRoute({ onUserUpdate }: { onUserUpdate?: (user: StoredUser) => void }) {
+  return <DogeMarketPage onUserUpdate={onUserUpdate} />;
 }
