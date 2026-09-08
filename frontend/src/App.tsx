@@ -3896,7 +3896,9 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       if (data.isCorrect) {
         setShowFirework(true);
         setLastWrongAnswer(null);
-        const rpGained = Math.round(data.newUserRating - user.rating);
+        const rpGained = Number.isFinite(Number(data.ratingChange))
+          ? Math.round(Number(data.ratingChange))
+          : Math.round(data.newUserRating - user.rating);
         setLastCorrectFeedback({ rpGained });
         setTimeout(() => setLastCorrectFeedback(null), 4000);
         const currentProblemIndex = problems.findIndex(problem => problem.id === problemId);
@@ -4756,6 +4758,10 @@ const AppContent: React.FC = () => {
     setUser(null);
   };
 
+  const handleMarketUserUpdate = useCallback((nextUser: { [key: string]: unknown }) => {
+    setUser(nextUser as unknown as User);
+  }, []);
+
   return (
     <>
       <a href="#main-content" className="skip-link" style={{ position: 'absolute', left: '-9999px', top: 0, zIndex: 9999, padding: '1rem', background: '#5c95ff', color: 'white' }} onFocus={e => e.currentTarget.style.left = '0'} onBlur={e => e.currentTarget.style.left = '-9999px'}>본문으로 바로가기</a>
@@ -4778,7 +4784,7 @@ const AppContent: React.FC = () => {
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
           <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
           <Route path="/shop" element={<Shop user={user} setUser={setUser} />} />
-          <Route path="/doge-market" element={<DogeMarketPage />} />
+          <Route path="/doge-market" element={<DogeMarketPage onUserUpdate={handleMarketUserUpdate} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/bug-report" element={<BugReport user={user} />} />
           <Route path="/goose-room" element={<GooseRoom />} />
