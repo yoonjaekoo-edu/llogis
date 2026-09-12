@@ -10,7 +10,7 @@ function replaceOnce(source, before, after, label) {
 
 function patchBackend() {
   const path = 'backend/src/index.ts';
-  let source = fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, '');
+  let source = fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
 
   if (!source.includes("'one_shot_one_kill'")) {
     source = replaceOnce(
@@ -71,7 +71,7 @@ function patchBackend() {
 
 function patchFrontend() {
   const path = 'frontend/src/App.tsx';
-  let source = fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, '');
+  let source = fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
 
   if (!source.includes('const [comboCount, setComboCount]')) {
     source = replaceOnce(
@@ -85,8 +85,8 @@ function patchFrontend() {
   if (!source.includes('const nextCombo = Math.max(1, Number(data.consecutiveCorrect) || 1);')) {
     source = replaceOnce(
       source,
-      "      if (data.isCorrect) {\n        setShowFirework(true);\n        setLastWrongAnswer(null);\n        const rpGained = Math.round(data.newUserRating - user.rating);\n",
-      "      if (data.isCorrect) {\n        setShowFirework(true);\n        setLastWrongAnswer(null);\n        const nextCombo = Math.max(1, Number(data.consecutiveCorrect) || 1);\n        setComboCount(nextCombo);\n        setComboImpactKey(prev => prev + 1);\n        if (data.newlyUnlockedTitle?.name) {\n          setUnlockedComboTitle(data.newlyUnlockedTitle.name);\n          setTimeout(() => setUnlockedComboTitle(null), 5000);\n        }\n        const rpGained = Math.round(data.newUserRating - user.rating);\n",
+      "        setLastWrongAnswer(null);\n",
+      "        setLastWrongAnswer(null);\n        const nextCombo = Math.max(1, Number(data.consecutiveCorrect) || 1);\n        setComboCount(nextCombo);\n        setComboImpactKey(prev => prev + 1);\n        if (data.newlyUnlockedTitle?.name) {\n          setUnlockedComboTitle(data.newlyUnlockedTitle.name);\n          setTimeout(() => setUnlockedComboTitle(null), 5000);\n        }\n",
       'correct combo state update'
     );
   }
