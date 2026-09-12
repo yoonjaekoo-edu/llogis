@@ -262,7 +262,7 @@ const Navbar: React.FC<{
           <li><Link to="/ranking">랭킹</Link></li>
           <li><Link to="/groups">그룹</Link></li>
           <li><Link to="/shop">상점</Link></li>
-          <li><Link to="/market">🐕 DOGE Market</Link></li>
+          <li><Link to="/logicoin">로지코인</Link></li>
           <li><Link to="/about">소개</Link></li>
           {user ? (
             <>
@@ -2877,6 +2877,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         .then(data => {
           if (data.error) return;
           setProfileData(data);
+          setProblemTypeStats(Array.isArray(data.problemTypeStats) ? data.problemTypeStats : []);
         })
         .catch(() => {});
       return;
@@ -4434,7 +4435,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
             style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box' }}
           />
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '0.75rem 0 1rem' }}>
-            {[5_000, 50_000, 100_000, 500_000].map(amount => (
+            {[10_000, 50_000, 100_000, 500_000].map(amount => (
               <button key={amount} type="button" onClick={() => selectExchangeAmount(amount)} disabled={amount > currentRp} className="btn" style={{ width: 'auto', padding: '0.4rem 0.7rem', opacity: amount > currentRp ? 0.5 : 1 }}>
                 {amount.toLocaleString()}
               </button>
@@ -4446,12 +4447,11 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
           {validQuote ? (
             <div style={{ display: 'grid', gap: '0.45rem', padding: '0.8rem', borderRadius: '0.5rem', background: 'var(--bg-color)', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>예상 획득</span><b>{validQuote.tokensReceived.toLocaleString()} Token</b></div>
-              {validQuote.bonusTokens > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-4)' }}><span>대량 환전 보너스</span><b>+{validQuote.bonusTokens.toLocaleString()} Token</b></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>환전 비율</span><b>10,000 RP = 1 Token</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>환전 후 RP</span><b>{Math.max(0, (user?.rating || 0) - validQuote.exchangedRp).toLocaleString()} RP</b></div>
-              {validQuote.exchangedRp !== validQuote.requestedRp && <small style={{ opacity: 0.65 }}>정수 Token 지급을 위해 실제 차감 RP는 {validQuote.exchangedRp.toLocaleString()} RP입니다.</small>}
             </div>
           ) : (
-            <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>5,000 RP 이상, 보유 RP 이하의 정수로 입력하세요.</p>
+            <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>10,000 RP 이상, 보유 RP 이하의 정수로 입력하세요.</p>
           )}
           <button type="button" onClick={handleExchange} disabled={!validQuote || exchanging} className="btn" style={{ width: '100%', background: validQuote && !exchanging ? 'var(--color-4)' : 'var(--border)', color: validQuote && !exchanging ? 'white' : 'var(--text-muted)' }}>
             {exchanging ? '환전 중...' : '환전하기'}
@@ -4703,18 +4703,18 @@ const DogeMarket: React.FC<{ user: User | null; setUser: (user: User) => void }>
   const formatDp = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 8 });
   const profitColor = (market?.wallet.profitLossRp ?? 0) >= 0 ? '#0a9b62' : '#e55353';
 
-  if (!user || loading || !market) return <main className="container market-page"><p>DOGE Market 불러오는 중...</p></main>;
+  if (!user || loading || !market) return <main className="container market-page"><p>로지코인 불러오는 중...</p></main>;
 
   return (
     <main className="container market-page">
       <Helmet>
-        <title>DOGE Market | Logis</title>
-        <meta name="description" content="실제 DOGE 가격을 데이터 소스로 사용하는 Logis 가상 DP 투자 게임" />
+        <title>로지코인 | Logis</title>
+        <meta name="description" content="실제 DOGE 가격을 데이터 소스로 사용하는 Logis 가상 자산 DP 투자 게임" />
       </Helmet>
       <div className="market-heading">
         <div>
           <span className="market-kicker">VIRTUAL ASSET GAME</span>
-          <h2>🐕 DOGE Market</h2>
+          <h2>로지코인</h2>
           <p>실제 DOGE 가격에 연동된 Logis 내부 가상 자산 DP를 거래해보세요.</p>
         </div>
         <div className="market-price-main">
@@ -4886,7 +4886,7 @@ const AppContent: React.FC = () => {
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
           <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
           <Route path="/shop" element={<Shop user={user} setUser={setUser} />} />
-          <Route path="/market" element={<DogeMarket user={user} setUser={setUser} />} />
+          <Route path="/logicoin" element={<DogeMarket user={user} setUser={setUser} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/bug-report" element={<BugReport user={user} />} />
           <Route path="/goose-room" element={<GooseRoom />} />

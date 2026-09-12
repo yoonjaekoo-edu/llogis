@@ -161,6 +161,20 @@ const ensureSchema = async () => {
     ) WHERE u.problems_solved = 0
   `);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS rating_activity_logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      problem_id INTEGER REFERENCES problems(id) ON DELETE SET NULL,
+      activity_type VARCHAR(50) NOT NULL,
+      change_amount INTEGER NOT NULL,
+      before_rating DOUBLE PRECISION NOT NULL,
+      after_rating DOUBLE PRECISION NOT NULL,
+      description TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS rating_activity_logs_user_created_at_idx ON rating_activity_logs (user_id, created_at DESC)');
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS admin_notifications (
       id SERIAL PRIMARY KEY,
       type VARCHAR(50) NOT NULL DEFAULT 'info',
@@ -548,6 +562,14 @@ app.get('/api/users/profile', authenticateToken, async (req: any, res: Response)
       'SELECT badge_id FROM user_profile_badges WHERE user_id = $1',
       [userId]
     );
+    const activitiesRes = await pool.query(
+      `SELECT id, activity_type, change_amount, before_rating, after_rating, description, created_at
+       FROM rating_activity_logs
+       WHERE user_id = $1
+       ORDER BY created_at DESC, id DESC
+       LIMIT 30`,
+      [userId],
+    );
 
     res.json({
       user: {
@@ -561,6 +583,7 @@ app.get('/api/users/profile', authenticateToken, async (req: any, res: Response)
       },
       boxes: boxesRes.rows,
       badges: badgesRes.rows.map((r: any) => r.badge_id),
+      recentActivities: activitiesRes.rows,
     });
   } catch (err) {
     console.error('Failed to fetch profile:', err);
@@ -706,7 +729,7 @@ app.post('/api/store/exchange-rp', authenticateToken, async (
   const userId = authenticatedRequest.user.id;
   const requestedRp = req.body?.rp;
   if (typeof requestedRp !== 'number' || !Number.isSafeInteger(requestedRp) || requestedRp < MIN_EXCHANGE_RP) {
-    return res.status(400).json({ error: '환전 RP는 5,000 이상의 안전한 정수여야 합니다.' });
+    return res.status(400).json({ error: '환전 RP는 10,000 이상의 안전한 정수여야 합니다.' });
   }
 
   const client = await pool.connect();
@@ -961,6 +984,16 @@ app.get('/api/users/:id/profile', async (req: Request, res: Response) => {
     const stats = statsResult.rows[0];
     const totalSubmissions = parseInt(stats.total);
     const correctSubmissions = parseInt(user.problems_solved) || 0;
+    const problemTypeStatsRes = await pool.query(
+      `SELECT t.name as tag_name, COUNT(*) as solved_count
+       FROM submissions s
+       JOIN problem_tags pt ON s.problem_id = pt.problem_id
+       JOIN tags t ON pt.tag_id = t.id
+       WHERE s.user_id = $1 AND s.is_correct = true
+       GROUP BY t.name
+       ORDER BY t.name`,
+      [id],
+    );
     res.json({
       user: {
         ...user,
@@ -973,7 +1006,8 @@ app.get('/api/users/:id/profile', async (req: Request, res: Response) => {
         totalSubmissions,
         correctSubmissions,
         accuracy: totalSubmissions > 0 ? (correctSubmissions / totalSubmissions) * 100 : 0
-      }
+      },
+      problemTypeStats: problemTypeStatsRes.rows,
     });
   } catch (err) {
     console.error('Failed to fetch public profile:', err);
