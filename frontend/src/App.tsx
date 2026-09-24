@@ -10,6 +10,45 @@ import CatRoom from './CatRoom';
 import { applyCultureLanguage } from './cultureLanguage';
 
 import { calculateExchangeQuote, getMaxExchangeRp, MIN_EXCHANGE_RP } from './rpExchange';
+
+// --- 세션(토큰) 만료 처리 ---
+const AUTH_EXPIRED_ERROR = 'Invalid or expired token';
+
+// JWT payload에서 exp(만료 시각, 초 단위)를 꺼낸다. 파싱할 수 없으면 null.
+const decodeJwtExp = (token: string): number | null => {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const json = new TextDecoder().decode(Uint8Array.from(atob(padded), c => c.charCodeAt(0)));
+    const payload = JSON.parse(json);
+    return typeof payload?.exp === 'number' ? payload.exp : null;
+  } catch {
+    return null;
+  }
+};
+
+// 토큰 만료가 '확인'되면 true (exp가 없거나 파싱 불가면 확인 불가로 보고 false — 서버 403 감지가 처리)
+const isTokenExpired = (token: string): boolean => {
+  const exp = decodeJwtExp(token);
+  return exp !== null && Date.now() >= exp * 1000;
+};
+
+// 만료가 확인된 순간 실행할 로그아웃 핸들러 (AppContent가 등록; 미등록 시 no-op)
+let sessionExpiredHandler: () => void = () => {};
+
+// 전역 fetch 래핑: 만료된 토큰으로 인한 403 응답을 감지하면 즉시 로그아웃시킨다.
+const originalFetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const response = await originalFetch(input, init);
+  if (response.status === 403) {
+    response.clone().json().then((data: any) => {
+      if (data?.error === AUTH_EXPIRED_ERROR) sessionExpiredHandler();
+    }).catch(() => {});
+  }
+  return response;
+};
 // --- Types ---
 interface Problem {
   id: number;
@@ -4681,24 +4720,29 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
 };
 
 const AppContent: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // 저장된 세션을 복원하기 전에 토큰 만료 여부를 먼저 확인한다 — 만료가 확인되면 즉시 버린다.
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    if (!token || !savedUser || isTokenExpired(token)) {
+      if (token || savedUser) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+      return null;
+    }
+    try {
+      return JSON.parse(savedUser);
+    } catch {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return null;
+    }
+  });
   const [theme] = useState<'dark'>('dark');
   const [cultureLanguage, setCultureLanguage] = useState(() => localStorage.getItem('culture-language') === 'true');
   const [logoClickCount, setLogoClickCount] = useState(() => Number(localStorage.getItem('logo-click-count') || '0'));
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
-    }
-  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -4755,6 +4799,42 @@ const AppContent: React.FC = () => {
     localStorage.removeItem('user');
     setUser(null);
   };
+
+  // 토큰 만료가 확인된 순간(서버 403 또는 exp 확인) 즉시 로그아웃
+  const handleSessionExpired = useCallback(() => {
+    if (!localStorage.getItem('token')) return;
+    handleLogout();
+    alert('로그인 세션이 만료되어 로그아웃되었습니다. 다시 로그인해주세요.');
+    const path = window.location.pathname;
+    if (path !== '/login' && path !== '/signup') navigate('/login');
+  }, [navigate]);
+
+  // 전역 fetch 감지기가 호출할 수 있도록 만료 핸들러 등록
+  useEffect(() => {
+    sessionExpiredHandler = handleSessionExpired;
+    return () => {
+      if (sessionExpiredHandler === handleSessionExpired) sessionExpiredHandler = () => {};
+    };
+  }, [handleSessionExpired]);
+
+  // 30초마다 + 탭이 다시 보일 때 토큰 만료를 점검해 만료가 확인되면 즉시 로그아웃
+  useEffect(() => {
+    const checkTokenExpiry = () => {
+      const token = localStorage.getItem('token');
+      if (token && isTokenExpired(token)) handleSessionExpired();
+    };
+    const intervalId = window.setInterval(checkTokenExpiry, 30000);
+    const onWake = () => {
+      if (document.visibilityState === 'visible') checkTokenExpiry();
+    };
+    document.addEventListener('visibilitychange', onWake);
+    window.addEventListener('focus', onWake);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onWake);
+      window.removeEventListener('focus', onWake);
+    };
+  }, [handleSessionExpired]);
 
   return (
     <>
