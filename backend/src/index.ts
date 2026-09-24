@@ -568,7 +568,7 @@ app.get('/api/users/profile', authenticateToken, async (req: any, res: Response)
     const userId = req.user.id;
 
     const userResult = await pool.query(
-      "SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, profile_theme, profile_css FROM users WHERE id = $1",
+      "SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, tokens, profile_theme, profile_css FROM users WHERE id = $1",
       [userId]
     );
 
