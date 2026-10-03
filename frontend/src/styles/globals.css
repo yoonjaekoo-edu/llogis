@@ -2947,3 +2947,72 @@ tr:hover td {
     padding-right: 1.6rem;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   작은 글씨 타이포그래피 — Google Sans
+   UI 라벨 / 캡션 / 수치 / 표 / 버튼 / 안내문 등 "작은 글씨"를 Google Sans로 통일한다.
+   (한글은 Google Sans에 글리프가 없어 Noto Sans KR로 대체 렌더된다.)
+   제목(h1~h6, .landing-hero-title)과 수식(.math-content / .katex / .answer-input)은
+   기존 서체를 그대로 유지한다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --font-small: 'Google Sans', 'Google Sans Text', Pretendard, 'Noto Sans KR',
+    -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+}
+
+button,
+input,
+select,
+textarea,
+label,
+small,
+caption,
+figcaption,
+td,
+th,
+nav a,
+.nav-rp,
+.nav-level,
+.nav-tier-label,
+.nav-tier-rp,
+.nav-logout-btn,
+.nav-user-avatar-fallback,
+.difficulty-badge,
+.btn,
+.culture-language-toggle,
+.stats-chip,
+.stat-card-label,
+.stat-card-sub,
+.stat-card-value,
+.stat-value,
+.stat-sub,
+.stat-label,
+.stat-card-premium .stat-label,
+.stat-card-premium .stat-sub,
+.streak-day,
+.inline-feedback,
+.tier-progress-card,
+.profile-tier-badge,
+.profile-edit-btn,
+.profile-bio,
+.goose-room-eyebrow,
+.goose-room-description,
+.cat-room-eyebrow,
+.cat-room-description,
+.landing-hero-eyebrow,
+.landing-hero-trust,
+.landing-stat-label,
+.landing-stat-number,
+.landing-tier-item,
+.feature-icon,
+.feature-desc,
+.auth-subtitle,
+.auth-switch,
+.auth-form label,
+.auth-form input,
+.auth-form button,
+.mobile-admin-link {
+  font-family: var(--font-small);
+  font-variant-numeric: tabular-nums;
+}
+

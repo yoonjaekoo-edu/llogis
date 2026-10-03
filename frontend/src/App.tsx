@@ -2629,7 +2629,7 @@ const ProfileBadges: React.FC<{ user: User | null }> = ({ user }) => {
             background: 'rgba(92,149,255,0.08)', border: '1px solid rgba(92,149,255,0.2)',
             fontWeight: 700
           }} title={b.description}>
-            <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--arena-gold)', marginBottom: '0.45rem' }}>{b.badge_id.replace(/_/g, ' ')}</div>
+            <div style={{ fontFamily: 'var(--font-small)', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--arena-gold)', marginBottom: '0.45rem' }}>{b.badge_id.replace(/_/g, ' ')}</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{b.name}</div>
           </div>
         ))}
@@ -2638,7 +2638,7 @@ const ProfileBadges: React.FC<{ user: User | null }> = ({ user }) => {
             padding: '0.7rem', borderRadius: '0.75rem', textAlign: 'center',
             border: '1px solid var(--border)', opacity: 0.4, fontWeight: 700
           }} title={b.description}>
-            <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--arena-subtle)', marginBottom: '0.45rem' }}>{b.badge_id.replace(/_/g, ' ')}</div>
+            <div style={{ fontFamily: 'var(--font-small)', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--arena-subtle)', marginBottom: '0.45rem' }}>{b.badge_id.replace(/_/g, ' ')}</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{b.name}</div>
           </div>
         ))}
