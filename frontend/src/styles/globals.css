@@ -2803,3 +2803,147 @@ tr:hover td {
     min-height: 0;
   }
 }
+
+/* ============================================================
+   Landing motion (GSAP) — 랜딩 전용 모션 레이어
+   ============================================================ */
+
+/* 제목 줄 마스크: 안쪽 span을 아래에서 밀어 올린다 (패딩/음수 마진으로 글자 여유 확보) */
+.lh-line {
+  display: block;
+  overflow: hidden;
+  padding: 0.06em 0.12em 0.16em;
+  margin: -0.06em -0.12em -0.16em;
+}
+
+.lh-line-inner {
+  display: block;
+  will-change: transform;
+}
+
+/* 점 격자를 별도 레이어로 분리해 스크롤 패럴랙스를 준다 */
+.landing-hero {
+  background-image: radial-gradient(ellipse 60% 80% at 24% 42%, rgba(45, 45, 45, 0.26), transparent 70%);
+  background-size: auto;
+}
+
+.landing-hero-grid {
+  position: absolute;
+  inset: -70px 0;
+  z-index: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.12) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.landing-hero-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 720px;
+  will-change: transform, opacity;
+}
+
+/* 트러스트 구분선: GSAP이 그려 넣는 요소로 대체 */
+.landing-hero-trust {
+  position: relative;
+  border-top: 0;
+}
+
+.landing-hero-trust-rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #2c2c2c;
+  transform-origin: 0 50%;
+}
+
+/* 마퀴 바로 아래라 통계 스트립의 윗선은 겹친다 */
+.landing-stats-strip {
+  border-top: 0;
+}
+
+/* 티어 마퀴 */
+.landing-tier-strip {
+  overflow: hidden;
+  border-bottom: 1px solid var(--arena-line);
+  background: #0b0c0d;
+  padding: 0.9rem 0;
+}
+
+.landing-tier-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.landing-tier-group {
+  display: flex;
+  align-items: center;
+  gap: 2.4rem;
+  padding-right: 2.4rem;
+}
+
+.landing-tier-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.4rem;
+  color: #7f868f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.landing-tier-item::after {
+  content: '';
+  width: 4px;
+  height: 4px;
+  background: var(--arena-gold);
+  flex: 0 0 auto;
+}
+
+/* 특성 카드 아이콘 자리를 번호 라벨로 (모노스페이스 + 금색 눈금) */
+.feature-icon {
+  display: inline-block;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(227, 194, 47, 0.45);
+  color: var(--arena-gold);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  filter: none;
+}
+
+/* GSAP이 transform/opacity를 직접 다루는 요소는 색상 피드백만 CSS 전환에 맡긴다 */
+.landing-hero-cta-group .btn-hero,
+.landing-features-grid .feature-card {
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+@media (max-width: 768px) {
+  .landing-hero-grid {
+    inset: -50px 0;
+    background-size: 16px 16px;
+  }
+
+  .landing-tier-strip {
+    padding: 0.75rem 0;
+  }
+
+  .landing-tier-group,
+  .landing-tier-item {
+    gap: 1.6rem;
+  }
+
+  .landing-tier-group {
+    padding-right: 1.6rem;
+  }
+}

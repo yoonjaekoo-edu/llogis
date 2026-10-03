@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { animate, motion, useInView, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import './styles/globals.css';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
@@ -10,6 +10,7 @@ import CatRoom from './CatRoom';
 import { applyCultureLanguage } from './cultureLanguage';
 
 import { calculateExchangeQuote, getMaxExchangeRp, MIN_EXCHANGE_RP } from './rpExchange';
+import { CountUp, Reveal, useLandingMotion } from './landingMotion';
 
 // --- 세션(토큰) 만료 처리 ---
 const AUTH_EXPIRED_ERROR = 'Invalid or expired token';
@@ -125,71 +126,6 @@ const renderMath = (content: any) => {
       </React.Fragment>
     ));
   });
-};
-
-const SectionReveal: React.FC<{
-  children: React.ReactNode;
-  delay?: number;
-  className?: string;
-  style?: React.CSSProperties;
-}> = ({ children, delay = 0, className, style }) => {
-  const reducedMotion = useReducedMotion();
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inView = useInView(ref, { once: true, margin: '-12% 0px -8% 0px' });
-
-  return (
-    <motion.div
-      ref={ref}
-      className={className}
-      style={style}
-      initial={false}
-      animate={inView ? 'visible' : 'hidden'}
-      variants={{
-        hidden: { opacity: 0, y: reducedMotion ? 0 : 24 },
-        visible: { opacity: 1, y: 0 },
-      }}
-      transition={{ duration: reducedMotion ? 0 : 0.55, ease: 'easeOut', delay }}
-    >
-      {children}
-    </motion.div>
-  );
-};
-
-const CountUp: React.FC<{
-  value: number;
-  duration?: number;
-  prefix?: string;
-  suffix?: string;
-  className?: string;
-}> = ({ value, duration = 1.5, prefix = '', suffix = '', className }) => {
-  const reducedMotion = useReducedMotion();
-  const ref = useRef<HTMLSpanElement | null>(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px -10% 0px' });
-  const [displayValue, setDisplayValue] = useState(reducedMotion ? value : 0);
-
-  useEffect(() => {
-    if (!inView) return;
-    if (reducedMotion) {
-      setDisplayValue(value);
-      return;
-    }
-
-    const controls = animate(0, value, {
-      duration,
-      ease: 'easeOut',
-      onUpdate(latest) {
-        setDisplayValue(Math.round(latest));
-      },
-    });
-
-    return () => controls.stop();
-  }, [inView, value, duration, reducedMotion]);
-
-  return (
-    <span ref={ref} className={className} aria-label={`${value}`}>
-      {prefix}{displayValue.toLocaleString()}{suffix}
-    </span>
-  );
 };
 
 // --- Components ---
@@ -484,17 +420,17 @@ CSS 변수:
     </main>
   );
 };
+// 티어 마퀴에 흐르는 순서 (낮은 티어 → 높은 티어). 서버 tier_config 기본값과 같다.
+const tierMarqueeNames = [
+  'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Ruby', 'Master',
+  'God', 'Hacker', '치피치피차파차파', 'ChatGPT', '출제자', '주인장', '정답',
+];
+
 const Landing: React.FC<{ user: User | null }> = ({ user }) => {
   const navigate = useNavigate();
-  const reducedMotion = useReducedMotion();
-  const heroRef = useRef<HTMLElement | null>(null);
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  });
-  const heroGlowY = useTransform(scrollYProgress, [0, 1], [0, reducedMotion ? 0 : 120]);
-  const heroOrbY = useTransform(scrollYProgress, [0, 1], [0, reducedMotion ? 0 : -80]);
-  const heroOrbX = useTransform(scrollYProgress, [0, 1], [0, reducedMotion ? 0 : 50]);
+  const rootRef = useRef<HTMLElement | null>(null);
+  useLandingMotion(rootRef);
+
   const [overviewStats, setOverviewStats] = useState({
     totalUsers: 0,
     totalProblems: 0,
@@ -528,184 +464,157 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
   ];
 
   return (
-    <main>
+    <main ref={rootRef}>
       <Helmet>
         <title>홈 | Logis - 수학 문제 풀이 플랫폼</title>
         <meta name="description" content="Logis에서 수학 실력을 키우세요. Glicko-2 레이팅, 스트릭, 일일 퀘스트, 토큰 시스템으로 매일 성장합니다." />
       </Helmet>
 
       {/* ── Hero ── */}
-      <section ref={heroRef} className="landing-hero">
-        <motion.div
-          aria-hidden="true"
-          style={{ y: heroGlowY }}
-          className="landing-hero-glow"
-        />
-        <motion.div
-          aria-hidden="true"
-          style={{ y: heroOrbY, x: heroOrbX }}
-          className="landing-hero-orb landing-hero-orb-a"
-        />
-        <motion.div
-          aria-hidden="true"
-          style={{ y: heroGlowY, x: heroOrbX }}
-          className="landing-hero-orb landing-hero-orb-b"
-        />
+      <section className="landing-hero">
+        <span className="landing-hero-grid" aria-hidden="true" />
 
-        <SectionReveal style={{ position: 'relative', zIndex: 1, maxWidth: '720px' }}>
+        <div className="landing-hero-content">
           <p className="landing-hero-eyebrow"><span />REAL-TIME MATH RATING ARENA</p>
           {user ? (
             <>
-              <motion.div
-                className="landing-hero-welcome"
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: 'easeOut' }}
-              >
-                어서 오세요,
-              </motion.div>
-              <motion.h1
-                className="landing-hero-title"
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
-                style={{ willChange: 'transform' }}
-              >
-                <span className="landing-hero-username">{user.username}</span>!
-              </motion.h1>
+              <div className="lh-line">
+                <span className="lh-line-inner landing-hero-welcome">어서 오세요,</span>
+              </div>
+              <h1 className="landing-hero-title">
+                <span className="lh-line">
+                  <span className="lh-line-inner"><span className="landing-hero-username">{user.username}</span>!</span>
+                </span>
+              </h1>
             </>
           ) : (
-            <motion.h1
-              className="landing-hero-title"
-              initial={false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: 'easeOut' }}
-              style={{ willChange: 'transform' }}
-            >
-              <span className="landing-hero-title-primary">수학 실력을</span><br />
-              <span className="landing-hero-title-muted">레이팅으로 증명하세요</span>
-            </motion.h1>
+            <h1 className="landing-hero-title">
+              <span className="lh-line">
+                <span className="lh-line-inner"><span className="landing-hero-title-primary">수학 실력을</span></span>
+              </span>
+              <span className="lh-line">
+                <span className="lh-line-inner"><span className="landing-hero-title-muted">레이팅으로 증명하세요</span></span>
+              </span>
+            </h1>
           )}
-           <motion.p
-            className="landing-hero-sub"
-            initial={false}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.65, delay: 0.08 }}
-          >
+
+          <p className="landing-hero-sub">
             {user
               ? '오늘의 퀘스트를 완료하고 스트릭을 이어가세요. 매일 문제를 풀면 레이팅이 오릅니다.'
               : '다양한 수학 문제를 풀고 실력을 키우세요. 매일 문제를 풀어 성장하세요.'}
-          </motion.p>
+          </p>
 
           {user && !user.problems_solved && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+            <div
+              className="landing-hero-hint"
               style={{ marginTop: '1rem', padding: '0.7rem 1.2rem', borderRadius: '0.8rem', background: 'rgba(255, 215, 0, 0.12)', border: '1px solid rgba(255, 215, 0, 0.3)', display: 'inline-block' }}
             >
               <span style={{ fontWeight: 700, color: '#ffd700', fontSize: '0.95rem' }}>
                 문제를 풀어 RP를 얻고 티어를 올려보세요!
               </span>
-            </motion.div>
+            </div>
           )}
 
-          <div className="landing-cta-group">
-            <motion.button
+          <div className="landing-hero-cta-group">
+            <button
               onClick={() => navigate('/solve')}
               className="btn-hero btn-hero-primary"
-              whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }}
-              whileTap={reducedMotion ? undefined : { scale: 0.98 }}
             >
               문제 풀기
-            </motion.button>
+            </button>
             {!user && (
-              <motion.button
+              <button
                 onClick={() => navigate('/signup')}
                 className="btn-hero btn-hero-secondary"
-                whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }}
-                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
               >
                 무료로 시작하기
-              </motion.button>
+              </button>
             )}
             {user && (
-              <motion.button
+              <button
                 onClick={() => navigate('/profile')}
                 className="btn-hero btn-hero-secondary"
-                whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }}
-                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
               >
                 내 대시보드
-              </motion.button>
+              </button>
             )}
           </div>
 
           <div className="landing-hero-trust" aria-label="Logis의 장점">
+            <span className="landing-hero-trust-rule" aria-hidden="true" />
             <span>✓ 100% 무료 가입</span>
             <span>✓ 실시간 ELO 랭킹</span>
             <span>✓ 토큰 보상</span>
           </div>
-        </SectionReveal>
+        </div>
+      </section>
+
+      {/* ── Tier marquee ── */}
+      <section className="landing-tier-strip" aria-hidden="true">
+        <div className="landing-tier-track">
+          {[0, 1].map(copy => (
+            <div className="landing-tier-group" key={copy}>
+              {tierMarqueeNames.map(name => (
+                <span className="landing-tier-item" key={name}>{name}</span>
+              ))}
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── Stats strip ── */}
-      <SectionReveal className="landing-stats-strip">
+      <Reveal className="landing-stats-strip">
         <div className="landing-stats-grid">
-          <motion.div className="landing-stat-item" whileHover={reducedMotion ? undefined : { scale: 1.03, y: -4 }}>
+          <div className="landing-stat-item">
             <div className="landing-stat-number">
               <CountUp value={overviewStats.totalUsers} />
             </div>
             <div className="landing-stat-label">활성 사용자</div>
-          </motion.div>
-          <motion.div className="landing-stat-item" whileHover={reducedMotion ? undefined : { scale: 1.03, y: -4 }}>
+          </div>
+          <div className="landing-stat-item">
             <div className="landing-stat-number">
               <CountUp value={overviewStats.totalProblems} />
             </div>
             <div className="landing-stat-label">문제 수</div>
-          </motion.div>
-          <motion.div className="landing-stat-item" whileHover={reducedMotion ? undefined : { scale: 1.03, y: -4 }}>
+          </div>
+          <div className="landing-stat-item">
             <div className="landing-stat-number">
               <CountUp value={overviewStats.totalSubmissions} />
             </div>
             <div className="landing-stat-label">누적 제출</div>
-          </motion.div>
+          </div>
         </div>
-      </SectionReveal>
+      </Reveal>
 
       {/* ── Features ── */}
       <section className="landing-features">
-        <SectionReveal style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+        <Reveal style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-4)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             왜 Logis인가?
           </span>
-        </SectionReveal>
-        <SectionReveal delay={0.05}>
+        </Reveal>
+        <Reveal delay={0.05}>
           <h2 style={{ textAlign: 'center', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, margin: '0.5rem 0 0', letterSpacing: '-1px', color: 'var(--text-main)' }}>
             게임처럼 수학을 즐기세요
           </h2>
-        </SectionReveal>
+        </Reveal>
 
         <div className="landing-features-grid">
           {featureItems.map((f, index) => (
-            <SectionReveal key={f.title} delay={index * 0.04}>
-              <motion.div
-                className="feature-card"
-                whileHover={reducedMotion ? undefined : { y: -8, scale: 1.02 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-              >
+            <Reveal key={f.title} delay={index * 0.05}>
+              <div className="feature-card">
                 <span className="feature-icon">{f.icon}</span>
                 <h3 className="feature-title">{f.title}</h3>
                 <p className="feature-desc">{f.desc}</p>
-              </motion.div>
-            </SectionReveal>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* ── Demo Problem Preview ── */}
       {!user && (
-        <SectionReveal style={{ textAlign: 'center', padding: '3rem 1.5rem', background: 'var(--bg-color)', borderTop: '1px solid var(--border)' }}>
+        <Reveal style={{ textAlign: 'center', padding: '3rem 1.5rem', background: 'var(--bg-color)', borderTop: '1px solid var(--border)' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-4)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             미리보기
           </span>
@@ -721,12 +630,12 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
               가입하면 30개 이상의 템플릿에서 자동 생성된 끝없는 문제를 풀 수 있습니다
             </div>
           </div>
-        </SectionReveal>
+        </Reveal>
       )}
 
       {/* ── Bottom CTA ── */}
       {!user && (
-        <SectionReveal style={{ textAlign: 'center', padding: '5rem 1.5rem', background: 'var(--card-bg)', borderTop: '1px solid var(--border)' }}>
+        <Reveal style={{ textAlign: 'center', padding: '5rem 1.5rem', background: 'var(--card-bg)', borderTop: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: '2rem', fontWeight: 900, marginBottom: '1rem', color: 'var(--color-4)' }}>
             지금 바로 시작하세요
           </h2>
@@ -734,20 +643,18 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
             무료로 가입하고 수학 문제 풀이를 시작하세요.
           </p>
           <div className="landing-cta-group">
-            <motion.button onClick={() => navigate('/signup')} className="btn-hero btn-hero-primary" whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }} whileTap={reducedMotion ? undefined : { scale: 0.98 }}>
+            <button onClick={() => navigate('/signup')} className="btn-hero btn-hero-primary">
               무료 가입
-            </motion.button>
-            <motion.button onClick={() => navigate('/login')} className="btn-hero btn-hero-secondary" whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }} whileTap={reducedMotion ? undefined : { scale: 0.98 }}>
+            </button>
+            <button onClick={() => navigate('/login')} className="btn-hero btn-hero-secondary">
               로그인
-            </motion.button>
+            </button>
           </div>
-        </SectionReveal>
+        </Reveal>
       )}
     </main>
   );
 };
-
-
 const Groups: React.FC<{ user: User | null }> = ({ user }) => {
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
