@@ -323,7 +323,7 @@ const Navbar: React.FC<{
                   </Link>
                 </li>
                 <li><span className="nav-level">Lv.{user.level || 1}</span></li>
-                <li><span className="nav-rp">✨ {Math.round(user.rating).toLocaleString()} RP</span></li>
+                <li><span className="nav-rp">{Math.round(user.rating).toLocaleString()} RP</span></li>
                 <li><button onClick={onLogout} aria-label="로그아웃" className="nav-logout-btn">로그아웃</button></li>
               </>
             ) : (
@@ -391,7 +391,7 @@ const About: React.FC<{ user: User | null }> = ({ user }) => {
 
       {/* ─── AI 프로필 CSS 가이드 ─── */}
       <article className="problem-card" style={{ marginTop: '2rem' }}>
-        <h2 style={{ color: 'var(--color-4)', marginBottom: '1rem', textAlign: 'center' }}>🤖 AI로 프로필 CSS 만들기</h2>
+        <h2 style={{ color: 'var(--color-4)', marginBottom: '1rem', textAlign: 'center' }}>AI로 프로필 CSS 만들기</h2>
         <div style={{ textAlign: 'left', lineHeight: 1.8, fontSize: '0.95rem' }}>
           <p style={{ marginBottom: '1rem' }}>
             프로필 페이지는 CSS 코드로 자유롭게 꾸밀 수 있습니다. AI에게 다음과 같이 요청해보세요:
@@ -519,12 +519,12 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
   }, []);
 
   const featureItems = [
-    { icon: '📈', title: '실시간 레이팅', desc: '문제를 풀 때마다 레이팅이 실시간으로 변동됩니다. 나의 수학 실력을 확인하세요.' },
-    { icon: '🔥', title: '연속 스트릭', desc: '매일 1문제 이상 풀면 스트릭이 쌓입니다. 토큰으로 긴급 수리도 가능해요!' },
-    { icon: '🪙', title: '토큰 경제', desc: '정답을 맞힐 때마다 토큰을 획득하세요. 스트릭 수리, 혜택 등에 활용할 수 있습니다.' },
-    { icon: '📅', title: '일일 퀘스트', desc: '매일 새로운 퀘스트가 갱신됩니다. 완료하면 XP와 토큰을 대량으로 획득할 수 있어요.' },
-    { icon: '🏆', title: '티어 시스템', desc: 'Bronze부터 정답까지 14개 티어 — 레이팅이 오를수록 더 높은 티어를 달성하세요.' },
-    { icon: '🤖', title: 'AI 문제 생성', desc: 'NVIDIA NIM 기반 AI가 원하는 단원의 문제를 즉시 만들어 드립니다.' },
+    { icon: '01', title: '실시간 레이팅', desc: '문제를 풀 때마다 레이팅이 실시간으로 변동됩니다. 나의 수학 실력을 확인하세요.' },
+    { icon: '02', title: '연속 스트릭', desc: '매일 1문제 이상 풀면 스트릭이 쌓입니다. 토큰으로 긴급 수리도 가능해요!' },
+    { icon: '03', title: '토큰 경제', desc: '정답을 맞힐 때마다 토큰을 획득하세요. 스트릭 수리, 혜택 등에 활용할 수 있습니다.' },
+    { icon: '04', title: '일일 퀘스트', desc: '매일 새로운 퀘스트가 갱신됩니다. 완료하면 XP와 토큰을 대량으로 획득할 수 있어요.' },
+    { icon: '05', title: '티어 시스템', desc: 'Bronze부터 정답까지 14개 티어 — 레이팅이 오를수록 더 높은 티어를 달성하세요.' },
+    { icon: '06', title: 'AI 문제 생성', desc: 'NVIDIA NIM 기반 AI가 원하는 단원의 문제를 즉시 만들어 드립니다.' },
   ];
 
   return (
@@ -605,7 +605,7 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
               style={{ marginTop: '1rem', padding: '0.7rem 1.2rem', borderRadius: '0.8rem', background: 'rgba(255, 215, 0, 0.12)', border: '1px solid rgba(255, 215, 0, 0.3)', display: 'inline-block' }}
             >
               <span style={{ fontWeight: 700, color: '#ffd700', fontSize: '0.95rem' }}>
-                💡 문제를 풀어 RP를 얻고 티어를 올려보세요!
+                문제를 풀어 RP를 얻고 티어를 올려보세요!
               </span>
             </motion.div>
           )}
@@ -617,7 +617,7 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
               whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }}
               whileTap={reducedMotion ? undefined : { scale: 0.98 }}
             >
-              🧮 문제 풀기
+              문제 풀기
             </motion.button>
             {!user && (
               <motion.button
@@ -735,7 +735,7 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
           </p>
           <div className="landing-cta-group">
             <motion.button onClick={() => navigate('/signup')} className="btn-hero btn-hero-primary" whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }} whileTap={reducedMotion ? undefined : { scale: 0.98 }}>
-              🚀 무료 가입
+              무료 가입
             </motion.button>
             <motion.button onClick={() => navigate('/login')} className="btn-hero btn-hero-secondary" whileHover={reducedMotion ? undefined : { scale: 1.04, y: -3 }} whileTap={reducedMotion ? undefined : { scale: 0.98 }}>
               로그인
@@ -1264,7 +1264,7 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
                     <option value="168">168시간 (일주일)</option>
                   </select>
                 </div>
-                <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>대회 시작하기 🚀</button>
+                <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>대회 시작하기</button>
               </form>
             )}
 
@@ -1310,8 +1310,8 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
                       {comp.description || '설명이 없습니다.'}
                     </p>
                     <div style={{ fontSize: '0.8rem', borderTop: '1px solid var(--border)', paddingTop: '0.8rem', opacity: 0.9 }}>
-                      <div>⏱️ <b>{timeLeftStr}</b></div>
-                      <div>👥 참가자: <b>{comp.participant_count}명</b></div>
+                      <div><b>{timeLeftStr}</b></div>
+                      <div>참가자: <b>{comp.participant_count}명</b></div>
                     </div>
                   </div>
                 );
@@ -1350,7 +1350,7 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
               </p>
 
               <div style={{ padding: '0.8rem', background: 'rgba(0,0,0,0.03)', borderRadius: '0.5rem', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-                상태: <b>{compDetail.competition.status === 'ongoing' ? '🔴 실시간 진행 중 (10초마다 자동 갱신)' : '🏁 대회 종료됨'}</b><br />
+                상태: <b>{compDetail.competition.status === 'ongoing' ? '실시간 진행 중 (10초마다 자동 갱신)' : '대회 종료됨'}</b><br />
                 대회 기간: {new Date(compDetail.competition.start_time).toLocaleString()} ~ {new Date(compDetail.competition.end_time).toLocaleString()} ({compDetail.competition.duration_hours}시간)
               </div>
 
@@ -1359,7 +1359,7 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
                 {compDetail.leaderboard.map((player: any, idx: number) => {
                   const rank = idx + 1;
                   const isTop3 = rank <= 3;
-                  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
+                  const medal = `${rank}`;
 
                   return (
                     <div 
@@ -1476,7 +1476,7 @@ const Ranking: React.FC = () => {
                       <div style={{ overflow: 'hidden', flexGrow: 1 }}>
                         <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.username}</div>
                         {u.equipped_title && <div style={{ fontSize: '0.7rem', color: 'var(--color-4)', fontWeight: 700 }}>[{u.equipped_title}]</div>}
-                        {u.custom_title && <div style={{ fontSize: '0.7rem', color: '#ff6b9d', fontStyle: 'italic' }}>✨ {u.custom_title}</div>}
+                        {u.custom_title && <div style={{ fontSize: '0.7rem', color: '#ff6b9d', fontStyle: 'italic' }}>{u.custom_title}</div>}
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-4)' }}>{Math.round(u.rating).toLocaleString()} RP</div>
@@ -1513,7 +1513,7 @@ const Ranking: React.FC = () => {
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '1.2rem 1rem', fontWeight: 800 }}>
-                        {i + 1 === 1 ? '🥇' : i + 1 === 2 ? '🥈' : i + 1 === 3 ? '🥉' : i + 1}
+                        {i + 1}
                       </td>
                       <td style={{ padding: '1.2rem 1rem', fontWeight: 600 }}>{u.username}</td>
                       <td style={{ padding: '1.2rem 1rem' }}>
@@ -1522,7 +1522,7 @@ const Ranking: React.FC = () => {
                       </td>
                       <td style={{ padding: '1.2rem 1rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {u.equipped_title && <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-4)' }}>[{u.equipped_title}]</div>}
-                        {u.custom_title && <div style={{ fontSize: '0.75rem', color: '#ff6b9d', fontStyle: 'italic' }}>✨ {u.custom_title}</div>}
+                        {u.custom_title && <div style={{ fontSize: '0.75rem', color: '#ff6b9d', fontStyle: 'italic' }}>{u.custom_title}</div>}
                         {!u.equipped_title && !u.custom_title && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>-</span>}
                       </td>
                     </tr>
@@ -2026,7 +2026,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
               style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '1rem', boxSizing: 'border-box' }}
             />
             <button onClick={handleGenerateNim} disabled={generating} className="btn" style={{ background: 'var(--color-4)', color: 'white', opacity: generating ? 0.6 : 1 }}>
-              {generating ? '생성 중...' : `🤖 AI 문제 ${nimGenerationCount}개 생성`}
+              {generating ? '생성 중...' : `AI 문제 ${nimGenerationCount}개 생성`}
             </button>
           </div>
 
@@ -2116,19 +2116,19 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
             사용자 관리 ({users.length})
           </button>
           <button onClick={() => { setActiveTab('notifications'); fetchNotifications(); }} style={{ background: 'none', border: 'none', color: activeTab === 'notifications' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'notifications' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
-            💕 알림 {unreadCount > 0 && <span style={{ background: '#ff7675', color: 'white', borderRadius: '99px', padding: '0.1rem 0.5rem', fontSize: '0.75rem', marginLeft: '0.3rem' }}>{unreadCount}</span>}
+            알림 {unreadCount > 0 && <span style={{ background: '#ff7675', color: 'white', borderRadius: '99px', padding: '0.1rem 0.5rem', fontSize: '0.75rem', marginLeft: '0.3rem' }}>{unreadCount}</span>}
           </button>
           <button onClick={() => { setActiveTab('templates'); fetchTemplates(); }} style={{ background: 'none', border: 'none', color: activeTab === 'templates' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'templates' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
-            📋 템플릿 ({templates.length})
+            템플릿 ({templates.length})
           </button>
           <button onClick={async () => { setActiveTab('bugreports'); const token = localStorage.getItem('token'); try { const res = await fetch('/api/admin/bug-reports', { headers: { 'Authorization': `Bearer ${token}` } }); if (res.ok) setBugReports(await res.json()); } catch {} }} style={{ background: 'none', border: 'none', color: activeTab === 'bugreports' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'bugreports' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
-            🐛 버그제보
+            버그제보
           </button>
           <button onClick={() => { setActiveTab('tier-config'); fetchTierConfig(); }} style={{ background: 'none', border: 'none', color: activeTab === 'tier-config' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'tier-config' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
-            ⚙️ 등급 설정
+            등급 설정
           </button>
           <button onClick={() => { setActiveTab('page-content'); fetchPageContent(); }} style={{ background: 'none', border: 'none', color: activeTab === 'page-content' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'page-content' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
-            📝 소개 페이지 편집
+            소개 페이지 편집
           </button>
         </div>
 
@@ -2177,7 +2177,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                             </td>
                             <td style={{ padding: '0.6rem' }}>
                               <span style={{ color: s.is_correct ? '#00b894' : '#ff7675', fontWeight: 800 }}>
-                                {s.is_correct ? '✅ 정답' : '❌ 오답'}
+                                {s.is_correct ? '정답' : '오답'}
                               </span>
                             </td>
                             <td style={{ padding: '0.6rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{diffStr}</td>
@@ -2245,13 +2245,13 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                           </td>
                           <td style={{ padding: '0.6rem' }}>
                             <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                              <button onClick={() => handleUpdateRating(u.id, u.rating)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: 'var(--color-3)', color: 'white' }}>⭐</button>
-                              <button onClick={() => handleUpdateTokens(u.id, u.tokens || 0)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#e6a800', color: 'white' }}>🪙</button>
-                              <button onClick={() => handleUpdateCustomTitle(u.id, u.custom_title || '')} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: 'var(--color-4)', color: 'white' }}>🏷️</button>
-                              <button onClick={() => handleUpdateUsername(u.id, u.username)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#6c5ce7', color: 'white' }}>✏️</button>
-                              <button onClick={() => handleViewSubmissions(u)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#00b894', color: 'white' }}>📋</button>
+                              <button onClick={() => handleUpdateRating(u.id, u.rating)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: 'var(--color-3)', color: 'white' }}>RP</button>
+                              <button onClick={() => handleUpdateTokens(u.id, u.tokens || 0)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#e6a800', color: 'white' }}>토큰</button>
+                              <button onClick={() => handleUpdateCustomTitle(u.id, u.custom_title || '')} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: 'var(--color-4)', color: 'white' }}>칭호</button>
+                              <button onClick={() => handleUpdateUsername(u.id, u.username)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#6c5ce7', color: 'white' }}>아이디</button>
+                              <button onClick={() => handleViewSubmissions(u)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#00b894', color: 'white' }}>제출</button>
                               {u.username !== 'admin' && (
-                                <button onClick={() => handleDeleteUser(u.id, u.username)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#ff7675', color: 'white' }}>🗑️</button>
+                                <button onClick={() => handleDeleteUser(u.id, u.username)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#ff7675', color: 'white' }}>삭제</button>
                               )}
                             </div>
                           </td>
@@ -2269,7 +2269,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
         {/* Notifications Tab */}
         {activeTab === 'notifications' && (
         <div className="problem-card" style={{ margin: 0 }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>💕 알림 내역 ({notifications.length})</h3>
+          <h3 style={{ marginBottom: '1.5rem' }}>알림 내역 ({notifications.length})</h3>
           {notifications.length === 0 ? (
             <p style={{ opacity: 0.5, textAlign: 'center', padding: '2rem' }}>알림이 없습니다.</p>
           ) : (
@@ -2303,7 +2303,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
         {activeTab === 'templates' && (
         <div className="problem-card" style={{ margin: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h3 style={{ margin: 0 }}>📋 템플릿 관리 ({templates.length})</h3>
+            <h3 style={{ margin: 0 }}>템플릿 관리 ({templates.length})</h3>
             <button onClick={() => { setCreatingTemplate(true); setNewTemplate({ id: '', unit: '', title: '', difficulty: 10000, variables: {}, constraints: [], problem_template: '', answer_formula: { type: 'expression', value: '' }, concepts: [] }); }} className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>
               + 새 템플릿
             </button>
@@ -2335,7 +2335,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
         {/* Bug Reports Tab */}
         {activeTab === 'bugreports' && (
         <div className="problem-card" style={{ margin: 0 }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>🐛 버그 제보 목록 ({bugReports.length})</h3>
+          <h3 style={{ marginBottom: '1.5rem' }}>버그 제보 목록 ({bugReports.length})</h3>
           {bugReports.length === 0 ? (
             <p style={{ opacity: 0.5, textAlign: 'center', padding: '2rem' }}>버그 제보가 없습니다.</p>
           ) : (
@@ -2359,7 +2359,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
         )}
         {activeTab === 'tier-config' && (
           <div className="problem-card" style={{ padding: '1.2rem', margin: 0 }}>
-            <h3 style={{ marginBottom: '1rem' }}>⚙️ 등급(티어) 설정</h3>
+            <h3 style={{ marginBottom: '1rem' }}>등급(티어) 설정</h3>
             <p style={{ fontSize: '0.85rem', opacity: 0.7, marginBottom: '1rem' }}>Real Rating 점수에 따라 등급이 결정됩니다. 등급 이름과 최소 레이팅을 수정할 수 있습니다.</p>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -2405,9 +2405,9 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                     body: JSON.stringify({ tiers: tierConfigDraft }),
                   });
                   if (!res.ok) throw new Error('Failed');
-                  setMessage('✅ 등급 설정이 저장되었습니다.');
+                  setMessage('등급 설정이 저장되었습니다.');
                   fetchTierConfig();
-                } catch { setMessage('❌ 저장 실패'); }
+                } catch { setMessage('저장 실패'); }
                 finally { setSavingTierConfig(false); }
               }} disabled={savingTierConfig}
                 className="btn" style={{ background: 'var(--color-4)', color: '#fff', border: 'none' }}>
@@ -2422,7 +2422,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
         )}
         {activeTab === 'page-content' && (
           <div className="problem-card" style={{ padding: '1.2rem', margin: 0 }}>
-            <h3 style={{ marginBottom: '1rem' }}>📝 소개 페이지 편집</h3>
+            <h3 style={{ marginBottom: '1rem' }}>소개 페이지 편집</h3>
             <p style={{ fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>마크다운 형식으로 소개 페이지 내용을 편집할 수 있습니다.</p>
             <p style={{ fontSize: '0.8rem', opacity: 0.5, marginBottom: '1rem' }}>
               <code>## 제목</code> = 제목, <code>**굵게**</code> = 굵게, <code>*기울임*</code> = 기울임, 줄바꿈은 그대로 표시됩니다.
@@ -2442,8 +2442,8 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                   });
                   if (!res.ok) throw new Error('Failed');
                   setPageContent(pageContentDraft);
-                  setMessage('✅ 소개 페이지가 저장되었습니다.');
-                } catch { setMessage('❌ 저장 실패'); }
+                  setMessage('소개 페이지가 저장되었습니다.');
+                } catch { setMessage('저장 실패'); }
                 finally { setSavingPageContent(false); }
               }} disabled={savingPageContent}
                 className="btn" style={{ background: 'var(--color-4)', color: '#fff', border: 'none' }}>
@@ -2663,7 +2663,7 @@ const BugReport: React.FC<{ user: User | null }> = ({ user }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage('✅ 버그 제보가 접수되었습니다. 감사합니다!');
+        setMessage('버그 제보가 접수되었습니다. 감사합니다!');
         setTitle('');
         setDescription('');
         setSteps('');
@@ -2696,7 +2696,7 @@ const BugReport: React.FC<{ user: User | null }> = ({ user }) => {
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <div className="problem-card">
-        <h2 style={{ color: 'var(--color-4)', marginBottom: '0.5rem' }}>🐛 버그 제보</h2>
+        <h2 style={{ color: 'var(--color-4)', marginBottom: '0.5rem' }}>버그 제보</h2>
         <p style={{ marginBottom: '2rem', opacity: 0.8 }}>발견한 버그를 제보해주세요. 소중한 의견은 서비스 개선에 큰 도움이 됩니다.</p>
         {message && (
           <div style={{ padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', fontWeight: 600, textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -2761,7 +2761,7 @@ const ProfileBadges: React.FC<{ user: User | null }> = ({ user }) => {
   return (
     <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
       <h3 style={{ margin: '0 0 1.2rem', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        🏅 내 뱃지 ({unlocked.length}/{badges.length})
+        내 뱃지 ({unlocked.length}/{badges.length})
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.6rem' }}>
         {unlocked.map((b: any) => (
@@ -2770,7 +2770,7 @@ const ProfileBadges: React.FC<{ user: User | null }> = ({ user }) => {
             background: 'rgba(92,149,255,0.08)', border: '1px solid rgba(92,149,255,0.2)',
             fontWeight: 700
           }} title={b.description}>
-            <div style={{ fontSize: '1.8rem', marginBottom: '0.2rem' }}>{b.icon}</div>
+            <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--arena-gold)', marginBottom: '0.45rem' }}>{b.badge_id.replace(/_/g, ' ')}</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{b.name}</div>
           </div>
         ))}
@@ -2779,8 +2779,8 @@ const ProfileBadges: React.FC<{ user: User | null }> = ({ user }) => {
             padding: '0.7rem', borderRadius: '0.75rem', textAlign: 'center',
             border: '1px solid var(--border)', opacity: 0.4, fontWeight: 700
           }} title={b.description}>
-            <div style={{ fontSize: '1.8rem', marginBottom: '0.2rem', filter: 'grayscale(1)' }}>{b.icon}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>🔒 {b.name}</div>
+            <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--arena-subtle)', marginBottom: '0.45rem' }}>{b.badge_id.replace(/_/g, ' ')}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{b.name}</div>
           </div>
         ))}
       </div>
@@ -2839,7 +2839,7 @@ const TitleSection: React.FC<{ user: User | null; setUser: (u: User) => void; re
   return (
     <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
       <h3 style={{ margin: '0 0 1.2rem', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        🏆 내 칭호
+        내 칭호
       </h3>
       {equippedTitle && (
         <div style={{ marginBottom: '1rem', padding: '0.6rem 1rem', background: 'rgba(92, 149, 255, 0.1)', borderRadius: '0.5rem', border: '1px solid var(--color-4)', textAlign: 'center' }}>
@@ -2867,7 +2867,7 @@ const TitleSection: React.FC<{ user: User | null; setUser: (u: User) => void; re
                 {t.name}
               </div>
               <div style={{ fontSize: '0.7rem', opacity: 0.7, color: 'var(--text-muted)' }}>
-                {t.unlocked ? (isEquipped ? '장착 중' : '클릭하여 장착') : '🔒 잠김'}
+                {t.unlocked ? (isEquipped ? '장착 중' : '클릭하여 장착') : '잠김'}
               </div>
             </div>
           );
@@ -2974,7 +2974,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
     }).then(r => r.json()).then(data => {
       if (data.newlyUnlocked && data.newlyUnlocked.length > 0) {
         setTitleRefreshKey(k => k + 1);
-        setTimeout(() => alert(`🎉 새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 1000);
+        setTimeout(() => alert(`새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 1000);
       }
     }).catch(() => {});
 
@@ -3182,7 +3182,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
               style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--color-4)', border: '3px solid var(--card-bg)', borderRadius: '0.7rem', width: '34px', height: '34px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', zIndex: 2, boxShadow: '0 4px 12px rgba(0,0,0,0.25)', transition: 'transform 0.2s' }}
               title="프로필 사진 변경"
             >
-              📷
+              사진 변경
             </button>
           )}
         </div>
@@ -3227,7 +3227,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
             )}
             {u.custom_title && (
               <div style={{ marginBottom: '0.2rem', fontWeight: 700, color: '#ff6b9d', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                ✨ {u.custom_title}
+                {u.custom_title}
               </div>
             )}
             <div
@@ -3239,7 +3239,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
                 '--tier-glow': tierGlows[u.tier] || 'transparent'
               } as React.CSSProperties}
             >
-              🏅 {u.tier}
+              {u.tier}
             </div>
             {u.can_generate_problems && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '999px', background: 'rgba(122, 209, 81, 0.16)', border: '1px solid rgba(122, 209, 81, 0.4)', color: '#5fae35', fontWeight: 800, fontSize: '0.82rem', marginBottom: '0.5rem' }}>
@@ -3249,7 +3249,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
             {u.bio && <p className="profile-bio">{u.bio}</p>}
             {!readonly && (
               <button onClick={() => { setEditedUsername(u.username); setEditedBio(u.bio || ''); setIsEditingProfile(true); }} className="profile-edit-btn">
-                ✏️ 프로필 수정
+                프로필 수정
               </button>
             )}
           </>
@@ -3259,31 +3259,26 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
       {/* ─── 스탯 카드 그리드 ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-4)' } as React.CSSProperties}>
-          <span className="stat-icon">✨</span>
           <div className="stat-label">레이팅</div>
           <div className="stat-value" style={{ color: 'var(--color-4)' }}>{Math.round(u.rating).toLocaleString()}</div>
           <div className="stat-sub">{u.tier} 등급</div>
         </div>
         <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-1)' } as React.CSSProperties}>
-          <span className="stat-icon">🔥</span>
           <div className="stat-label">연속 스트릭</div>
           <div className="stat-value" style={{ color: '#f87575' }}>{u.streak || 0}일</div>
-          <div className="stat-sub">최장 {u.longest_streak || 0}일{u.streak_repaired ? ' · 🩹 수리됨' : ''}</div>
+          <div className="stat-sub">최장 {u.longest_streak || 0}일{u.streak_repaired ? ' · 수리됨' : ''}</div>
         </div>
         <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-2)' } as React.CSSProperties}>
-          <span className="stat-icon">🪙</span>
           <div className="stat-label">보유 토큰</div>
           <div className="stat-value" style={{ color: '#e6a800' }}>{u.tokens || 0}</div>
           <div className="stat-sub">수리 1회 30토큰</div>
         </div>
         <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-1)' } as React.CSSProperties}>
-          <span className="stat-icon">⚡</span>
           <div className="stat-label">레벨</div>
           <div className="stat-value" style={{ color: '#00b360' }}>Lv.{u.level || 1}</div>
           <div className="stat-sub">XP {(u.xp || 0).toLocaleString()}</div>
         </div>
         <div className="stat-card-premium" style={{ '--stat-accent': 'var(--color-2)' } as React.CSSProperties}>
-          <span className="stat-icon">✅</span>
           <div className="stat-label">정답 문제</div>
           <div className="stat-value">{u.problems_solved}</div>
           <div className="stat-sub">정답률 {Math.round(stats.accuracy)}%</div>
@@ -3293,7 +3288,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
       {/* ─── 티어 진행도 ─── */}
       <div className="problem-card tier-progress-card">
         <h3 style={{ margin: '0 0 0.75rem', color: 'var(--color-4)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          🏅 티어 진행도
+          티어 진행도
         </h3>
         {(() => {
           const tierThresholds = [
@@ -3332,7 +3327,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
 
       <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '0 0 0.75rem', color: 'var(--color-4)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          📋 활동 기록
+          활동 기록
         </h3>
         {recentActivities.length > 0 ? (
           <div className="activity-timeline">
@@ -3365,7 +3360,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
       {/* ─── 분야별 문제 통계 (다각형 그래프) ─── */}
       <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '0 0 0.75rem', color: 'var(--color-4)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          📊 분야별 문제 통계
+          분야별 문제 통계
         </h3>
         <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           각 분야별로 푼 문제 수를 다각형 그래프로 표시합니다.
@@ -3414,7 +3409,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
           return (
             <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={{ margin: '0 0 0.75rem', color: '#5fae35', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                📅 스트릭 달력 (6개월)
+                스트릭 달력 (6개월)
               </h3>
               <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                 연속 {streak}일째 해결 중
@@ -3486,7 +3481,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
       {/* ─── 일일 퀘스트 ─── */}
       <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '0 0 1.2rem', color: 'var(--color-4)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          📅 오늘의 퀘스트
+          오늘의 퀘스트
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {Array.isArray(u.quests) && u.quests.length > 0 ? (
@@ -3505,7 +3500,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
                   <div key={quest.id} className={`quest-card${quest.completed ? ' completed' : ''}`}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 800, fontSize: '0.95rem', textDecoration: quest.completed ? 'line-through' : 'none', color: quest.completed ? 'var(--text-muted)' : 'var(--text-main)' }}>
-                        {quest.completed ? '✅' : '🎯'} {quest.title}
+                        {quest.completed ? '완료' : '진행 중'} {quest.title}
                       </span>
                       <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                         {quest.current} / {quest.target}{quest.type === 'accuracy' ? '%' : quest.type === 'consecutive' || quest.type === 'perfect' ? '연속' : ''}
@@ -3515,8 +3510,8 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
                       <div className="progress-fill" style={{ width: `${pct}%`, background: quest.completed ? 'var(--color-4)' : (questColors[quest.type] || 'var(--color-1)') }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', fontSize: '0.78rem', opacity: 0.75 }}>
-                      <span>✨ +{quest.xpReward} XP</span>
-                      {quest.tokenReward > 0 && <span>🪙 +{quest.tokenReward} 토큰</span>}
+                      <span>+{quest.xpReward} XP</span>
+                      {quest.tokenReward > 0 && <span>+{quest.tokenReward} 토큰</span>}
                     </div>
                   </div>
                 );
@@ -3533,7 +3528,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
       {/* ─── 프로필 CSS ─── */}
       <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '0 0 1.2rem', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          🎨 프로필 CSS
+          프로필 CSS
         </h3>
         <p style={{ fontSize: '0.85rem', opacity: 0.7, marginBottom: '1rem' }}>
           사용자 정의 CSS로 프로필을 자유롭게 꾸며보세요. (예: <code>.profile-username &#123; color: red; &#125;</code>)
@@ -3556,7 +3551,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
               <p style={{ opacity: 0.5, fontStyle: 'italic' }}>아직 CSS가 없습니다.</p>
             )}
             {!readonly && (
-              <button onClick={() => setIsEditingCss(true)} className="btn" style={{ marginTop: '0.8rem', background: 'var(--color-4)', color: 'white', width: 'auto' }}>{u.profile_css ? '✏️ CSS 수정' : '➕ CSS 추가'}</button>
+              <button onClick={() => setIsEditingCss(true)} className="btn" style={{ marginTop: '0.8rem', background: 'var(--color-4)', color: 'white', width: 'auto' }}>{u.profile_css ? 'CSS 수정' : 'CSS 추가'}</button>
             )}
           </div>
         )}
@@ -3569,7 +3564,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         <>
         <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ margin: '0 0 1.2rem', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            🔐 계정 설정
+            계정 설정
           </h3>
 
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
@@ -3604,10 +3599,10 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         {/* ─── NVIDIA NIM API 키 ─── */}
         <div className="problem-card">
           <h3 style={{ margin: '0 0 0.5rem', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            🤖 NVIDIA NIM API 키
+            NVIDIA NIM API 키
           </h3>
           <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>
-            {hasNimKey ? '✅ API 키가 등록되어 있습니다. AI 문제 생성 기능을 사용할 수 있습니다.' : 'AI 문제 생성 기능을 사용하려면 NVIDIA NIM API 키를 등록하세요.'}
+            {hasNimKey ? 'API 키가 등록되어 있습니다. AI 문제 생성 기능을 사용할 수 있습니다.' : 'AI 문제 생성 기능을 사용하려면 NVIDIA NIM API 키를 등록하세요.'}
           </p>
           <button
             onClick={() => setIsEditingNimKey(!isEditingNimKey)}
@@ -3650,13 +3645,13 @@ const CustomTitleChango: React.FC<{ user: User | null; setUser: (u: User) => voi
       });
       const data = await res.json();
       if (res.ok) {
-        setSentMessage('✅ 맞춤형 칭호가 전송되었습니다! 관리자가 확인 후 적용합니다.');
+        setSentMessage('맞춤형 칭호가 전송되었습니다! 관리자가 확인 후 적용합니다.');
         setCustomTitleInput('');
       } else {
-        setSentMessage(`❌ ${data.error}`);
+        setSentMessage(`${data.error}`);
       }
     } catch {
-      setSentMessage('❌ 네트워크 오류가 발생했습니다.');
+      setSentMessage('네트워크 오류가 발생했습니다.');
     }
     setSending(false);
   };
@@ -3664,7 +3659,7 @@ const CustomTitleChango: React.FC<{ user: User | null; setUser: (u: User) => voi
   return (
     <div className="problem-card">
       <h3 style={{ margin: '0 0 0.5rem', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        🎫 개발자의 칭호
+        개발자의 칭호
       </h3>
       <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>
         원하는 맞춤형 칭호 문구를 입력하면 관리자에게 전송됩니다. 관리자가 확인 후 적용해드립니다!
@@ -4074,7 +4069,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       </Helmet>
       {user?.fever_expires_at && new Date(user.fever_expires_at) > new Date() && (
         <div style={{ textAlign: 'center', padding: '0.6rem', background: '#ff6b6b33', border: '1px solid #ff6b6b', borderRadius: '0.5rem', marginBottom: '1rem', fontWeight: 800, color: '#ff6b6b', fontSize: '1.1rem' }}>
-          🔥 {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
+          {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
         </div>
       )}
       {problemError && <div className="inline-feedback error" role="alert">{problemError}</div>}
@@ -4152,10 +4147,10 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
                   </span>
                   {(() => {
                     const diff = p.current_difficulty as number;
-                    if (diff <= 30000) return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#00c853', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.25)' }}>⭐ 쉬움</span>;
-                    if (diff <= 70000) return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ffc107', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(255,193,7,0.12)', border: '1px solid rgba(255,193,7,0.25)' }}>⭐⭐ 보통</span>;
-                    if (diff <= 120000) return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ff6d00', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(255,109,0,0.12)', border: '1px solid rgba(255,109,0,0.25)' }}>⭐⭐⭐ 어려움</span>;
-                    return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#d50000', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(213,0,0,0.12)', border: '1px solid rgba(213,0,0,0.25)' }}>⭐⭐⭐⭐ 매우어려움</span>;
+                    if (diff <= 30000) return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#00c853', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.25)' }}>쉬움</span>;
+                    if (diff <= 70000) return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ffc107', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(255,193,7,0.12)', border: '1px solid rgba(255,193,7,0.25)' }}>보통</span>;
+                    if (diff <= 120000) return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#ff6d00', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(255,109,0,0.12)', border: '1px solid rgba(255,109,0,0.25)' }}>어려움</span>;
+                    return <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#d50000', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'rgba(213,0,0,0.12)', border: '1px solid rgba(213,0,0,0.25)' }}>매우어려움</span>;
                   })()}
                 </div>
               </div>
@@ -4184,20 +4179,20 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
             <h3 style={{ marginBottom: '1.5rem', color: 'var(--color-4)' }}>{selectedProblem.title}</h3>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
               <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#e6a800' }}>
-                🏆 획득 레이팅: +{(selectedProblem.current_difficulty as number).toLocaleString()} RP
+                획득 레이팅: +{(selectedProblem.current_difficulty as number).toLocaleString()} RP
               </div>
               {(() => {
                 const diff = selectedProblem.current_difficulty as number;
-                if (diff <= 30000) return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#00c853', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.3)' }}>⭐ 쉬움</span>;
-                if (diff <= 70000) return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ffc107', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(255,193,7,0.12)', border: '1px solid rgba(255,193,7,0.3)' }}>⭐⭐ 보통</span>;
-                if (diff <= 120000) return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ff6d00', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(255,109,0,0.12)', border: '1px solid rgba(255,109,0,0.3)' }}>⭐⭐⭐ 어려움</span>;
-                return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d50000', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(213,0,0,0.12)', border: '1px solid rgba(213,0,0,0.3)' }}>⭐⭐⭐⭐ 매우어려움</span>;
+                if (diff <= 30000) return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#00c853', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.3)' }}>쉬움</span>;
+                if (diff <= 70000) return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ffc107', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(255,193,7,0.12)', border: '1px solid rgba(255,193,7,0.3)' }}>보통</span>;
+                if (diff <= 120000) return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ff6d00', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(255,109,0,0.12)', border: '1px solid rgba(255,109,0,0.3)' }}>어려움</span>;
+                return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d50000', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(213,0,0,0.12)', border: '1px solid rgba(213,0,0,0.3)' }}>매우어려움</span>;
               })()}
             </div>
             <div className="math-content" style={{ fontSize: '1.8rem' }}>{renderMath(selectedProblem.content)}</div>
             {lastCorrectFeedback && (
               <div style={{ marginTop: '1rem', padding: '0.8rem 1rem', background: 'rgba(0, 200, 83, 0.08)', borderRadius: '0.5rem', border: '1px solid rgba(0, 200, 83, 0.25)' }}>
-                <div style={{ fontWeight: 700, color: '#00c853', marginBottom: '0.3rem', fontSize: '1.05rem' }}>✅ 정답!</div>
+                <div style={{ fontWeight: 700, color: '#00c853', marginBottom: '0.3rem', fontSize: '1.05rem' }}>정답!</div>
                 <div style={{ color: '#e6a800', fontWeight: 800, fontSize: '1.1rem' }}>+{lastCorrectFeedback.rpGained.toLocaleString()} RP</div>
               </div>
             )}
@@ -4426,15 +4421,15 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage(`❌ ${data.error || '구매에 실패했습니다.'}`);
+        setMessage(`${data.error || '구매에 실패했습니다.'}`);
         return;
       }
       let msg = '';
       if (itemId === 'streak_repair') msg = '스트릭이 복구되었습니다.';
       else if (itemId === 'firework_effect') msg = '폭죽 이펙트가 활성화되었습니다.';
-      else if (itemId === 'developer_chango') msg = '🎫 개발자의 칭호를 구매했습니다! 프로필에서 칭호를 입력하세요.';
-      else if (itemId === 'fever_2x' || itemId === 'fever_5x') msg = data.message || '🔥 피버타임이 활성화되었습니다!';
-      setMessage(`✅ 구매 완료! ${msg}`);
+      else if (itemId === 'developer_chango') msg = '개발자의 칭호를 구매했습니다! 프로필에서 칭호를 입력하세요.';
+      else if (itemId === 'fever_2x' || itemId === 'fever_5x') msg = data.message || '피버타임이 활성화되었습니다!';
+      setMessage(`구매 완료! ${msg}`);
       const updatedUser = { ...user!, tokens: data.tokens ?? (user!.tokens || 0) - itemCost };
       if (itemId === 'streak_repair') {
         updatedUser.streak = 0;
@@ -4448,7 +4443,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch {
-      setMessage('❌ 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setMessage('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -4475,7 +4470,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       });
       const data = await res.json() as ExchangeResponse;
       if (!res.ok || data.remainingRp === undefined || data.tokenBalance === undefined) {
-        setMessage(`❌ ${data.error || 'RP 환전에 실패했습니다.'}`);
+        setMessage(`${data.error || 'RP 환전에 실패했습니다.'}`);
         return;
       }
 
@@ -4488,9 +4483,9 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setExchangeRpInput('');
-      setMessage(`✅ ${(data.exchangedRp || validQuote.exchangedRp).toLocaleString()} RP를 사용하여 ${(data.tokensReceived || validQuote.tokensReceived).toLocaleString()} Token을 획득했습니다.`);
+      setMessage(`${(data.exchangedRp || validQuote.exchangedRp).toLocaleString()} RP를 사용하여 ${(data.tokensReceived || validQuote.tokensReceived).toLocaleString()} Token을 획득했습니다.`);
     } catch {
-      setMessage('❌ 네트워크 오류로 RP 환전에 실패했습니다.');
+      setMessage('네트워크 오류로 RP 환전에 실패했습니다.');
     } finally {
       setExchanging(false);
     }
@@ -4503,7 +4498,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
         <meta name="robots" content="noindex, nofollow" />
         <link rel="canonical" href={`https://llogis.xyz${location.pathname}`} />
       </Helmet>
-      <h2 style={{ color: 'var(--color-4)', fontSize: '2.5rem', marginBottom: '0.5rem', textAlign: 'center' }}>🪙 토큰 상점</h2>
+      <h2 style={{ color: 'var(--color-4)', fontSize: '2.5rem', marginBottom: '0.5rem', textAlign: 'center' }}>토큰 상점</h2>
       <p style={{ textAlign: 'center', opacity: 0.7, marginBottom: '2.5rem' }}>보유 토큰: <b style={{ color: '#e6a800', fontSize: '1.2rem' }}>{user?.tokens || 0} 토큰</b></p>
 
       {message && (
@@ -4572,7 +4567,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
                 <p style={{ margin: 0, opacity: 0.7, fontSize: '0.9rem' }}>{item.description}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 800, fontSize: '1.1rem', marginBottom: '0.5rem', color: '#e6a800' }}>🪙 {item.cost} 토큰</div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', marginBottom: '0.5rem', color: '#e6a800' }}>{item.cost} 토큰</div>
                 <button
                   onClick={() => handleBuy(item.id, Number(item.cost) || 0)}
                   disabled={(user?.tokens || 0) < item.cost}
@@ -4764,7 +4759,7 @@ const AppContent: React.FC = () => {
       body: JSON.stringify({ action: 'culture_language', value: 1 })
     }).then(r => r.json()).then(data => {
       if (data.newlyUnlocked?.length) {
-        setTimeout(() => alert(`🎉 새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 300);
+        setTimeout(() => alert(`새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 300);
       }
     }).catch(() => {});
   };
@@ -4789,7 +4784,7 @@ const AppContent: React.FC = () => {
       body: JSON.stringify({ action: 'login' })
     }).then(r => r.json()).then(data => {
       if (data.newlyUnlocked && data.newlyUnlocked.length > 0) {
-        setTimeout(() => alert(`🎉 새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 500);
+        setTimeout(() => alert(`새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 500);
       }
     }).catch(() => {});
   };
@@ -4842,7 +4837,7 @@ const AppContent: React.FC = () => {
       <Navbar user={user} onLogout={handleLogout} cultureLanguage={cultureLanguage} toggleCultureLanguage={toggleCultureLanguage} onLogoClick={handleLogoClick} />
       {user?.fever_expires_at && new Date(user.fever_expires_at) > new Date() && (
         <div style={{ textAlign: 'center', padding: '0.5rem', background: '#ff6b6b33', borderBottom: '1px solid #ff6b6b', fontWeight: 800, color: '#ff6b6b', fontSize: '1rem' }}>
-          🔥 {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
+          {user.fever_multiplier}배 피버타임 활성중! — <FeverTimer expiresAt={user.fever_expires_at} />
         </div>
       )}
       <div id="main-content" role="main">

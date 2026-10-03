@@ -113,7 +113,7 @@ const GooseRoom: React.FC = () => {
             body: JSON.stringify({ action: 'goose_room' })
           }).then(r => r.json()).then(data => {
             if (data.newlyUnlocked && data.newlyUnlocked.length > 0) {
-              alert(`🎉 새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`);
+              alert(`새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`);
             }
           }).catch(() => {});
         }

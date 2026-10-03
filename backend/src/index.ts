@@ -370,7 +370,7 @@ const ensureSchema = async () => {
       badge_id VARCHAR(50) UNIQUE NOT NULL,
       name VARCHAR(100) NOT NULL,
       description VARCHAR(255) NOT NULL,
-      icon VARCHAR(10) NOT NULL DEFAULT '🏅',
+      icon VARCHAR(10) NOT NULL DEFAULT '',
       condition_type VARCHAR(50),
       condition_value INTEGER DEFAULT 0
     )
@@ -404,14 +404,14 @@ const ensureSchema = async () => {
   `);
   await pool.query(`
     INSERT INTO profile_badges (badge_id, name, description, icon, condition_type, condition_value) VALUES
-      ('early_bird', '얼리 버드', 'Logis에 일찍 가입한 회원', '🐦', NULL, 0),
-      ('solve_10', '문제 해결사', '10문제 해결', '🏅', 'solve_count', 10),
-      ('solve_50', '프로블럼 솔버', '50문제 해결', '🏆', 'solve_count', 50),
-      ('solve_100', '마스터 솔버', '100문제 해결', '👑', 'solve_count', 100),
-      ('streak_7', '위클리 챌린저', '7일 연속 스트릭', '🔥', 'streak', 7),
-      ('streak_30', '먼슬리 챌린저', '30일 연속 스트릭', '💪', 'streak', 30),
-      ('streak_100', '시즌 챌린저', '100일 연속 스트릭', '🌟', 'streak', 100),
-      ('lucky_legend', '전설의 행운', '레전더리 상자에서 획득', '🍀', NULL, 0)
+      ('early_bird', '얼리 버드', 'Logis에 일찍 가입한 회원', '', NULL, 0),
+      ('solve_10', '문제 해결사', '10문제 해결', '', 'solve_count', 10),
+      ('solve_50', '프로블럼 솔버', '50문제 해결', '', 'solve_count', 50),
+      ('solve_100', '마스터 솔버', '100문제 해결', '', 'solve_count', 100),
+      ('streak_7', '위클리 챌린저', '7일 연속 스트릭', '', 'streak', 7),
+      ('streak_30', '먼슬리 챌린저', '30일 연속 스트릭', '', 'streak', 30),
+      ('streak_100', '시즌 챌린저', '100일 연속 스트릭', '', 'streak', 100),
+      ('lucky_legend', '전설의 행운', '레전더리 상자에서 획득', '', NULL, 0)
     ON CONFLICT (badge_id) DO NOTHING
   `);
 };
@@ -737,19 +737,19 @@ app.get('/api/store/items', authenticateToken, async (req: any, res: Response) =
     },
     {
       id: 'developer_chango',
-      name: '🎫 개발자의 칭호',
+      name: '개발자의 칭호',
       cost: 500,
       description: '구매 후 프로필에서 원하는 맞춤형 칭호 문구를 관리자에게 전송하세요!'
     },
     {
       id: 'fever_2x',
-      name: '🔥 2배 피버타임 (2분)',
+      name: '2배 피버타임 (2분)',
       cost: 100,
       description: '2분 동안 획득 레이팅이 2배로 증가합니다!'
     },
     {
       id: 'fever_5x',
-      name: '🔥 5배 피버타임 (5분)',
+      name: '5배 피버타임 (5분)',
       cost: 500,
       description: '5분 동안 획득 레이팅이 5배로 증가합니다!'
     }
@@ -905,7 +905,7 @@ app.post('/api/store/buy-developer-chango', authenticateToken, async (req: any, 
       [userId]
     );
     await client.query('COMMIT');
-    res.json({ message: '🎫 개발자의 칭호를 구매했습니다! 프로필에서 맞춤형 칭호를 입력하세요.' });
+    res.json({ message: '개발자의 칭호를 구매했습니다! 프로필에서 맞춤형 칭호를 입력하세요.' });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     res.status(500).json({ error: '상점 구매 중 오류가 발생했습니다.' });
@@ -961,7 +961,7 @@ app.post('/api/store/buy-fever', authenticateToken, async (req: any, res: Respon
       [fever.cost, fever.multiplier, expiresAt, userId]
     );
     await client.query('COMMIT');
-    res.json({ message: `🔥 ${fever.multiplier}배 피버타임이 활성화되었습니다! (${fever.durationMs / 60000}분)`, fever_multiplier: fever.multiplier, fever_expires_at: expiresAt.toISOString() });
+    res.json({ message: `${fever.multiplier}배 피버타임이 활성화되었습니다! (${fever.durationMs / 60000}분)`, fever_multiplier: fever.multiplier, fever_expires_at: expiresAt.toISOString() });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     res.status(500).json({ error: '상점 구매 중 오류가 발생했습니다.' });
@@ -989,7 +989,7 @@ app.post('/api/store/submit-custom-title', authenticateToken, async (req: any, r
     }
     await pool.query(
       `INSERT INTO admin_notifications (type, message, from_user_id, from_username) VALUES ($1, $2, $3, $4)`,
-      ['custom_title_request', `🎫 ${user.username}님이 맞춤형 칭호를 요청했습니다: "${customTitle.trim()}"`, userId, user.username]
+      ['custom_title_request', `${user.username}님이 맞춤형 칭호를 요청했습니다: "${customTitle.trim()}"`, userId, user.username]
     );
     res.json({ message: '맞춤형 칭호 요청이 전송되었습니다.' });
   } catch (err) {
@@ -2152,7 +2152,7 @@ app.post('/api/bug-reports', authenticateToken, async (req: any, res: Response) 
     );
     await pool.query(
       `INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)`,
-      ['bug_report', `🐛 ${username}님이 버그를 제보했습니다: "${title}"`, userId, username, result.rows[0].id]
+      ['bug_report', `${username}님이 버그를 제보했습니다: "${title}"`, userId, username, result.rows[0].id]
     );
     res.status(201).json({ message: '버그 제보가 접수되었습니다. 감사합니다!', id: result.rows[0].id });
   } catch (err) {

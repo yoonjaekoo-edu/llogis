@@ -324,7 +324,7 @@ export const processSubmission = async (
     const finalXp = (u.xp || 0) + xpEarned + xpGained;
     const finalProblemsSolved = isCorrect ? (u.problems_solved || 0) + 1 : u.problems_solved || 0;
 
-    const feverDescription = feverActive ? ` (🔥${feverMultiplier}배 피버타임 적용)` : '';
+    const feverDescription = feverActive ? ` (${feverMultiplier}배 피버타임 적용)` : '';
     const activityDescription = isCorrect
       ? `정답 제출 보상 +${Math.round(rewardRating).toLocaleString()} RP${feverDescription}`
       : `오답 패널티 -${Math.abs(Math.round(feverAdjustedDelta)).toLocaleString()} RP`;
@@ -362,7 +362,7 @@ export const processSubmission = async (
           $15 || CASE WHEN $3 AND NOT EXISTS (
             SELECT 1 FROM submissions
             WHERE user_id = $1 AND is_correct = TRUE AND submitted_at::date = $16::date
-          ) THEN ' (☀️첫 정답 1.5배)' ELSE '' END
+          ) THEN ' (첫 정답 1.5배)' ELSE '' END
         FROM u
       )
       SELECT u.rating AS new_rating FROM u`,
