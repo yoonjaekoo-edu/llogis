@@ -144,38 +144,55 @@ const ensureSchema = async () => {
   await pool.query(`
     UPDATE problems SET current_difficulty = 
       GREATEST(5000, LEAST(150000, ROUND(150000 - (150000 - 5000) * correct_attempts::float / NULLIF(total_attempts, 0))))
-    WHERE total_attempts > 0
+    WHERE total_attempts > 0 AND (is_custom IS NULL OR is_custom = FALSE)
   `);
   await pool.query(`
     UPDATE problems SET current_difficulty = 10000
     WHERE (total_attempts IS NULL OR total_attempts = 0) AND (is_custom IS NULL OR is_custom = FALSE)
   `);
+  // 커스텀 문제는 시도 0회여도 보상을 덮어쓰지 않는다 (문제별로 지정한 값 유지)
   await pool.query(`
-    UPDATE problems SET current_difficulty = 60000
+    UPDATE problems SET current_difficulty = GREATEST(5000, LEAST(150000, COALESCE(current_difficulty, initial_difficulty, 60000)))
     WHERE (total_attempts IS NULL OR total_attempts = 0) AND is_custom = TRUE
   `);
   // Drop the CASCADE constraint and recreate with SET NULL (submissions survive problem deletion)
-  // 레이팅 보정: 커스텀은 45,000~55,000(평균 50,000), 양산 문제는 5,000~7,000으로 유지한다.
-  // id 기반 분배라 재배포해도 값이 흔들리지 않고, 새로 들어온 기존 데이터도 같은 기준을 따른다.
+  // 레이팅 기준: 커스텀 문제 보상은 문제에 저장된 값(current_difficulty)을 그대로 쓰고,
+  // 양산 문제만 5,000~7,000으로 정규화한다. (예전에는 커스텀도 45,000~55,000으로 강제 정규화해
+  // 정답률이 낮은 문제가 전부 55,000으로 몰렸고, 관리자가 지정한 값도 매 부팅마다 덮였다.)
   await pool.query(`
     UPDATE problems SET
       initial_difficulty = CASE
-        WHEN is_custom = TRUE THEN 45000 + MOD(id, 5) * 2500
+        WHEN is_custom = TRUE THEN COALESCE(initial_difficulty, 45000 + MOD(id, 5) * 2500)
         ELSE 5000 + MOD(id, 5) * 500
       END,
       current_difficulty = CASE
-        WHEN is_custom = TRUE THEN GREATEST(45000, LEAST(55000, COALESCE(current_difficulty, 50000)))
+        WHEN is_custom = TRUE THEN COALESCE(current_difficulty, custom_reward_rating, 50000)
         ELSE GREATEST(5000, LEAST(7000, COALESCE(current_difficulty, 6000)))
       END,
-      reward_rating = CASE
-        WHEN is_custom = TRUE THEN 45000 + MOD(id, 5) * 2500
-        ELSE 5000 + MOD(id, 5) * 500
-      END,
-      custom_reward_rating = CASE
-        WHEN is_custom = TRUE THEN 45000 + MOD(id, 5) * 2500
-        ELSE custom_reward_rating
-      END
+      reward_rating = COALESCE(reward_rating, CASE WHEN is_custom = TRUE THEN 45000 + MOD(id, 5) * 2500 ELSE 5000 + MOD(id, 5) * 500 END),
+      custom_reward_rating = COALESCE(custom_reward_rating, CASE WHEN is_custom = TRUE THEN COALESCE(current_difficulty, 45000 + MOD(id, 5) * 2500) ELSE NULL END)
   `);
+
+  // 일회성 복구: 부팅 정규화가 커스텀 보상을 55,000으로 덮어쓰던 동안 사라진 문제별 보상을
+  // custom_reward_rating(문제 id 기준 45,000~55,000 분배값)으로 되돌린다. 마커로 1회만 실행.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  const rewardRepair = await pool.query(`
+    INSERT INTO app_migrations (id) VALUES ('custom-reward-unflatten')
+    ON CONFLICT (id) DO NOTHING
+    RETURNING id
+  `);
+  if (rewardRepair.rows.length > 0) {
+    const repaired = await pool.query(`
+      UPDATE problems SET current_difficulty = custom_reward_rating
+      WHERE is_custom = TRUE AND custom_reward_rating IS NOT NULL
+    `);
+    console.log(`[migration] 커스텀 문제 보상 복구: ${repaired.rowCount}건`);
+  }
 
   await pool.query('ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_problem_id_fkey');
   await pool.query('ALTER TABLE submissions ADD CONSTRAINT submissions_problem_id_fkey FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE SET NULL');
@@ -1800,7 +1817,8 @@ app.post('/api/problems/custom', authenticateToken, async (req: any, res: Respon
     return res.status(400).json({ error: '필수 필드가 누락되었습니다.' });
   }
 
-  const normalizedReward = Math.max(45000, Math.min(55000, Math.round((parseFloat(ratingReward) || 50000) / 2500) * 2500));
+  // 문제별 보상: 5,000~150,000 범위에서 500 단위 (예전엔 45,000~55,000으로 강제돼 값을 다르게 줄 수 없었다)
+  const normalizedReward = Math.max(5000, Math.min(150000, Math.round((parseFloat(ratingReward) || 50000) / 500) * 500));
 
   try {
     const result = await pool.query(

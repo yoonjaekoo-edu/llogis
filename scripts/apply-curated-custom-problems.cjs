@@ -10,9 +10,9 @@ function replaceOnce(before, after, label) {
 }
 
 const oldDifficultyReset = `  await pool.query(\`\n    UPDATE problems SET current_difficulty = 60000\n    WHERE (total_attempts IS NULL OR total_attempts = 0) AND is_custom = TRUE\n  \`);`;
-const newDifficultyReset = `  await pool.query(\`\n    UPDATE problems SET current_difficulty = GREATEST(5000, LEAST(150000, COALESCE(initial_difficulty, 60000)))\n    WHERE (total_attempts IS NULL OR total_attempts = 0) AND is_custom = TRUE\n  \`);`;
+const newDifficultyReset = `  await pool.query(\`\n    UPDATE problems SET current_difficulty = GREATEST(5000, LEAST(150000, COALESCE(current_difficulty, initial_difficulty, 60000)))\n    WHERE (total_attempts IS NULL OR total_attempts = 0) AND is_custom = TRUE\n  \`);`;
 
-if (!source.includes('COALESCE(initial_difficulty, 60000)')) {
+if (!source.includes('COALESCE(current_difficulty, initial_difficulty, 60000)')) {
   replaceOnce(oldDifficultyReset, newDifficultyReset, 'custom difficulty preservation');
 }
 

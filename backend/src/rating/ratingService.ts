@@ -193,10 +193,13 @@ export const processSubmission = async (
       if (probRes.rows.length === 0) throw new Error('Problem not found');
       prob = probRes.rows[0];
     }
-    const newDifficulty = calculateDifficultyFromSolveRate(
-      prob.total_attempts > 0 ? prob.correct_attempts / prob.total_attempts : 0.5,
-      Boolean(prob.is_custom),
-    );
+    // 커스텀 문제 보상은 문제에 지정된 값 고정 — 정답률로 재계산하지 않는다.
+    const newDifficulty = prob.is_custom
+      ? Number(prob.current_difficulty ?? getDefaultDifficulty(true))
+      : calculateDifficultyFromSolveRate(
+          prob.total_attempts > 0 ? prob.correct_attempts / prob.total_attempts : 0.5,
+          false,
+        );
     perfMark('problemData');
 
     // 8. (일일 첫 정답 보너스는 마지막 CTE의 SQL 서브쿼리로 계산 — 별도 SELECT 제거)
@@ -346,7 +349,7 @@ export const processSubmission = async (
         UPDATE problems SET
           total_attempts = total_attempts + 1,
           correct_attempts = correct_attempts + $3::int,
-          current_difficulty = $4
+          current_difficulty = CASE WHEN $17::boolean THEN current_difficulty ELSE $4 END
         WHERE id = $2
       ), s AS (
         INSERT INTO submissions (user_id, problem_id, is_correct)
@@ -369,7 +372,8 @@ export const processSubmission = async (
       [userId, problemId, isCorrect, newDifficulty, feverAdjustedDelta,
        finalStreak, finalLastActiveDate, finalStreakRepaired,
        longestStreak, finalTokens, finalXp, JSON.stringify(quests),
-       finalProblemsSolved, currentRating, activityDescription, today]
+       finalProblemsSolved, currentRating, activityDescription, today,
+       Boolean(prob.is_custom)]
     );
     const finalRating = Number(writeRes.rows[0]?.new_rating ?? currentRating + feverAdjustedDelta);
     const ratingChange = finalRating - currentRating;
