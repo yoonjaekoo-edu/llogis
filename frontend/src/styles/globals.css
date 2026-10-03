@@ -39,7 +39,7 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Pretendard', -apple-system, sans-serif;
+  font-family: var(--font-serif);
   background-color: var(--bg-color);
   color: var(--text-main);
   transition: var(--transition);
@@ -320,7 +320,7 @@ nav a.active::after {
 .block-math-wrapper,
 .katex,
 .katex * {
-  font-family: 'Noto Sans Math', 'KaTeX_Main', serif;
+  font-family: var(--font-math);
 }
 
 .block-math-wrapper {
@@ -340,7 +340,7 @@ nav a.active::after {
   border: 2px solid var(--border);
   border-radius: 0.4rem;
   font-size: 1.1rem;
-  font-family: 'Noto Sans Math', 'KaTeX_Main', serif;
+  font-family: var(--font-math);
   background: var(--bg-color);
   color: var(--text-main);
   box-sizing: border-box;
@@ -1711,7 +1711,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     border: 1px solid var(--arena-gold, #e3c22f);
     background: #111214;
     color: var(--arena-gold, #e3c22f) !important;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 0.78rem;
     font-weight: 800;
     text-decoration: none;
@@ -1771,7 +1771,7 @@ html { color-scheme: light; }
 body {
   background: var(--bg-color);
   color: var(--text-main);
-  font-family: Pretendard, 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-serif);
 }
 
 header {
@@ -1986,7 +1986,7 @@ html, body { background: var(--bg-color); }
 
 /* Global typography and compact problem text */
 body {
-  font-family: 'Nanum Myeongjo', serif;
+  font-family: var(--font-serif);
 }
 
 .math-content {
@@ -2018,7 +2018,7 @@ header .container {
 }
 
 .brand-link span {
-  font-family: 'Nanum Myeongjo', serif;
+  font-family: var(--font-serif);
   font-style: italic;
   font-weight: 700;
   letter-spacing: -0.06em;
@@ -2064,7 +2064,7 @@ nav a.active {
   gap: 0.6rem;
   margin: 0 0 0.9rem;
   color: #a9bfd0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -2080,7 +2080,7 @@ nav a.active {
 .landing-hero-title {
   margin-bottom: 2.4rem;
   color: #f4f4f4 !important;
-  font-family: 'Nanum Myeongjo', serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.6rem, 4vw, 3.25rem) !important;
   font-weight: 700;
   line-height: 1.22;
@@ -2116,7 +2116,7 @@ nav a.active {
   min-width: 174px;
   padding: 1rem 1.45rem;
   border-radius: 0;
-  font-family: 'Nanum Myeongjo', serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
   font-weight: 800;
 }
@@ -2351,7 +2351,7 @@ html {
 }
 
 body {
-  font-family: 'Nanum Myeongjo', serif;
+  font-family: var(--font-serif);
   letter-spacing: -0.025em;
 }
 
@@ -2370,7 +2370,7 @@ select,
 .stat-card-label,
 .goose-room-eyebrow,
 .cat-room-eyebrow {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   letter-spacing: -0.01em;
 }
 
@@ -2383,7 +2383,7 @@ h4,
 .goose-room-copy h1,
 .cat-room-copy h1 {
   color: var(--arena-ink);
-  font-family: 'Nanum Myeongjo', serif;
+  font-family: var(--font-serif);
   font-weight: 700;
 }
 
@@ -2569,7 +2569,7 @@ main > section:not(.landing-hero):not(.landing-features) {
 .stat-value,
 .landing-stat-number {
   color: var(--arena-ink);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 .profile-header-card {
@@ -2638,7 +2638,7 @@ select:focus,
   padding: 0.8rem 1.25rem;
   border: 1px solid var(--arena-line-strong) !important;
   box-shadow: none !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.86rem;
   font-weight: 800;
 }
@@ -2695,7 +2695,7 @@ th {
   border-bottom: 1px solid var(--arena-line-strong);
   color: var(--arena-subtle);
   background: #0d0e10;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.06em;
   text-align: left;
@@ -2892,7 +2892,7 @@ tr:hover td {
   align-items: center;
   gap: 2.4rem;
   color: #7f868f;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -2915,7 +2915,7 @@ tr:hover td {
   padding-bottom: 0.5rem;
   border-bottom: 1px solid rgba(227, 194, 47, 0.45);
   color: var(--arena-gold);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.24em;
@@ -2956,8 +2956,18 @@ tr:hover td {
    기존 서체를 그대로 유지한다.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
+  /* 읽기용 세리프 — 제목·본문 */
+  --font-serif: 'Nanum Myeongjo', 'Noto Serif KR', 'Noto Sans KR',
+    'Apple SD Gothic Neo', 'Malgun Gothic', Georgia, serif;
+  /* 작은 글씨 — UI 라벨·수치·캡션 */
   --font-small: 'Google Sans', 'Google Sans Text', Pretendard, 'Noto Sans KR',
     -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  /* 코드·모노 — 한글이 굴림체로 떨어지지 않도록 한글 폰트를 generic 앞에 둔다 */
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas,
+    'Cascadia Mono', 'D2Coding', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', monospace;
+  /* 수식 — 한글은 모던 고딕으로 대체 */
+  --font-math: 'Noto Sans Math', 'KaTeX_Main', 'Noto Sans KR',
+    'Apple SD Gothic Neo', 'Malgun Gothic', serif;
 }
 
 button,
@@ -3014,5 +3024,12 @@ nav a,
 .mobile-admin-link {
   font-family: var(--font-small);
   font-variant-numeric: tabular-nums;
+}
+
+pre,
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
 }
 

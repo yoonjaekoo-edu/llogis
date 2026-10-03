@@ -334,7 +334,7 @@ const About: React.FC<{ user: User | null }> = ({ user }) => {
           </p>
           <pre style={{
             padding: '1rem', borderRadius: '0.75rem', background: 'var(--bg-color)',
-            border: '1px solid var(--border)', fontFamily: 'monospace', fontSize: '0.85rem',
+            border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem',
             whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: '1.5rem'
           }}>
 {`프로필 CSS를 만들어줘. 내 프로필 페이지는 다음과 같은 구조로 되어 있어:
@@ -2287,7 +2287,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
               <code>## 제목</code> = 제목, <code>**굵게**</code> = 굵게, <code>*기울임*</code> = 기울임, 줄바꿈은 그대로 표시됩니다.
             </p>
             <textarea value={pageContentDraft} onChange={e => setPageContentDraft(e.target.value)}
-              style={{ width: '100%', minHeight: '300px', padding: '0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontFamily: 'monospace', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }}
+              style={{ width: '100%', minHeight: '300px', padding: '0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }}
               placeholder="소개 페이지 내용을 마크다운 형식으로 입력하세요..." />
             <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', alignItems: 'center' }}>
               <button onClick={async () => {
@@ -2425,7 +2425,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                 <div>
                   <textarea value={JSON.stringify(creatingTemplate ? newTemplate : editingTemplate, null, 2)} onChange={e => {
                     try { const parsed = JSON.parse(e.target.value); if (creatingTemplate) setNewTemplate(parsed); else setEditingTemplate(parsed); } catch {}
-                  }} rows={25} style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }} />
+                  }} rows={25} style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', resize: 'vertical' }} />
                 </div>
               ) : (
                 <div>
@@ -2447,29 +2447,29 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.85rem', opacity: 0.7 }}>문제 템플릿 (problem_template, {'{{'}변수명{'}}'} 사용)</label>
-                    <textarea value={creatingTemplate ? newTemplate.problem_template : editingTemplate.problem_template} onChange={e => creatingTemplate ? setNewTemplate({ ...newTemplate, problem_template: e.target.value }) : setEditingTemplate({ ...editingTemplate, problem_template: e.target.value })} rows={4} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.85rem' }} />
+                    <textarea value={creatingTemplate ? newTemplate.problem_template : editingTemplate.problem_template} onChange={e => creatingTemplate ? setNewTemplate({ ...newTemplate, problem_template: e.target.value }) : setEditingTemplate({ ...editingTemplate, problem_template: e.target.value })} rows={4} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }} />
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.85rem', opacity: 0.7 }}>정답 공식 (answer_formula.value)</label>
-                    <input type="text" value={creatingTemplate ? newTemplate.answer_formula.value : editingTemplate.answer_formula?.value || ''} onChange={e => { const v = { type: 'expression', value: e.target.value }; if (creatingTemplate) setNewTemplate({ ...newTemplate, answer_formula: v }); else setEditingTemplate({ ...editingTemplate, answer_formula: v }); }} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+                    <input type="text" value={creatingTemplate ? newTemplate.answer_formula.value : editingTemplate.answer_formula?.value || ''} onChange={e => { const v = { type: 'expression', value: e.target.value }; if (creatingTemplate) setNewTemplate({ ...newTemplate, answer_formula: v }); else setEditingTemplate({ ...editingTemplate, answer_formula: v }); }} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'var(--font-mono)' }} />
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.85rem', opacity: 0.7 }}>변수 (variables, JSON)</label>
                     <textarea value={JSON.stringify(creatingTemplate ? newTemplate.variables : editingTemplate.variables || {}, null, 2)} onChange={e => {
                       try { const parsed = JSON.parse(e.target.value); if (creatingTemplate) setNewTemplate({ ...newTemplate, variables: parsed }); else setEditingTemplate({ ...editingTemplate, variables: parsed }); } catch {}
-                    }} rows={5} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }} />
+                    }} rows={5} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', resize: 'vertical' }} />
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.85rem', opacity: 0.7 }}>제약 조건 (constraints, JSON 배열)</label>
                     <textarea value={JSON.stringify(creatingTemplate ? newTemplate.constraints : editingTemplate.constraints || [])} onChange={e => {
                       try { const parsed = JSON.parse(e.target.value); if (Array.isArray(parsed)) { if (creatingTemplate) setNewTemplate({ ...newTemplate, constraints: parsed }); else setEditingTemplate({ ...editingTemplate, constraints: parsed }); } } catch {}
-                    }} rows={3} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }} />
+                    }} rows={3} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', resize: 'vertical' }} />
                   </div>
                   <div style={{ marginBottom: '0.75rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.85rem', opacity: 0.7 }}>개념 (concepts, JSON 배열)</label>
                     <textarea value={JSON.stringify(creatingTemplate ? newTemplate.concepts : editingTemplate.concepts || [])} onChange={e => {
                       try { const parsed = JSON.parse(e.target.value); if (Array.isArray(parsed)) { if (creatingTemplate) setNewTemplate({ ...newTemplate, concepts: parsed }); else setEditingTemplate({ ...editingTemplate, concepts: parsed }); } } catch {}
-                    }} rows={2} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }} />
+                    }} rows={2} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', resize: 'vertical' }} />
                   </div>
                 </div>
               )}
@@ -3362,7 +3362,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
           <div>
             <textarea value={profileCssDraft} onChange={e => setProfileCssDraft(e.target.value)}
               placeholder="/* 여기에 CSS를 입력하세요 */"
-              style={{ width: '100%', minHeight: '150px', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box', resize: 'vertical' }} />
+              style={{ width: '100%', minHeight: '150px', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', boxSizing: 'border-box', resize: 'vertical' }} />
             <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.8rem' }}>
               <button onClick={handleSaveCss} disabled={savingCss} className="btn" style={{ background: 'var(--color-4)', color: 'white', opacity: savingCss ? 0.6 : 1 }}>{savingCss ? '저장 중...' : '저장'}</button>
               <button onClick={() => { setIsEditingCss(false); setProfileCssDraft(u.profile_css || ''); }} className="btn" style={{ background: 'var(--border)', color: 'var(--text-main)' }}>취소</button>
@@ -3371,7 +3371,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         ) : (
           <div>
             {u.profile_css ? (
-              <pre style={{ padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-color)', border: '1px solid var(--border)', fontFamily: 'monospace', fontSize: '0.8rem', maxHeight: '200px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{u.profile_css}</pre>
+              <pre style={{ padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-color)', border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', maxHeight: '200px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{u.profile_css}</pre>
             ) : (
               <p style={{ opacity: 0.5, fontStyle: 'italic' }}>아직 CSS가 없습니다.</p>
             )}
