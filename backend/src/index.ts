@@ -6,7 +6,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { evaluateExpression } from './generation/mathParser.js';
 import { generateProblem } from './problemGenerator';
-import { generateNimProblems } from './nimGenerator';
 import {
   getAllTemplates,
   getTemplateById,
@@ -126,7 +125,6 @@ if (fs.existsSync(frontendDist)) {
 const ensureSchema = async () => {
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT');
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT');
-  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS nim_api_key TEXT');
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS can_generate_problems BOOLEAN DEFAULT FALSE');
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_title VARCHAR(50) DEFAULT ''");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_firework_effect BOOLEAN DEFAULT FALSE");
@@ -1640,33 +1638,6 @@ app.post('/api/groups/:id/requests/:requestId/reject', authenticateToken, async 
 });
 
 
-app.patch('/api/users/nim-key', authenticateToken, async (req: any, res: Response) => {
-  const { nimApiKey } = req.body;
-  const userId = req.user.id;
-
-  if (!nimApiKey || typeof nimApiKey !== 'string') {
-    return res.status(400).json({ error: 'NVIDIA NIM API 키를 입력해주세요.' });
-  }
-
-  try {
-    await pool.query('UPDATE users SET nim_api_key = $1 WHERE id = $2', [nimApiKey, userId]);
-    res.json({ message: 'NVIDIA NIM API 키가 저장되었습니다.' });
-  } catch (err) {
-    res.status(500).json({ error: 'API 키 저장에 실패했습니다.' });
-  }
-});
-
-app.get('/api/users/nim-key/status', authenticateToken, async (req: any, res: Response) => {
-  const userId = req.user.id;
-  try {
-    const result = await pool.query('SELECT nim_api_key FROM users WHERE id = $1', [userId]);
-    const hasKey = !!(result.rows[0]?.nim_api_key);
-    res.json({ hasKey });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to check API key status' });
-  }
-});
-
 app.post('/api/users/change-password', authenticateToken, async (req: any, res: Response) => {
   const { currentPassword, newPassword } = req.body;
   const userId = req.user.id;
@@ -1968,47 +1939,6 @@ app.get('/api/problems/public', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Error fetching public problems:', err);
     res.status(500).json({ error: 'Failed to fetch problems' });
-  }
-});
-
-app.post('/api/problems/generate-nim', authenticateToken, async (req: any, res: Response) => {
-  if (!(await canGenerateProblems(req.user.id))) return res.status(403).json({ error: '문제 생성 권한이 없습니다.' });
-  const userId = req.user.id;
-  const { category, count = 5 } = req.body;
-
-  try {
-    const userRes = await pool.query('SELECT nim_api_key FROM users WHERE id = $1', [userId]);
-    const apiKey = userRes.rows[0]?.nim_api_key;
-
-    if (!apiKey) {
-      return res.status(400).json({ error: 'NVIDIA NIM API 키가 설정되어 있지 않습니다. 프로필에서 API 키를 먼저 등록해주세요.' });
-    }
-
-    const generationCount = Math.min(10, Math.max(1, parseInt(count) || 5));
-    const generatedProblems = await generateNimProblems(apiKey, generationCount, category);
-    const newProblems = [];
-
-    for (const p of generatedProblems) {
-      const result = await pool.query(
-        'INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type) VALUES ($1, $2, $3, $4, $4, $5) RETURNING id',
-        [p.title, p.content, p.answer, 6000, 'Calculation']
-      );
-      const problemId = result.rows[0].id;
-
-      for (const tagName of p.tags) {
-        const tagRes = await pool.query('SELECT id FROM tags WHERE name = $1', [tagName]);
-        if (tagRes.rows.length > 0) {
-          await pool.query('INSERT INTO problem_tags (problem_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [problemId, tagRes.rows[0].id]);
-        }
-      }
-
-      newProblems.push({ id: problemId, title: p.title, content: p.content, tags: p.tags, difficulty: p.difficulty });
-    }
-
-    res.json({ message: `${newProblems.length}개의 문제가 AI로 생성되었습니다!`, problems: newProblems });
-  } catch (err: any) {
-    console.error('NIM generation error:', err);
-    res.status(500).json({ error: err.message || 'AI 문제 생성에 실패했습니다.' });
   }
 });
 

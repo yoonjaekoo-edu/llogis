@@ -459,8 +459,7 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
     { icon: '02', title: '연속 스트릭', desc: '매일 1문제 이상 풀면 스트릭이 쌓입니다. 토큰으로 긴급 수리도 가능해요!' },
     { icon: '03', title: '토큰 경제', desc: '정답을 맞힐 때마다 토큰을 획득하세요. 스트릭 수리, 혜택 등에 활용할 수 있습니다.' },
     { icon: '04', title: '일일 퀘스트', desc: '매일 새로운 퀘스트가 갱신됩니다. 완료하면 XP와 토큰을 대량으로 획득할 수 있어요.' },
-    { icon: '05', title: '티어 시스템', desc: 'Bronze부터 정답까지 14개 티어 — 레이팅이 오를수록 더 높은 티어를 달성하세요.' },
-    { icon: '06', title: 'AI 문제 생성', desc: 'NVIDIA NIM 기반 AI가 원하는 단원의 문제를 즉시 만들어 드립니다.' },
+    { icon: '05', title: '티어 시스템', desc: 'Bronze부터 정답까지 14개 티어 — 레이팅이 오를수록 더 높은 티어를 달성하세요.' }
   ];
 
   return (
@@ -1453,9 +1452,6 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
   const [message, setMessage] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [category, setCategory] = useState('');
-  const [nimGenerationCount, setNimGenerationCount] = useState(5);
   const [cleaning, setCleaning] = useState(false);
   const [problems, setProblems] = useState<any[]>([]);
   const [problemsPage, setProblemsPage] = useState(1);
@@ -1676,28 +1672,6 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
     }
   };
 
-  const handleGenerateNim = async () => {
-    setGenerating(true);
-    setMessage('');
-    const token = localStorage.getItem('token');
-    try {
-      const res = await fetch('/api/problems/generate-nim', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ count: nimGenerationCount, category: category.trim() || undefined })
-      });
-      const data = await res.json();
-      setMessage(data.message || data.error);
-      if (res.ok) fetchUsers();
-    } catch {
-      setMessage('AI 문제 생성에 실패했습니다.');
-    }
-    setGenerating(false);
-  };
-
   const handleCleanup = async (tags: string[]) => {
     if (!window.confirm(`"${tags.join(', ')}" 태그가 달린 모든 문제를 삭제하시겠습니까?`)) return;
     setCleaning(true);
@@ -1912,28 +1886,6 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
             <p style={{ marginBottom: '1rem', opacity: 0.8 }}>각 템플릿으로 생성된 문제를 맞혔을 때 지급되는 레이팅을 수정합니다.</p>
             <button onClick={fetchTemplates} className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>
               템플릿 목록 새로고침
-            </button>
-          </div>
-          <div style={{ padding: '1.5rem', background: 'var(--card-bg)', border: '1px solid var(--color-4)', borderRadius: '1rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: 'var(--color-4)' }}>AI 문제 생성 (NVIDIA NIM)</h3>
-            <p style={{ marginBottom: '1rem', opacity: 0.8 }}>NVIDIA NIM API로 AI 문제를 생성합니다. 프로필에서 API 키를 먼저 등록하세요.</p>
-            <input
-              type="text"
-              placeholder="카테고리 (자연어 입력, 예: 중학교 2학년 연립방정식)"
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '1rem', boxSizing: 'border-box' }}
-            />
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={nimGenerationCount}
-              onChange={e => setNimGenerationCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-              style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '1rem', boxSizing: 'border-box' }}
-            />
-            <button onClick={handleGenerateNim} disabled={generating} className="btn" style={{ background: 'var(--color-4)', color: 'white', opacity: generating ? 0.6 : 1 }}>
-              {generating ? '생성 중...' : `AI 문제 ${nimGenerationCount}개 생성`}
             </button>
           </div>
 
@@ -2802,10 +2754,6 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
   const [isEditingCss, setIsEditingCss] = useState(false);
   const [savingCss, setSavingCss] = useState(false);
 
-  // NVIDIA NIM API key state
-  const [nimApiKey, setNimApiKey] = useState('');
-  const [isEditingNimKey, setIsEditingNimKey] = useState(false);
-  const [hasNimKey, setHasNimKey] = useState(false);
   const [titleRefreshKey, setTitleRefreshKey] = useState(0);
 
   // Streak calendar state
@@ -2862,15 +2810,6 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         setUser(mergedUser);
         localStorage.setItem('user', JSON.stringify(mergedUser));
       }
-    })
-    .catch(() => {});
-
-    fetch('/api/users/nim-key/status', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.hasKey !== undefined) setHasNimKey(data.hasKey);
     })
     .catch(() => {});
 
@@ -2938,27 +2877,6 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
       alert('네트워크 오류가 발생했습니다.');
     }
     setIsSavingProfile(false);
-  };
-
-  const handleSaveNimKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/users/nim-key', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ nimApiKey })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      alert('NVIDIA NIM API 키가 저장되었습니다.');
-      setHasNimKey(true);
-      setIsEditingNimKey(false);
-    } else {
-      alert(data.error);
-    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -3503,33 +3421,6 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
           <CustomTitleChango user={user} setUser={setUser} />
         )}
 
-        {/* ─── NVIDIA NIM API 키 ─── */}
-        <div className="problem-card">
-          <h3 style={{ margin: '0 0 0.5rem', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            NVIDIA NIM API 키
-          </h3>
-          <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>
-            {hasNimKey ? 'API 키가 등록되어 있습니다. AI 문제 생성 기능을 사용할 수 있습니다.' : 'AI 문제 생성 기능을 사용하려면 NVIDIA NIM API 키를 등록하세요.'}
-          </p>
-          <button
-            onClick={() => setIsEditingNimKey(!isEditingNimKey)}
-            className="btn"
-            style={{ background: 'var(--card-bg)', border: '1.5px solid var(--color-3)', color: 'var(--color-4)', width: 'auto', padding: '0.55rem 1.4rem', fontSize: '0.9rem' }}
-          >
-            {isEditingNimKey ? '취소' : hasNimKey ? 'API 키 변경' : 'API 키 등록'}
-          </button>
-          {isEditingNimKey && (
-          <form onSubmit={handleSaveNimKey} style={{ marginTop: '1.2rem', maxWidth: '480px' }}>
-            <input
-              type="password" placeholder="NVIDIA NIM API 키 (nvapi-...)"
-              value={nimApiKey} onChange={e => setNimApiKey(e.target.value)}
-              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', marginBottom: '0.8rem', boxSizing: 'border-box' }}
-              required
-            />
-            <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'white', padding: '0.7rem' }}>저장</button>
-          </form>
-        )}
-      </div>
         </>
       )}
     </main>

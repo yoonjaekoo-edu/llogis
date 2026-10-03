@@ -29,7 +29,6 @@ Korean math problem-solving platform with Glicko-2 rating system (unused — see
 - **Docker BuildKit on ARM**: if `parent snapshot does not exist`, run `docker builder prune -af`. `docker-compose.yml` sets `provenance: false, sbom: false`.
 - **Dynamic schema**: `ensureSchema()` in `backend/src/index.ts:95-263` runs at startup adding tables (groups, competitions, titles, bug_reports, notifications, page_content, quests) and columns beyond schema.sql.
 - **Answer comparison**: multi-step — (1) whitespace-stripped lowercase string compare, (2) A/B/C/D letter → extract option text, (3) math equivalence via `evaluateExpression` with 1e-9 tolerance, (4) ratio `"4:1"` → first number. Duplicate correct submissions rejected (400).
-- **NVIDIA NIM**: AI problem generation requires a user API key stored per-user. `POST /api/problems/generate-nim` uses the key, capped at 10 problems/request.
 - **Game mechanics**: fever (2×/5× from store, timed), streak (daily reset tracking, repair), tokens (store currency), XP (levels = floor(sqrt(XP/100)) + 1), quests (`JSONB`), daily first-correct 1.5× bonus.
 - **3D rooms**: `frontend/src/GooseRoom.tsx` and `CatRoom.tsx` use three.js + framer-motion.
 - **Frontend build**: terser strips `console.*`, rollup manual chunks for vendor/react/katex/helmet. Docker uses nginx (not node) to serve built assets.
@@ -37,7 +36,7 @@ Korean math problem-solving platform with Glicko-2 rating system (unused — see
 
 ## Database
 - Schema: `database/schema.sql` (users, problems, submissions, tags, problem_tags) mounted as init script
-- `ensureSchema()` adds: groups, group_members, group_join_requests, group_competitions, group_competition_participants, titles, user_titles, admin_notifications, bug_reports, page_content, tier_config + many user columns (streak, xp, tokens, quests, fever, nim_api_key, etc.)
+- `ensureSchema()` adds: groups, group_members, group_join_requests, group_competitions, group_competition_participants, titles, user_titles, admin_notifications, bug_reports, page_content, tier_config + many user columns (streak, xp, tokens, quests, fever, etc.)
 - 100 seed problems pre-loaded with Korean math content
 - Profile images stored at `backend/uploads/`, served via `/uploads/` static route with 30d cache
 
