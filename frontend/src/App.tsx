@@ -3048,17 +3048,22 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         setTimeout(() => alert(`새 칭호 획득: ${data.newlyUnlocked.map((t: any) => t.name).join(', ')}`), 1000);
       }
     }).catch(() => {});
-
-    // 분야별 정복도(다각형 그래프) — 남의 프로필은 userId로 조회
-    const token2 = localStorage.getItem('token');
-    const radarUrl = readonly && uid ? `/api/users/domain-radar?userId=${uid}` : '/api/users/domain-radar';
-    fetch(radarUrl, { headers: token2 ? { 'Authorization': `Bearer ${token2}` } : {} })
-    .then(res => (res.ok ? res.json() : null))
-    .then(data => {
-      if (data && Array.isArray(data.domains)) setDomainRadar(data);
-    })
-    .catch(() => {});
   }, [user, readonly, profileUserId]);
+
+  // 분야별 정복도(다각형 그래프). 내 프로필·남의 프로필 모두 조회해야 하므로
+  // fetchProfile(readonly면 조기 return)에 얹지 않고 별도 effect로 둔다.
+  useEffect(() => {
+    if (!uid) return;
+    const token = localStorage.getItem('token');
+    fetch(`/api/users/domain-radar?userId=${uid}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data && Array.isArray(data.domains)) setDomainRadar(data);
+      })
+      .catch(() => {});
+  }, [uid]);
 
   useEffect(() => {
     if (!readonly && !user) {
