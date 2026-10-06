@@ -1464,11 +1464,15 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'templates' | 'bugreports' | 'page-content' | 'tier-config'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'templates' | 'bugreports' | 'submissions' | 'page-content' | 'tier-config'>('users');
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [newTemplate, setNewTemplate] = useState<any>({ id: '', unit: '', title: '', difficulty: 10000, variables: {}, constraints: [], problem_template: '', answer_formula: { type: 'expression', value: '' }, concepts: [] });
   const [bugReports, setBugReports] = useState<any[]>([]);
+  const [problemSubmissions, setProblemSubmissions] = useState<any[]>([]);
+  const [submissionStatus, setSubmissionStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [submissionCounts, setSubmissionCounts] = useState<{ pending: number; approved: number; rejected: number }>({ pending: 0, approved: 0, rejected: 0 });
+  const [reviewNotes, setReviewNotes] = useState<{ [key: number]: string }>({});
   const [showTemplateJson, setShowTemplateJson] = useState(false);
   const [pageContent, setPageContent] = useState('');
   const [pageContentDraft, setPageContentDraft] = useState('');
@@ -1530,6 +1534,42 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
       setLoadingTemplates(false);
     });
   }, []);
+
+  const fetchProblemSubmissions = async (status: 'pending' | 'approved' | 'rejected') => {
+    setActiveTab('submissions');
+    setSubmissionStatus(status);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/admin/problem-submissions?status=${status}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProblemSubmissions(Array.isArray(data.problems) ? data.problems : []);
+        if (data.counts) setSubmissionCounts({ pending: 0, approved: 0, rejected: 0, ...data.counts });
+      }
+    } catch { }
+  };
+
+  const handleReviewSubmission = async (problemId: number, action: 'approve' | 'reject') => {
+    if (action === 'reject' && !window.confirm('이 문제를 반려하시겠습니까?')) return;
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/admin/problem-submissions/${problemId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action, note: reviewNotes[problemId] || '' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchProblemSubmissions(submissionStatus);
+      } else {
+        alert(data.error || '심사 처리에 실패했습니다.');
+      }
+    } catch {
+      alert('네트워크 오류로 처리하지 못했습니다.');
+    }
+  };
 
   const fetchNotifications = useCallback(() => {
     const token = localStorage.getItem('token');
@@ -1983,6 +2023,9 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
           <button onClick={async () => { setActiveTab('bugreports'); const token = localStorage.getItem('token'); try { const res = await fetch('/api/admin/bug-reports', { headers: { 'Authorization': `Bearer ${token}` } }); if (res.ok) setBugReports(await res.json()); } catch {} }} style={{ background: 'none', border: 'none', color: activeTab === 'bugreports' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'bugreports' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
             버그제보
           </button>
+          <button onClick={() => fetchProblemSubmissions('pending')} style={{ background: 'none', border: 'none', color: activeTab === 'submissions' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'submissions' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
+            출제 심사 ({submissionCounts.pending})
+          </button>
           <button onClick={() => { setActiveTab('tier-config'); fetchTierConfig(); }} style={{ background: 'none', border: 'none', color: activeTab === 'tier-config' ? 'var(--color-4)' : 'var(--text-muted)', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', borderBottom: activeTab === 'tier-config' ? '3px solid var(--color-4)' : 'none', paddingBottom: '0.5rem', marginBottom: '-0.7rem' }}>
             등급 설정
           </button>
@@ -2210,6 +2253,48 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                   <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>
                     {r.username} · {new Date(r.created_at).toLocaleString()} · 상태: {r.status}
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        )}
+        {/* Problem Submissions Tab — 유저 출제 문제 심사 */}
+        {activeTab === 'submissions' && (
+        <div className="problem-card" style={{ margin: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>출제 심사</h3>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              {(['pending', 'approved', 'rejected'] as const).map(st => (
+                <button key={st} onClick={() => fetchProblemSubmissions(st)} className="btn" style={{ width: 'auto', padding: '0.3rem 0.7rem', fontSize: '0.75rem', background: submissionStatus === st ? 'var(--color-4)' : 'var(--card-bg)', color: submissionStatus === st ? 'white' : 'var(--text-main)', border: '1px solid var(--border)' }}>
+                  {st === 'pending' ? `검수 대기 (${submissionCounts.pending})` : st === 'approved' ? `공개 (${submissionCounts.approved})` : `반려 (${submissionCounts.rejected})`}
+                </button>
+              ))}
+            </div>
+          </div>
+          {problemSubmissions.length === 0 ? (
+            <p style={{ opacity: 0.5, textAlign: 'center', padding: '2rem' }}>해당 상태의 출제 문제가 없습니다.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {problemSubmissions.map((s: any) => (
+                <div key={s.id} style={{ padding: '0.9rem 1rem', borderRadius: '0.5rem', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{s.title}</div>
+                    <span style={{ fontSize: '0.7rem', opacity: 0.6, whiteSpace: 'nowrap' }}>#{s.id} · {s.username || '알 수 없음'}</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0.4rem 0', whiteSpace: 'pre-wrap' }}>{s.content}</div>
+                  <div style={{ fontSize: '0.8rem', marginBottom: '0.3rem' }}>
+                    <strong>정답:</strong> {s.answer} · <strong>보상:</strong> +{Number(s.current_difficulty).toLocaleString()} RP
+                  </div>
+                  {s.explanation && <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.3rem', whiteSpace: 'pre-wrap' }}>해설: {s.explanation}</div>}
+                  {s.review_note && <div style={{ fontSize: '0.75rem', color: '#d50000', marginBottom: '0.3rem' }}>이전 사유: {s.review_note}</div>}
+                  {s.review_status === 'pending' && (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                      <input type="text" placeholder="반려 사유 (선택)" value={reviewNotes[s.id] || ''} onChange={e => setReviewNotes({ ...reviewNotes, [s.id]: e.target.value })} style={{ flex: 1, minWidth: '160px', padding: '0.4rem 0.6rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.8rem' }} />
+                      <button onClick={() => handleReviewSubmission(s.id, 'approve')} className="btn" style={{ width: 'auto', padding: '0.4rem 0.9rem', fontSize: '0.8rem', background: '#00c853', color: 'white' }}>승인</button>
+                      <button onClick={() => handleReviewSubmission(s.id, 'reject')} className="btn" style={{ width: 'auto', padding: '0.4rem 0.9rem', fontSize: '0.8rem', background: '#d50000', color: 'white' }}>반려</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -3608,12 +3693,19 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   const [wrongGlowTrigger, setWrongGlowTrigger] = useState(0);
   const [lastWrongAnswer, setLastWrongAnswer] = useState<{problemId: number} | null>(null);
   const [lastCorrectFeedback, setLastCorrectFeedback] = useState<{rpGained: number} | null>(null);
-  // Custom problem creation (admin only)
+  // 문제 출제 (일반 유저는 검수 대기 → 관리자 승인 후 공개, 관리자는 즉시 공개)
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
   const [customContent, setCustomContent] = useState('');
   const [customAnswer, setCustomAnswer] = useState('');
+  const [customExplanation, setCustomExplanation] = useState('');
+  const [customLevel, setCustomLevel] = useState<'easy' | 'normal' | 'hard'>('normal');
+  const [customTags, setCustomTags] = useState('');
   const [customRewardRating, setCustomRewardRating] = useState(50000);
+  const [customSubmitting, setCustomSubmitting] = useState(false);
+  const [myProblems, setMyProblems] = useState<any[]>([]);
+  const [showMyProblems, setShowMyProblems] = useState(false);
+  const [myProblemsLoading, setMyProblemsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -3823,34 +3915,66 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
     .finally(() => setIsGenerating(false));
   };
 
+  const fetchMyProblems = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setMyProblemsLoading(true);
+    try {
+      const res = await fetch('/api/problems/mine', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setMyProblems(Array.isArray(data.problems) ? data.problems : []);
+      }
+    } catch { }
+    setMyProblemsLoading(false);
+  };
+
+  useEffect(() => { if (user) fetchMyProblems(); }, [user]);
+
   const handleCreateCustom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || user.username !== 'admin') return;
+    if (!user || customSubmitting) return;
     const token = localStorage.getItem('token');
-    const res = await fetch('/api/problems/custom', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        title: customTitle,
-        content: customContent,
-        answer: customAnswer,
-        ratingReward: customRewardRating,
-        tags: []
-      })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      alert('커스텀 문제가 생성되었습니다.');
-      setShowCustomForm(false);
-      setCustomTitle('');
-      setCustomContent('');
-      setCustomAnswer('');
-      setCustomRewardRating(50000);
-      setPage(1);
-      fetchProblems();
-    } else {
-      alert(data.error);
+    setCustomSubmitting(true);
+    try {
+      const res = await fetch('/api/problems/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          title: customTitle,
+          content: customContent,
+          answer: customAnswer,
+          explanation: customExplanation,
+          level: customLevel,
+          tags: customTags.split(',').map(t => t.trim()).filter(Boolean),
+          ...(user.username === 'admin' ? { ratingReward: customRewardRating } : {})
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || '등록되었습니다.');
+        setShowCustomForm(false);
+        setCustomTitle('');
+        setCustomContent('');
+        setCustomAnswer('');
+        setCustomExplanation('');
+        setCustomTags('');
+        setCustomLevel('normal');
+        setCustomRewardRating(50000);
+        if (user.username === 'admin') {
+          setPage(1);
+          fetchProblems();
+        } else {
+          setShowMyProblems(true);
+        }
+        fetchMyProblems();
+      } else {
+        alert(data.error || '문제 출제에 실패했습니다.');
+      }
+    } catch {
+      alert('네트워크 오류로 출제하지 못했습니다.');
     }
+    setCustomSubmitting(false);
   };
 
   const selectedProblem = problems.find(p => p.id === selectedProblemId);
@@ -3895,28 +4019,76 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
               생성하기
             </button>
           )}
-          {problemType === 'custom' && user?.username === 'admin' && (
+          {problemType === 'custom' && user && (
             <button onClick={() => setShowCustomForm(!showCustomForm)} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', width: 'auto', background: 'var(--color-4)', color: 'white' }}>
-              {showCustomForm ? '취소' : '+ 추가'}
+              {showCustomForm ? '취소' : '+ 출제'}
             </button>
           )}
         </div>
 
-        {/* 커스텀 문제 생성 폼 (admin only) */}
-        {showCustomForm && user?.username === 'admin' && (
+        {/* 문제 출제 폼 — 일반 유저는 검수 후 공개 */}
+        {showCustomForm && user && (
           <form onSubmit={handleCreateCustom} className="problem-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-            <h4 style={{ margin: '0 0 0.8rem', color: 'var(--color-4)' }}>새 커스텀 문제</h4>
+            <h4 style={{ margin: '0 0 0.8rem', color: 'var(--color-4)' }}>문제 출제</h4>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.8rem' }}>
               수식은 LaTeX 형식으로 작성하세요. 인라인 수식은 <code>$...$</code>, 블록 수식은 <code>$$...$$</code>를 사용합니다.
+              {user.username !== 'admin' && ' 출제한 문제는 관리자 검수를 거쳐 공개되며, 본인은 풀 수 없습니다.'}
             </p>
-            <input type="text" placeholder="제목" value={customTitle} onChange={e => setCustomTitle(e.target.value)} required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem' }} />
-            <textarea placeholder="문제 내용 (예: $x^2 + 2x + 1 = 0$을 푸시오.)" value={customContent} onChange={e => setCustomContent(e.target.value)} required rows={4} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem', resize: 'vertical' }} />
+            <input type="text" placeholder="제목" value={customTitle} onChange={e => setCustomTitle(e.target.value)} required maxLength={120} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem' }} />
+            <textarea placeholder="문제 내용 (예: $x^2 + 2x + 1 = 0$을 푸시오.)" value={customContent} onChange={e => setCustomContent(e.target.value)} required rows={4} maxLength={1000} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem', resize: 'vertical' }} />
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <input type="text" placeholder="정답" value={customAnswer} onChange={e => setCustomAnswer(e.target.value)} required style={{ flex: 1, padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
-              <input type="number" placeholder="획득 레이팅" value={customRewardRating} onChange={e => setCustomRewardRating(parseInt(e.target.value) || 0)} style={{ width: '120px', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
+              <input type="text" placeholder="정답 (예: 12, 2/5)" value={customAnswer} onChange={e => setCustomAnswer(e.target.value)} required maxLength={120} style={{ flex: 1, padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
+              {user.username === 'admin' && (
+                <input type="number" placeholder="획득 레이팅" value={customRewardRating} onChange={e => setCustomRewardRating(parseInt(e.target.value) || 0)} style={{ width: '120px', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
+              )}
             </div>
-            <button type="submit" className="btn" style={{ padding: '0.5rem', fontSize: '0.85rem', background: 'var(--color-4)', color: 'white' }}>생성하기</button>
+            <textarea placeholder="해설 (선택) — 정답을 푸는 과정을 적어주세요." value={customExplanation} onChange={e => setCustomExplanation(e.target.value)} rows={3} maxLength={1500} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem', resize: 'vertical' }} />
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <select value={customLevel} onChange={e => setCustomLevel(e.target.value as 'easy' | 'normal' | 'hard')} style={{ padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.85rem' }}>
+                <option value="easy">쉬움 (+15,000 RP)</option>
+                <option value="normal">보통 (+25,000 RP)</option>
+                <option value="hard">어려움 (+40,000 RP)</option>
+              </select>
+              <input type="text" placeholder="태그 (쉼표로 구분, 선택)" value={customTags} onChange={e => setCustomTags(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
+            </div>
+            <button type="submit" disabled={customSubmitting} className="btn" style={{ padding: '0.5rem', fontSize: '0.85rem', background: 'var(--color-4)', color: 'white', opacity: customSubmitting ? 0.6 : 1 }}>
+              {customSubmitting ? '등록 중...' : (user.username === 'admin' ? '등록하기' : '출제하고 검수 요청')}
+            </button>
           </form>
+        )}
+
+        {/* 내가 출제한 문제 + 검수 상태 */}
+        {user && problemType === 'custom' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <button onClick={() => { const next = !showMyProblems; setShowMyProblems(next); if (next) fetchMyProblems(); }} className="btn" style={{ width: 'auto', padding: '0.3rem 0.8rem', fontSize: '0.75rem', marginBottom: '0.5rem', background: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
+              {showMyProblems ? '내 출제 닫기' : `내 출제 (${myProblems.length})`}
+            </button>
+            {showMyProblems && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {myProblemsLoading && <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>불러오는 중...</div>}
+                {!myProblemsLoading && myProblems.length === 0 && <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>아직 출제한 문제가 없습니다.</div>}
+                {myProblems.map((mp: any) => {
+                  const badge = mp.review_status === 'approved'
+                    ? { text: '공개', color: '#00c853' }
+                    : mp.review_status === 'rejected'
+                      ? { text: '반려', color: '#d50000' }
+                      : { text: '검수 대기', color: '#ffc107' };
+                  return (
+                    <div key={mp.id} style={{ padding: '0.6rem 0.8rem', borderRadius: '0.5rem', background: 'var(--card-bg)', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{mp.title}</span>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: badge.color, border: `1px solid ${badge.color}`, borderRadius: '99px', padding: '0.1rem 0.4rem', whiteSpace: 'nowrap' }}>{badge.text}</span>
+                      </div>
+                      <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '0.2rem' }}>
+                        정답: {mp.answer} · +{Number(mp.current_difficulty).toLocaleString()} RP
+                      </div>
+                      {mp.review_note && <div style={{ fontSize: '0.7rem', color: '#d50000', marginTop: '0.2rem' }}>사유: {mp.review_note}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
         
         <div ref={problemListRef} role="listbox" aria-label="문제 선택" style={{ maxHeight: '50vh', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '1rem', background: 'var(--card-bg)' }}>

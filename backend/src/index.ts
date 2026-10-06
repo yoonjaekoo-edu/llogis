@@ -131,6 +131,13 @@ const ensureSchema = async () => {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_developer_chango BOOLEAN DEFAULT FALSE");
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS is_custom BOOLEAN DEFAULT FALSE');
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS custom_reward_rating FLOAT');
+  // 유저 출제 문제: 출제자 + 검수 상태. 기존 문제·관리자 문제는 approved로 백필된다.
+  await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS created_by INTEGER');
+  await pool.query("ALTER TABLE problems ADD COLUMN IF NOT EXISTS review_status VARCHAR(20) DEFAULT 'approved'");
+  await pool.query("ALTER TABLE problems ADD COLUMN IF NOT EXISTS review_note TEXT DEFAULT ''");
+  await pool.query("ALTER TABLE problems ADD COLUMN IF NOT EXISTS explanation TEXT DEFAULT ''");
+  await pool.query("UPDATE problems SET review_status = 'approved' WHERE review_status IS NULL");
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_problems_review_status ON problems (review_status)');
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS reward_rating FLOAT');
   await pool.query("UPDATE problems SET is_custom = FALSE WHERE is_custom IS NULL");
   await pool.query("ALTER TABLE problems ALTER COLUMN is_custom SET DEFAULT FALSE");
@@ -1057,26 +1064,6 @@ app.get('/api/users/:id/profile', async (req: Request, res: Response) => {
   }
 });
 
-// Custom problem list (admin only view)
-app.get('/api/problems/custom', authenticateToken, async (req: any, res: Response) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 20;
-  const offset = (page - 1) * limit;
-  // Only admin can view custom problems
-  if (req.user.username !== 'admin') return res.status(403).json({ error: '관리자 전용입니다.' });
-  try {
-    const result = await pool.query(
-      'SELECT id, title, content, current_difficulty, tags, custom_reward_rating FROM problems WHERE is_custom = TRUE ORDER BY id LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
-    const countRes = await pool.query('SELECT COUNT(*) FROM problems WHERE is_custom = TRUE');
-    const total = parseInt(countRes.rows[0].count);
-    res.json({ problems: result.rows, pagination: { page, limit, total } });
-  } catch (err) {
-    console.error('Failed to fetch custom problems:', err);
-    res.status(500).json({ error: 'Failed to fetch custom problems' });
-  }
-});
 
 // Admin creates a custom problem with rating reward
 // User streak history (daily solved count) with offset support
@@ -1743,10 +1730,11 @@ app.get('/api/problems', async (req: Request, res: Response) => {
   const isCustomFilter = type === 'custom';
 
   try {
+    // 검수 승인된 문제만 공개하고, 본인이 출제한 문제는 풀 목록에서 제외한다.
     let countQuery = `
       SELECT COUNT(DISTINCT p.id)
       FROM problems p
-      WHERE p.is_custom = $1
+      WHERE p.is_custom = $1 AND p.review_status = 'approved'
     `;
     let countParams: any[] = [isCustomFilter];
     
@@ -1754,7 +1742,9 @@ app.get('/api/problems', async (req: Request, res: Response) => {
       countQuery = `
         SELECT COUNT(DISTINCT p.id)
         FROM problems p
-        WHERE p.is_custom = $1 AND p.id NOT IN (
+        WHERE p.is_custom = $1 AND p.review_status = 'approved'
+          AND p.created_by IS DISTINCT FROM $2
+          AND p.id NOT IN (
           SELECT problem_id FROM submissions WHERE user_id = $2 AND is_correct = true AND problem_id IS NOT NULL
         )
       `;
@@ -1766,19 +1756,21 @@ app.get('/api/problems', async (req: Request, res: Response) => {
 
     let query = `
       SELECT p.id, p.title, p.content, p.current_difficulty, p.is_custom, p.custom_reward_rating,
-             COALESCE(array_remove(array_agg(t.name), NULL), '{}') as tags
+             p.created_by, COALESCE(array_remove(array_agg(t.name), NULL), '{}') as tags
       FROM problems p
       LEFT JOIN problem_tags pt ON p.id = pt.problem_id
       LEFT JOIN tags t ON pt.tag_id = t.id
-      WHERE p.is_custom = $1
+      WHERE p.is_custom = $1 AND p.review_status = 'approved'
     `;
     
     let queryParams: any[] = [isCustomFilter];
     let nextIdx = 2;
     
     if (userId) {
+      const userIdx = nextIdx++;
+      query += ` AND p.created_by IS DISTINCT FROM $${userIdx}`;
       query += ` AND p.id NOT IN (
-        SELECT problem_id FROM submissions WHERE user_id = $${nextIdx++} AND is_correct = true AND problem_id IS NOT NULL
+        SELECT problem_id FROM submissions WHERE user_id = $${userIdx} AND is_correct = true AND problem_id IS NOT NULL
       )`;
       queryParams.push(userId);
     }
@@ -1807,42 +1799,180 @@ app.get('/api/problems', async (req: Request, res: Response) => {
   }
 });
 
-// Admin Custom Problem Creation API
-app.post('/api/problems/custom', authenticateToken, async (req: any, res: Response) => {
-  if (req.user.username !== 'admin') {
-    return res.status(403).json({ error: '관리자만 커스텀 문제를 생성할 수 있습니다.' });
-  }
-  const { title, content, answer, ratingReward, tags = [] } = req.body;
-  if (!title || !content || !answer || ratingReward === undefined) {
-    return res.status(400).json({ error: '필수 필드가 누락되었습니다.' });
-  }
+// --- 문제 출제 (일반 유저는 검수 대기, 관리자는 즉시 공개) ---
+const USER_PROBLEM_MAX_PENDING = 5;
+const USER_PROBLEM_REWARD_BY_LEVEL: Record<string, number> = { easy: 15000, normal: 25000, hard: 40000 };
+const USER_PROBLEM_LIMITS = { title: 120, content: 1000, answer: 120, explanation: 1500, tag: 30 };
 
-  // 문제별 보상: 5,000~150,000 범위에서 500 단위 (예전엔 45,000~55,000으로 강제돼 값을 다르게 줄 수 없었다)
-  const normalizedReward = Math.max(5000, Math.min(150000, Math.round((parseFloat(ratingReward) || 50000) / 500) * 500));
+// HTML 태그만 지운다. 수학 부등호($1 < x < 3$)를 망가뜨리지 않도록
+// 태그는 영문자·슬래시로 시작하는 형태(<script>, </div>)만 제거한다.
+const stripHtmlTags = (value: unknown, maxLen: number): string =>
+  typeof value === 'string' ? value.replace(/<[a-zA-Z/][^>]*>/g, '').trim().slice(0, maxLen) : '';
+
+app.post('/api/problems/submit', authenticateToken, async (req: any, res: Response) => {
+  const userId = req.user.id;
+  const isAdmin = req.user.username === 'admin';
+  const title = stripHtmlTags(req.body?.title, USER_PROBLEM_LIMITS.title);
+  const content = stripHtmlTags(req.body?.content, USER_PROBLEM_LIMITS.content);
+  const answer = stripHtmlTags(req.body?.answer, USER_PROBLEM_LIMITS.answer);
+  const explanation = stripHtmlTags(req.body?.explanation, USER_PROBLEM_LIMITS.explanation);
+  const level = ['easy', 'normal', 'hard'].includes(req.body?.level) ? String(req.body.level) : 'normal';
+  const rawTags: unknown = req.body?.tags;
+  const tags = (Array.isArray(rawTags) ? rawTags : [])
+    .map((t) => stripHtmlTags(t, USER_PROBLEM_LIMITS.tag))
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (!title || !content || !answer) {
+    return res.status(400).json({ error: '제목, 문제 내용, 정답은 모두 필요합니다.' });
+  }
+  if (title.length < 2) {
+    return res.status(400).json({ error: '제목은 2자 이상이어야 합니다.' });
+  }
 
   try {
+    // 검수 대기 적체 방지: 승인·반려 전에는 새로 출제할 수 없다 (관리자는 예외).
+    if (!isAdmin) {
+      const pendingRes = await pool.query(
+        "SELECT COUNT(*) FROM problems WHERE created_by = $1 AND review_status = 'pending'",
+        [userId]
+      );
+      if (parseInt(pendingRes.rows[0].count, 10) >= USER_PROBLEM_MAX_PENDING) {
+        return res.status(429).json({
+          error: `검수 대기 중인 문제가 ${USER_PROBLEM_MAX_PENDING}개입니다. 승인·반려 후에 다시 출제해주세요.`,
+        });
+      }
+    }
+
+    const dupRes = await pool.query('SELECT id FROM problems WHERE is_custom = TRUE AND content = $1 LIMIT 1', [content]);
+    if (dupRes.rows.length > 0) {
+      return res.status(409).json({ error: '같은 내용의 문제가 이미 등록되어 있습니다.' });
+    }
+
+    // 보상 레이팅: 일반 유저는 난이도 등급(easy/normal/hard)으로만 결정되고,
+    // 관리자는 5,000~150,000 범위에서 직접 지정할 수 있다.
+    const reward = isAdmin
+      ? Math.max(5000, Math.min(150000, Math.round((parseFloat(req.body?.ratingReward) || USER_PROBLEM_REWARD_BY_LEVEL[level]) / 500) * 500))
+      : USER_PROBLEM_REWARD_BY_LEVEL[level];
+    const reviewStatus = isAdmin ? 'approved' : 'pending';
+
     const result = await pool.query(
-      'INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, is_custom, custom_reward_rating, reward_rating) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
-      [title, content, answer, normalizedReward, normalizedReward, 'Calculation', true, normalizedReward, normalizedReward]
+      `INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, is_custom, custom_reward_rating, reward_rating, created_by, review_status, explanation)
+       VALUES ($1, $2, $3, $4, $4, 'Calculation', TRUE, $4, $4, $5, $6, $7) RETURNING id`,
+      [title, content, answer, reward, userId, reviewStatus, explanation]
     );
     const problemId = result.rows[0].id;
+
     for (const tagName of tags) {
-      let tagRes = await pool.query('SELECT id FROM tags WHERE name = $1', [tagName]);
-      let tagId;
-      if (tagRes.rows.length === 0) {
-        const insertTagRes = await pool.query('INSERT INTO tags (name) VALUES ($1) RETURNING id', [tagName]);
-        tagId = insertTagRes.rows[0].id;
-      } else {
-        tagId = tagRes.rows[0].id;
-      }
+      const tagRes = await pool.query('SELECT id FROM tags WHERE name = $1', [tagName]);
+      const tagId = tagRes.rows.length > 0
+        ? tagRes.rows[0].id
+        : (await pool.query('INSERT INTO tags (name) VALUES ($1) RETURNING id', [tagName])).rows[0].id;
       await pool.query('INSERT INTO problem_tags (problem_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [problemId, tagId]);
     }
-    res.status(201).json({ message: '커스텀 문제가 생성되었습니다.', problemId });
+
+    if (!isAdmin) {
+      await pool.query(
+        'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
+        ['problem_submission', `${req.user.username}님이 문제를 출제했습니다: "${title}" (검수 대기)`, userId, req.user.username, problemId]
+      );
+    }
+
+    res.status(201).json({
+      message: isAdmin ? '문제가 등록되었습니다.' : '출제한 문제가 검수 대기로 등록되었습니다.',
+      problemId,
+      reviewStatus,
+    });
   } catch (err) {
-    console.error('Failed to create custom problem:', err);
-    res.status(500).json({ error: '커스텀 문제 생성을 실패했습니다.' });
+    console.error('Failed to submit problem:', err);
+    res.status(500).json({ error: '문제 출제에 실패했습니다.' });
   }
 });
+
+// 내가 출제한 문제 목록 (정답·해설·검수 상태·반려 사유 포함 — 본인 문제이므로 정답 노출 허용)
+app.get('/api/problems/mine', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, content, answer, explanation, current_difficulty, review_status, review_note, created_at
+       FROM problems WHERE created_by = $1 ORDER BY id DESC LIMIT 100`,
+      [req.user.id]
+    );
+    res.json({ problems: result.rows });
+  } catch (err) {
+    console.error('Failed to fetch my problems:', err);
+    res.status(500).json({ error: '내 출제 문제를 불러오지 못했습니다.' });
+  }
+});
+
+// 관리자: 출제 문제 심사 목록
+app.get('/api/admin/problem-submissions', authenticateToken, async (req: any, res: Response) => {
+  if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  const statusParam = typeof req.query.status === 'string' ? req.query.status : 'pending';
+  const status = ['pending', 'approved', 'rejected'].includes(statusParam) ? statusParam : 'pending';
+  try {
+    const result = await pool.query(
+      `SELECT p.id, p.title, p.content, p.answer, p.explanation, p.current_difficulty,
+              p.review_status, p.review_note, p.created_at, u.username
+       FROM problems p
+       LEFT JOIN users u ON u.id = p.created_by
+       WHERE p.created_by IS NOT NULL AND p.review_status = $1
+       ORDER BY p.id ASC LIMIT 200`,
+      [status]
+    );
+    const countRes = await pool.query(
+      "SELECT review_status, COUNT(*)::int AS count FROM problems WHERE created_by IS NOT NULL GROUP BY review_status"
+    );
+    const counts: Record<string, number> = { pending: 0, approved: 0, rejected: 0 };
+    for (const row of countRes.rows) counts[row.review_status] = row.count;
+    res.json({ problems: result.rows, status, counts });
+  } catch (err) {
+    console.error('Failed to fetch problem submissions:', err);
+    res.status(500).json({ error: '출제 심사 목록을 불러오지 못했습니다.' });
+  }
+});
+
+// 관리자: 승인 / 반려
+app.post('/api/admin/problem-submissions/:id/review', authenticateToken, async (req: any, res: Response) => {
+  if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  const problemId = parseInt(req.params.id, 10);
+  const action = req.body?.action;
+  if (!Number.isInteger(problemId) || !['approve', 'reject'].includes(action)) {
+    return res.status(400).json({ error: 'action은 approve 또는 reject여야 합니다.' });
+  }
+  const reviewStatus = action === 'approve' ? 'approved' : 'rejected';
+  const note = stripHtmlTags(req.body?.note ?? '', 300);
+  try {
+    const result = await pool.query(
+      'UPDATE problems SET review_status = $1, review_note = $2 WHERE id = $3 AND created_by IS NOT NULL RETURNING id, title, created_by',
+      [reviewStatus, note, problemId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: '출제 문제를 찾을 수 없습니다.' });
+    const row = result.rows[0];
+
+    if (row.created_by != null) {
+      const userRes = await pool.query('SELECT username FROM users WHERE id = $1', [row.created_by]);
+      if (userRes.rows.length > 0) {
+        const label = reviewStatus === 'approved' ? '승인' : '반려';
+        await pool.query(
+          'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
+          [
+            `problem_${reviewStatus}`,
+            `"${row.title}" 문제 출제가 ${label}되었습니다.${note ? ` 사유: ${note}` : ''}`,
+            req.user.id,
+            userRes.rows[0].username,
+            problemId,
+          ]
+        );
+      }
+    }
+
+    res.json({ message: reviewStatus === 'approved' ? '문제를 승인했습니다.' : '문제를 반려했습니다.', reviewStatus });
+  } catch (err) {
+    console.error('Failed to review problem submission:', err);
+    res.status(500).json({ error: '심사 처리에 실패했습니다.' });
+  }
+});
+
 
 // Streak History API for Calendar representation
 app.get('/api/users/:id/streak-history', async (req: Request, res: Response) => {
@@ -2184,10 +2314,18 @@ app.post('/api/submissions', authenticateToken, async (req: any, res: any) => {
   try {
     // DB에서 실제 정답 + rating용 데이터 가져오기 (중복 체크는 processSubmission 트랜잭션 내부에서 수행)
     const problemRes = await pool.query(
-      'SELECT answer, content, is_custom, current_difficulty, total_attempts, correct_attempts FROM problems WHERE id = $1',
+      'SELECT answer, content, is_custom, current_difficulty, total_attempts, correct_attempts, created_by, review_status FROM problems WHERE id = $1',
       [problemId]
     );
     if (problemRes.rows.length === 0) return res.status(404).json({ error: 'Problem not found' });
+    // 검수 대기·반려 문제는 풀 수 없다 (목록에서도 숨겨지지만 API 직접 호출도 막는다)
+    if (problemRes.rows[0].review_status && problemRes.rows[0].review_status !== 'approved') {
+      return res.status(403).json({ error: '검수 중인 문제는 풀 수 없습니다.' });
+    }
+    // 본인이 출제한 문제는 풀 수 없다 — 자기 문제로 레이팅을 파밍하는 경로를 원천 차단한다
+    if (problemRes.rows[0].created_by != null && Number(problemRes.rows[0].created_by) === Number(userId)) {
+      return res.status(403).json({ error: '본인이 출제한 문제는 풀 수 없습니다.' });
+    }
 
     const problemRow = problemRes.rows[0];
     const correctAnswer = problemRow.answer;

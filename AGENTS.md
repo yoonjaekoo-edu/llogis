@@ -21,7 +21,7 @@ Korean math problem-solving platform with Glicko-2 rating system (unused — see
 ## Architecture gotchas
 - **Rating is a lie**: `ratingService.ts` creates its own `pg.Pool` (separate from `index.ts`), and **`Glicko2Engine` is completely unused**. Correct answers award `current_difficulty` (starts at 10k, adjusts 5k–150k by solve rate) × fever × daily bonus. Wrong answers subtract 500–3000 by tier. Rating is unbounded (no cap).
 - **Problem generation engine**: `backend/src/generation/` — modular pipeline with safe recursive-descent parser (no `eval()`), variable generator, constraint validator, template renderer. ASTs cached for ~0.01ms/problem.
-- **Templates**: 31 templates in `backend/data/templates.json`. Also 11 legacy templates in `backend/src/problemGenerator.ts` (hardcoded). Two separate generation paths.
+- **Templates**: 83 templates in `backend/data/templates.json`. Also 11 legacy templates in `backend/src/problemGenerator.ts` (hardcoded). Two separate generation paths.
 - **Tests**: 48 unit tests in `backend/src/generation/__tests__/generation.test.ts` covering parser, evaluator, variable gen, constraints, templates, full pipeline, batch gen, error handling.
 - **No ESLint config**: `frontend` has `"lint": "eslint ."` script but no `.eslintrc*` file.
 - **Admin account**: username `admin`, seeded via `database/schema.sql`. Admin panel at `/admin` route.
@@ -45,7 +45,8 @@ Korean math problem-solving platform with Glicko-2 rating system (unused — see
 - **Styling**: Vanilla CSS in `frontend/src/styles/globals.css` with CSS custom properties for light/dark toggle
 - **LaTeX**: `react-katex`, display `$$...$$`, inline `$...$`
 - **Tier thresholds**: Bronze (0–), Silver (100k–), Gold (300k–), Platinum (800k–), Diamond (2M–), Ruby (5M–), Master (12M–), God (30M–), Hacker (70M–), 치피치피차파차파 (150M–), ChatGPT (300M–), 출제자 (600M–), 주인장 (1.2B–), 정답 (2.5B–). Configurable via admin API.
-- **Template generation API**: `POST /api/problems/templates/generate` (supports `templateId`, `unit`, `concept`, `count`), `GET /api/problems/templates` lists all 31 templates. `GET /api/problems/templates/units` and `/concepts` for filtering.
+- **문제 출제(유저 커스텀 문제)**: `POST /api/problems/submit` (로그인 유저, 관리자는 즉시 공개·일반 유저는 검수 대기), `GET /api/problems/mine` (내 출제 + 검수 상태·반려 사유), `GET /api/admin/problem-submissions?status=pending|approved|rejected`, `POST /api/admin/problem-submissions/:id/review` (`{action:'approve'|'reject', note}`). 컬럼: `problems.created_by` / `review_status` / `review_note` / `explanation`. 공개 목록(`GET /api/problems`)은 `review_status='approved'`만 반환하고 본인 출제 문제는 제외하며, 제출 API도 본인 문제와 미승인 문제를 403으로 막는다 (자기 문제 레이팅 파밍 차단). 일반 유저 보상은 등급제(easy 15,000 / normal 25,000 / hard 40,000)로만 정해진다.
+- **Template generation API**: `POST /api/problems/templates/generate` (supports `templateId`, `unit`, `concept`, `count`), `GET /api/problems/templates` lists all templates. `GET /api/problems/templates/units` and `/concepts` for filtering.
 - **Admin APIs**: tier config, user management (rating, tokens, custom title, username, problem-gen permission), problem CRUD, bug reports, notifications, page content, CSV import, mass deletion, seed.
 - **Site URL**: `https://llogis.xyz`. Sitemap at `/sitemap.xml` (proxied through nginx → backend).
 
