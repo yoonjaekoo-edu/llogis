@@ -29,6 +29,29 @@ export const getTodayString = (): string => {
   return kstDate.toISOString().split('T')[0];
 };
 
+// 주간 리그 주차 키: KST 기준 월요일 날짜(YYYY-MM-DD).
+// 월요일 00:00(KST)에 새 주차가 시작된다. 주차 계산은 전부 이 함수를 통한다.
+export const getWeekKeyString = (date: Date = new Date()): string => {
+  const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const daysSinceMonday = (kstDate.getUTCDay() + 6) % 7;
+  kstDate.setUTCDate(kstDate.getUTCDate() - daysSinceMonday);
+  return kstDate.toISOString().split('T')[0];
+};
+
+// 주차 키를 N주 이동 (지난 주 계산용).
+export const shiftWeekKey = (weekKey: string, weeks: number): string => {
+  const d = new Date(`${weekKey}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + weeks * 7);
+  return d.toISOString().split('T')[0];
+};
+
+// 주차의 시작·끝 시각(UTC ISO). 시작 = 해당 월요일 00:00 KST.
+export const getWeekRange = (weekKey: string): { start: string; end: string } => {
+  const [y, m, d] = weekKey.split('-').map(Number);
+  const startMs = Date.UTC(y, m - 1, d) - 9 * 60 * 60 * 1000;
+  return { start: new Date(startMs).toISOString(), end: new Date(startMs + 7 * 86400000).toISOString() };
+};
+
 const generateVariedQuests = (): Quest[] => {
   const pools: Quest[][] = [
     [

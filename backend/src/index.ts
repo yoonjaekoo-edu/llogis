@@ -20,7 +20,7 @@ import {
   deleteTemplate,
 } from './templateProblemGenerator';
 import { getTier, processSubmission, getTierConfig, updateTierConfig } from './rating/ratingService';
-import { getTodayString } from './rating/gameSystemService';
+import { getTodayString, getWeekKeyString, shiftWeekKey, getWeekRange } from './rating/gameSystemService';
 import { signupRateLimit, loginRateLimit, profileRateLimit } from './security/rateLimiter';
 import {
   isDisposableEmail,
@@ -203,6 +203,26 @@ const ensureSchema = async () => {
 
   await pool.query('ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_problem_id_fkey');
   await pool.query('ALTER TABLE submissions ADD CONSTRAINT submissions_problem_id_fkey FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE SET NULL');
+
+  // 주간 리그: 주차별 획득 레이팅 + 정산 마커
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS weekly_league_scores (
+      user_id INTEGER NOT NULL,
+      week_key VARCHAR(10) NOT NULL,
+      score BIGINT NOT NULL DEFAULT 0,
+      solved INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (user_id, week_key)
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_weekly_league_scores_week ON weekly_league_scores (week_key, score DESC)');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS weekly_league_rewards (
+      week_key VARCHAR(10) PRIMARY KEY,
+      winners JSONB DEFAULT '[]'::jsonb,
+      settled_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
   await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS uq_submissions_correct ON submissions (user_id, problem_id) WHERE is_correct = true');
   await pool.query("UPDATE users SET can_generate_problems = TRUE WHERE username = 'admin'");
   await pool.query("INSERT INTO tags (name) VALUES ('이차방정식') ON CONFLICT (name) DO NOTHING");
@@ -1664,6 +1684,186 @@ app.post('/api/users/change-password', authenticateToken, async (req: any, res: 
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// ===================== 주간 리그 =====================
+// 정의: KST 기준 월요일 00:00 ~ 일요일 23:59 사이에 '정답으로 얻은 레이팅' 합계.
+// 오답 패널티는 리그 점수에 넣지 않는다(열심히 도전한 사람이 불리해지지 않도록).
+// 정산(지난 주 상위 3명 토큰 지급)은 별도 크론 없이 조회 시 지연 실행하고,
+// weekly_league_rewards 마커 행으로 주차당 정확히 1번만 돌게 한다.
+const LEAGUE_REWARD_TOKENS = [150, 100, 50];
+const LEAGUE_MIN_SCORE = 5000;
+
+const settleWeeklyLeague = async (): Promise<{ weekKey: string; winners: any[] } | null> => {
+  const lastWeekKey = shiftWeekKey(getWeekKeyString(), -1);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // 마커 INSERT가 곧 락이다. 이미 있으면 다른 요청이 정산 중이거나 끝난 것.
+    const marker = await client.query(
+      'INSERT INTO weekly_league_rewards (week_key) VALUES ($1) ON CONFLICT (week_key) DO NOTHING RETURNING week_key',
+      [lastWeekKey]
+    );
+    if (marker.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const winnersRes = await client.query(
+      `SELECT s.user_id, s.score, s.solved, u.username
+       FROM weekly_league_scores s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.week_key = $1
+       ORDER BY s.score DESC, s.updated_at ASC
+       LIMIT $2`,
+      [lastWeekKey, LEAGUE_REWARD_TOKENS.length]
+    );
+    const winners = winnersRes.rows.filter((row: any) => Number(row.score) >= LEAGUE_MIN_SCORE);
+
+    for (let i = 0; i < winners.length; i++) {
+      const tokens = LEAGUE_REWARD_TOKENS[i];
+      await client.query('UPDATE users SET tokens = COALESCE(tokens, 0) + $1 WHERE id = $2', [tokens, winners[i].user_id]);
+      await client.query(
+        'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
+        [
+          'weekly_league',
+          `주간 리그(${lastWeekKey} 시작 주차) ${i + 1}위 ${winners[i].username} — ${Math.round(Number(winners[i].score)).toLocaleString('ko-KR')} RP 획득, 토큰 +${tokens}`,
+          null,
+          '리그',
+          winners[i].user_id
+        ]
+      );
+      winners[i].rank = i + 1;
+      winners[i].tokens = tokens;
+    }
+
+    await client.query('UPDATE weekly_league_rewards SET winners = $1::jsonb WHERE week_key = $2', [JSON.stringify(winners), lastWeekKey]);
+    await client.query('COMMIT');
+    return { weekKey: lastWeekKey, winners };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+// 주간 리그 순위 + 내 순위 + 지난 주 결과. 비로그인도 조회 가능(내 순위만 빠짐).
+app.get('/api/league', async (req: Request, res: Response) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  let userId: number | null = null;
+  if (token) {
+    try {
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch (err) { /* 비로그인 취급 */ }
+  }
+
+  try {
+    await settleWeeklyLeague();
+
+    const weekKey = getWeekKeyString();
+    const { start, end } = getWeekRange(weekKey);
+
+    const topRes = await pool.query(
+      `SELECT s.user_id AS id, u.username, u.profile_image_url, u.equipped_title, u.custom_title, u.rating,
+              s.score, s.solved
+       FROM weekly_league_scores s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.week_key = $1
+       ORDER BY s.score DESC, s.updated_at ASC
+       LIMIT 50`,
+      [weekKey]
+    );
+
+    let me: any = null;
+    if (userId) {
+      const meRes = await pool.query(
+        'SELECT score, solved FROM weekly_league_scores WHERE user_id = $1 AND week_key = $2',
+        [userId, weekKey]
+      );
+      if (meRes.rows.length > 0) {
+        const aheadRes = await pool.query(
+          'SELECT COUNT(*)::int AS ahead FROM weekly_league_scores WHERE week_key = $1 AND score > $2',
+          [weekKey, meRes.rows[0].score]
+        );
+        me = { score: Number(meRes.rows[0].score), solved: Number(meRes.rows[0].solved), rank: aheadRes.rows[0].ahead + 1 };
+      } else {
+        me = { score: 0, solved: 0, rank: null };
+      }
+    }
+
+    const lastWeekKey = shiftWeekKey(weekKey, -1);
+    const lastRes = await pool.query(
+      'SELECT winners, settled_at FROM weekly_league_rewards WHERE week_key = $1',
+      [lastWeekKey]
+    );
+
+    res.json({
+      weekKey,
+      weekStart: start,
+      weekEnd: end,
+      top: topRes.rows,
+      me,
+      rewards: LEAGUE_REWARD_TOKENS,
+      minScore: LEAGUE_MIN_SCORE,
+      lastWeek: {
+        weekKey: lastWeekKey,
+        winners: lastRes.rows[0]?.winners || [],
+        settled: lastRes.rows.length > 0
+      }
+    });
+  } catch (error: any) {
+    console.error('주간 리그 조회 실패:', error?.message || error);
+    res.status(500).json({ error: '주간 리그를 불러오지 못했습니다.' });
+  }
+});
+
+// 관리자: 지난 주 정산을 즉시 실행(이미 정산된 주차면 settled=null).
+app.post('/api/admin/league/settle', authenticateToken, async (req: any, res: Response) => {
+  if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    const result = await settleWeeklyLeague();
+    res.json({ settled: result });
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || '정산에 실패했습니다.' });
+  }
+});
+
+// 관리자: 이번 주 점수를 rating_activity_logs에서 한 번 채워 넣는다(기능 배포 이전 데이터 구제).
+// 테이블/컬럼이 예상과 다르면 아무것도 하지 않고 이유만 돌려준다.
+app.post('/api/admin/league/backfill', authenticateToken, async (req: any, res: Response) => {
+  if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    const exists = await pool.query("SELECT to_regclass('public.rating_activity_logs') AS t");
+    if (!exists.rows[0]?.t) return res.json({ backfilled: 0, reason: 'rating_activity_logs 테이블이 없습니다.' });
+
+    const colsRes = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'rating_activity_logs'"
+    );
+    const cols: string[] = colsRes.rows.map((r: any) => r.column_name);
+    const timeCol = ['created_at', 'submitted_at', 'occurred_at', 'logged_at'].find((c) => cols.includes(c));
+    if (!cols.includes('user_id') || !cols.includes('change_amount') || !timeCol) {
+      return res.json({ backfilled: 0, reason: `예상과 다른 스키마: ${cols.join(', ')}` });
+    }
+
+    const weekKey = getWeekKeyString();
+    const { start, end } = getWeekRange(weekKey);
+    const result = await pool.query(
+      `INSERT INTO weekly_league_scores (user_id, week_key, score, solved, updated_at)
+       SELECT user_id, $1, SUM(GREATEST(change_amount, 0))::bigint, COUNT(*), NOW()
+       FROM rating_activity_logs
+       WHERE ${timeCol} >= $2 AND ${timeCol} < $3 AND change_amount > 0
+       GROUP BY user_id
+       ON CONFLICT (user_id, week_key) DO UPDATE SET
+         score = EXCLUDED.score, solved = EXCLUDED.solved, updated_at = NOW()`,
+      [weekKey, start, end]
+    );
+    res.json({ backfilled: result.rowCount, weekKey, timeColumn: timeCol, reason: null });
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || '채우기에 실패했습니다.' });
   }
 });
 

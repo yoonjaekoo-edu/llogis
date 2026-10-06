@@ -1313,11 +1313,25 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
 };
 
 
+const formatLeagueRemaining = (endIso: string): string => {
+  const ms = new Date(endIso).getTime() - Date.now();
+  if (ms <= 0) return '0분';
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (days > 0) return `${days}일 ${hours}시간`;
+  if (hours > 0) return `${hours}시간 ${minutes}분`;
+  return `${minutes}분`;
+};
+
 const Ranking: React.FC = () => {
   const [ranks, setRanks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [tab, setTab] = useState<'all' | 'league'>('all');
+  const [league, setLeague] = useState<any>(null);
+  const [leagueLoading, setLeagueLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -1329,6 +1343,20 @@ const Ranking: React.FC = () => {
         setLoading(false);
       });
   }, []);
+
+  const fetchLeague = async () => {
+    setLeagueLoading(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/league', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (res.ok) setLeague(await res.json());
+    } catch { /* 무시 */ }
+    setLeagueLoading(false);
+  };
+
+  useEffect(() => {
+    if (tab === 'league' && !league) fetchLeague();
+  }, [tab]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1352,9 +1380,29 @@ const Ranking: React.FC = () => {
         <link rel="canonical" href={`https://llogis.xyz${location.pathname}`} />
       </Helmet>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '2rem', textAlign: 'center', color: 'var(--color-4)' }}>사용자 랭킹 및 검색</h2>
+        <h2 style={{ fontSize: '2.5rem', marginBottom: '1.5rem', textAlign: 'center', color: 'var(--color-4)' }}>사용자 랭킹 및 검색</h2>
+
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '2.5rem' }}>
+          {([['all', '전체 랭킹'], ['league', '주간 리그']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => { setTab(key); if (key === 'league') setSearchResults(null); }}
+              className="btn"
+              style={{
+                width: 'auto',
+                padding: '0.6rem 1.4rem',
+                fontSize: '0.9rem',
+                background: tab === key ? 'var(--color-4)' : 'var(--card-bg)',
+                color: tab === key ? 'white' : 'var(--text-main)',
+                border: '1px solid var(--border)'
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '3rem' }}>
+        {tab === 'all' && <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '3rem' }}>
           <input 
             type="text" 
             placeholder="사용자 이름 검색..." 
@@ -1363,7 +1411,7 @@ const Ranking: React.FC = () => {
             style={{ flexGrow: 1, padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '1.1rem' }}
           />
           <button type="submit" className="btn" style={{ width: 'auto', padding: '0 2rem', background: 'var(--color-3)', color: 'white' }}>검색</button>
-        </form>
+        </form>}
 
         {searchResults !== null && (
           <div className="problem-card" style={{ marginBottom: '3rem' }}>
@@ -1396,7 +1444,7 @@ const Ranking: React.FC = () => {
           </div>
         )}
 
-        {searchResults === null && (
+        {searchResults === null && tab === 'all' && (
           <div className="problem-card" style={{ margin: 0 }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '2rem', textAlign: 'center', color: 'var(--color-4)' }}>Top 50 랭킹</h3>
             <div style={{ overflowX: 'auto' }}>
@@ -1436,6 +1484,81 @@ const Ranking: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {searchResults === null && tab === 'league' && (
+          <div className="problem-card" style={{ margin: 0 }}>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', textAlign: 'center', color: 'var(--color-4)' }}>주간 리그</h3>
+            <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.7 }}>
+              매주 월요일 00:00 (KST) 시작 · 이번 주에 <b>정답으로 얻은 레이팅</b> 합계<br />
+              {league
+                ? <>마감까지 {formatLeagueRemaining(league.weekEnd)} 남음 · 1위 {league.rewards?.[0] ?? 150}토큰 / 2위 {league.rewards?.[1] ?? 100}토큰 / 3위 {league.rewards?.[2] ?? 50}토큰 ({(league.minScore ?? 0).toLocaleString()} RP 이상)</>
+                : '상위 3명에게 토큰 지급'}
+            </p>
+
+            {leagueLoading && <p style={{ textAlign: 'center', opacity: 0.6 }}>불러오는 중...</p>}
+
+            {league && !leagueLoading && (
+              <>
+                {league.me && (
+                  <div style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '0.75rem', background: 'rgba(0,0,0,0.04)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 800 }}>내 순위</span>
+                    <span style={{ fontWeight: 800, color: 'var(--color-4)' }}>
+                      {league.me.rank ? `${league.me.rank}위` : '이번 주 기록 없음'} · {Number(league.me.score).toLocaleString()} RP · {league.me.solved}문제
+                    </span>
+                  </div>
+                )}
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '1rem' }}>순위</th>
+                        <th style={{ padding: '1rem' }}>사용자</th>
+                        <th style={{ padding: '1rem' }}>주간 획득</th>
+                        <th style={{ padding: '1rem' }}>푼 문제</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {league.top.map((u: any, i: number) => (
+                        <tr
+                          key={u.id}
+                          onClick={() => navigate(`/users/${u.id}`)}
+                          style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <td style={{ padding: '1.2rem 1rem', fontWeight: 800 }}>{i + 1}</td>
+                          <td style={{ padding: '1.2rem 1rem', fontWeight: 600 }}>
+                            {u.username}
+                            {u.equipped_title && <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-4)' }}>[{u.equipped_title}]</div>}
+                            {u.custom_title && <div style={{ fontSize: '0.75rem', color: '#ff6b9d', fontStyle: 'italic' }}>{u.custom_title}</div>}
+                          </td>
+                          <td style={{ padding: '1.2rem 1rem', fontWeight: 800, color: 'var(--color-4)' }}>{Number(u.score).toLocaleString()} RP</td>
+                          <td style={{ padding: '1.2rem 1rem' }}>{u.solved}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {league.top.length === 0 && (
+                    <p style={{ textAlign: 'center', opacity: 0.6, padding: '2rem 0' }}>이번 주 기록이 아직 없습니다. 문제를 풀면 바로 순위에 들어갑니다.</p>
+                  )}
+                </div>
+
+                {league.lastWeek && league.lastWeek.winners.length > 0 && (
+                  <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                    <h4 style={{ marginBottom: '0.8rem' }}>지난 주 ({league.lastWeek.weekKey} 주) 결과</h4>
+                    {league.lastWeek.winners.map((w: any) => (
+                      <div key={w.user_id} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.5rem 0', fontSize: '0.9rem', flexWrap: 'wrap' }}>
+                        <span><b>{w.rank}위</b> {w.username}</span>
+                        <span style={{ color: 'var(--color-4)', fontWeight: 700 }}>{Number(w.score).toLocaleString()} RP · 토큰 +{w.tokens}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

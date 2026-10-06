@@ -3,8 +3,7 @@ import {
   getTodayString,
   getDaysDifference,
   generateDailyQuests,
-  Quest
-} from './gameSystemService';
+  Quest, getWeekKeyString} from './gameSystemService';
 
 const pool = getPool();
 
@@ -320,7 +319,8 @@ export const processSubmission = async (
     const xpEarned = isCorrect ? Math.max(1, Math.floor(rewardRating / 100)) : 0;
 
     // 14. All writes in ONE data-modifying CTE: user UPDATE + problems UPDATE
-    //     + submissions INSERT + rating_activity_logs INSERT (단일 라운드트립)
+    //     + submissions INSERT + rating_activity_logs INSERT + weekly_league_scores 적립
+    //     (단일 라운드트립)
     const finalLastActiveDate = isCorrect ? today : dbLastActiveDate;
     const finalStreakRepaired = consumedRepair ? false : u.streak_repaired;
     const finalTokens = (u.tokens || 0) + tokenDelta + questTokensGained;
@@ -355,6 +355,23 @@ export const processSubmission = async (
         INSERT INTO submissions (user_id, problem_id, is_correct)
         VALUES ($1, $2, $3)
         RETURNING id
+      ), w AS (
+        -- 주간 리그 점수: 그 주에 정답으로 얻은 레이팅만 합산한다(오답 패널티는 리그에 영향 없음).
+        INSERT INTO weekly_league_scores (user_id, week_key, score, solved, updated_at)
+        VALUES (
+          $1, $18,
+          GREATEST(ROUND($5::float * CASE
+            WHEN $3 AND NOT EXISTS (
+              SELECT 1 FROM submissions
+              WHERE user_id = $1 AND is_correct = TRUE AND submitted_at::date = $16::date
+            ) THEN 1.5 ELSE 1 END), 0)::bigint,
+          CASE WHEN $3 THEN 1 ELSE 0 END,
+          NOW()
+        )
+        ON CONFLICT (user_id, week_key) DO UPDATE SET
+          score = weekly_league_scores.score + EXCLUDED.score,
+          solved = weekly_league_scores.solved + EXCLUDED.solved,
+          updated_at = NOW()
       ), l AS (
         INSERT INTO rating_activity_logs (user_id, problem_id, activity_type, change_amount, before_rating, after_rating, description)
         SELECT $1, $2,
@@ -373,7 +390,7 @@ export const processSubmission = async (
        finalStreak, finalLastActiveDate, finalStreakRepaired,
        longestStreak, finalTokens, finalXp, JSON.stringify(quests),
        finalProblemsSolved, currentRating, activityDescription, today,
-       Boolean(prob.is_custom)]
+       Boolean(prob.is_custom), getWeekKeyString()]
     );
     const finalRating = Number(writeRes.rows[0]?.new_rating ?? currentRating + feverAdjustedDelta);
     const ratingChange = finalRating - currentRating;
