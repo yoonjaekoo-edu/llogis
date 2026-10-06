@@ -36,6 +36,9 @@ export function generateProblem(
     return {
       typeId: template.id,
       title: template.title,
+      unit: template.unit,
+      domain: template.domain,
+      tags: template.tags,
       difficulty: template.difficulty,
       rewardRating: template.reward_rating ?? template.difficulty,
       variables: vars,

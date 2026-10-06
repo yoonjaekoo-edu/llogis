@@ -136,6 +136,11 @@ const ensureSchema = async () => {
   await pool.query("ALTER TABLE problems ADD COLUMN IF NOT EXISTS review_status VARCHAR(20) DEFAULT 'approved'");
   await pool.query("ALTER TABLE problems ADD COLUMN IF NOT EXISTS review_note TEXT DEFAULT ''");
   await pool.query("ALTER TABLE problems ADD COLUMN IF NOT EXISTS explanation TEXT DEFAULT ''");
+  // 분야별 통계(다각형 그래프)의 근거: 어느 템플릿/단원/도메인에서 나온 문제인지
+  await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS template_id VARCHAR(64)');
+  await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS unit VARCHAR(64)');
+  await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS domain VARCHAR(32)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_problems_domain ON problems (domain)');
   await pool.query("UPDATE problems SET review_status = 'approved' WHERE review_status IS NULL");
   await pool.query('CREATE INDEX IF NOT EXISTS idx_problems_review_status ON problems (review_status)');
   await pool.query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS reward_rating FLOAT');
@@ -456,6 +461,17 @@ const ensureSchema = async () => {
       ('lucky_legend', '전설의 행운', '레전더리 상자에서 획득', '', NULL, 0)
     ON CONFLICT (badge_id) DO NOTHING
   `);
+  // 템플릿에서 나온 기존 문제들에 단원·도메인·태그를 채워 넣는다.
+  // (생성기는 문제 제목을 템플릿 제목 그대로 쓰고 83개 제목이 모두 고유하므로 되짚을 수 있다.
+  //  멱등하므로 배포·기동 때마다 돌려도 안전하다.) 실패해도 서버는 계속 뜬다.
+  try {
+    const backfilled = await backfillProblemDomains();
+    if (backfilled.matchedProblems > 0 || backfilled.tagsInserted > 0) {
+      console.log(`도메인 백필: 문제 ${backfilled.matchedProblems}건, 태그 ${backfilled.tagsInserted}건`);
+    }
+  } catch (err) {
+    console.warn('도메인 백필을 건너뜁니다:', err);
+  }
 };
 
 const authenticateToken = (req: any, res: any, next: NextFunction) => {
@@ -2362,6 +2378,24 @@ app.get('/api/problems/templates/:id', async (req: Request, res: Response) => {
   }
 });
 
+// 문제에 태그를 붙인다(도메인 + 단원 + 개념). 태그가 없으면 만들고, 이미 붙었으면 넘어간다.
+const attachProblemTags = async (problemId: number, tags?: string[] | null): Promise<number> => {
+  if (!Array.isArray(tags) || tags.length === 0) return 0;
+  let linked = 0;
+  for (const name of tags.filter(Boolean)) {
+    const tagRes = await pool.query(
+      'INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id',
+      [name]
+    );
+    const inserted = await pool.query(
+      'INSERT INTO problem_tags (problem_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [problemId, tagRes.rows[0].id]
+    );
+    linked += inserted.rowCount ?? 0;
+  }
+  return linked;
+};
+
 app.post('/api/problems/templates/generate', authenticateToken, async (req: any, res: Response) => {
   if (!(await canGenerateProblems(req.user.id))) return res.status(403).json({ error: '문제 생성 권한이 없습니다.' });
   try {
@@ -2389,11 +2423,14 @@ app.post('/api/problems/templates/generate', authenticateToken, async (req: any,
     const newProblems = [];
     for (const p of problems) {
       const result = await pool.query(
-        'INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, reward_rating) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-        [p.title, p.problem, String(p.answer), p.difficulty, p.rewardRating, 'Calculation', p.rewardRating],
+        `INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, reward_rating, template_id, unit, domain)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [p.title, p.problem, String(p.answer), p.difficulty, p.rewardRating, 'Calculation', p.rewardRating,
+         p.typeId || null, p.unit || null, p.domain || null],
       );
       const problemId = result.rows[0].id;
-      newProblems.push({ id: problemId, title: p.title, content: p.problem, difficulty: p.difficulty, rewardRating: p.rewardRating, answer: p.answer, tags: [], current_difficulty: 10000 });
+      await attachProblemTags(problemId, p.tags);
+      newProblems.push({ id: problemId, title: p.title, content: p.problem, difficulty: p.difficulty, rewardRating: p.rewardRating, answer: p.answer, tags: p.tags || [], current_difficulty: 10000, domain: p.domain || null, unit: p.unit || null });
     }
 
     res.json({ message: `${problems.length}개의 문제가 생성되었습니다!`, problems: newProblems });
@@ -3006,6 +3043,161 @@ app.post('/api/admin/notifications/:id/read', authenticateToken, async (req: any
     res.json({ message: '알림이 읽음 처리되었습니다.' });
   } catch (err) {
     res.status(500).json({ error: '알림 읽음 처리에 실패했습니다.' });
+  }
+});
+
+// ============ 분야별 정복도 (프로필 다각형 그래프) ============
+// 축은 아래 6개로 고정한다. 문제마다 기록된 domain을 기준으로 집계하므로 태그가 없어도 동작한다.
+const RADAR_DOMAINS = ['수와 연산', '문자와 식', '방정식과 부등식', '함수', '도형', '확률과 통계'];
+
+// 정복도 = 정답률 × 시도 횟수 신뢰도. 10문제 이상 풀면 정답률이 그대로 반영되고,
+// 그보다 적게 풀었으면 그만큼 낮게 잡아 "1문제 맞히고 100%" 같은 착시를 막는다.
+const masteryOf = (attempts: number, correct: number): number => {
+  if (attempts <= 0) return 0;
+  return Math.round((correct / attempts) * Math.min(1, attempts / 10) * 100);
+};
+
+app.get('/api/users/domain-radar', async (req: Request, res: Response) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  let userId: number | null = null;
+  if (token) {
+    try {
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch (err) { /* 비로그인 취급 */ }
+  }
+  const queryUserId = parseInt(String(req.query.userId ?? ''), 10);
+  const targetId = Number.isFinite(queryUserId) && queryUserId > 0 ? queryUserId : userId;
+  if (!targetId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+
+  try {
+    const rows = (await pool.query(
+      `SELECT p.domain,
+              COUNT(*)::int AS attempts,
+              COUNT(*) FILTER (WHERE s.is_correct)::int AS correct,
+              COUNT(DISTINCT s.problem_id)::int AS solved
+       FROM submissions s
+       JOIN problems p ON p.id = s.problem_id
+       WHERE s.user_id = $1 AND p.domain IS NOT NULL
+       GROUP BY p.domain`,
+      [targetId]
+    )).rows as any[];
+
+    const byDomain = new Map<string, any>(rows.map((r) => [r.domain, r]));
+    const domains = RADAR_DOMAINS.map((domain) => {
+      const row = byDomain.get(domain);
+      const attempts = row ? Number(row.attempts) : 0;
+      const correct = row ? Number(row.correct) : 0;
+      return {
+        domain,
+        attempts,
+        correct,
+        solved: row ? Number(row.solved) : 0,
+        accuracy: attempts > 0 ? Math.round((correct / attempts) * 100) : 0,
+        mastery: masteryOf(attempts, correct),
+      };
+    });
+
+    const totalAttempts = domains.reduce((sum, d) => sum + d.attempts, 0);
+    const totalCorrect = domains.reduce((sum, d) => sum + d.correct, 0);
+    const played = domains.filter((d) => d.attempts > 0);
+    const strongest = played.length > 1
+      ? played.reduce((a, b) => (b.mastery > a.mastery ? b : a))
+      : null;
+    const weakest = played.length > 1
+      ? played.reduce((a, b) => (b.mastery < a.mastery ? b : a))
+      : null;
+
+    res.json({
+      userId: targetId,
+      domains,
+      totalAttempts,
+      totalCorrect,
+      accuracy: totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0,
+      strongest: strongest ? { domain: strongest.domain, mastery: strongest.mastery } : null,
+      weakest: weakest ? { domain: weakest.domain, mastery: weakest.mastery } : null,
+    });
+  } catch (error: any) {
+    console.error('분야별 통계 조회 실패:', error?.message || error);
+    res.status(500).json({ error: '분야별 통계를 불러오지 못했습니다.' });
+  }
+});
+
+// 템플릿 제목 → 기존 문제를 되짚어 단원·도메인·템플릿ID·태그를 채운다. 멱등.
+const backfillProblemDomains = async (): Promise<{
+  matchedProblems: number;
+  tagsInserted: number;
+  tags: number;
+  templates: number;
+}> => {
+  const templates = getAllTemplates();
+
+  const valueRows: string[] = [];
+  const updateParams: any[] = [];
+  templates.forEach((t, i) => {
+    const base = i * 4;
+    valueRows.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`);
+    updateParams.push(t.title, t.id, t.unit ?? '', t.domain ?? '');
+  });
+
+  const updated = await pool.query(
+    `UPDATE problems p
+     SET template_id = m.template_id, unit = m.unit, domain = m.domain
+     FROM (VALUES ${valueRows.join(', ')}) AS m(title, template_id, unit, domain)
+     WHERE p.title = m.title AND p.is_custom IS NOT TRUE
+     RETURNING p.id`,
+    updateParams
+  );
+
+  // 태그는 한 번에 만들고(중복 무시) 한 번에 조회한다.
+  const allTags = [...new Set(templates.flatMap((t) => t.tags ?? []))];
+  await pool.query('INSERT INTO tags (name) SELECT DISTINCT unnest($1::text[]) ON CONFLICT (name) DO NOTHING', [allTags]);
+  const tagRows = (await pool.query('SELECT id, name FROM tags WHERE name = ANY($1::text[])', [allTags])).rows as any[];
+  const tagIds = new Map<string, number>(tagRows.map((r) => [r.name, Number(r.id)]));
+
+  // 문제 수와 무관하게 상수 크기 쿼리로 연결한다(template_id 조인).
+  const pairRows: string[] = [];
+  const pairParams: any[] = [];
+  for (const t of templates) {
+    for (const name of t.tags ?? []) {
+      const tagId = tagIds.get(name);
+      if (!tagId) continue;
+      const base = pairParams.length;
+      pairRows.push(`($${base + 1}::text, $${base + 2}::int)`);
+      pairParams.push(t.id, tagId);
+    }
+  }
+
+  let tagsInserted = 0;
+  if (pairRows.length > 0) {
+    const tagRes = await pool.query(
+      `INSERT INTO problem_tags (problem_id, tag_id)
+       SELECT p.id, m.tag_id
+       FROM problems p
+       JOIN (VALUES ${pairRows.join(', ')}) AS m(template_id, tag_id) ON m.template_id = p.template_id
+       ON CONFLICT DO NOTHING`,
+      pairParams
+    );
+    tagsInserted = tagRes.rowCount ?? 0;
+  }
+
+  return {
+    matchedProblems: updated.rowCount ?? 0,
+    tagsInserted,
+    tags: tagIds.size,
+    templates: templates.length,
+  };
+};
+
+// 관리자: 위 백필을 수동으로 다시 돌린다(결과 숫자를 확인할 때 사용).
+app.post('/api/admin/problems/backfill-domains', authenticateToken, async (req: any, res: Response) => {
+  if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    res.json(await backfillProblemDomains());
+  } catch (error: any) {
+    console.error('도메인 백필 실패:', error?.message || error);
+    res.status(500).json({ error: error?.message || '도메인 채우기에 실패했습니다.' });
   }
 });
 

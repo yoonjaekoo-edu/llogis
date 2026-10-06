@@ -12,7 +12,48 @@ import templatesJson from '../data/templates.json';
 const TEMPLATES_PATH = join(__dirname, '..', 'data', 'templates.json');
 const EXCLUDED_UNITS = new Set(['확률', '경우의 수']);
 
+// 단원 → 대분류(프로필 다각형 그래프의 축). 새 템플릿에 domain을 안 적어도 여기서 채운다.
+const DOMAIN_BY_UNIT: Record<string, string> = {
+  '정수와 유리수': '수와 연산',
+  '유리수와 순환소수': '수와 연산',
+  '제곱근과 실수': '수와 연산',
+  '소인수분해': '수와 연산',
+  '최대공약수와 최소공배수': '수와 연산',
+  '식의 계산': '문자와 식',
+  '다항식': '문자와 식',
+  '인수분해': '문자와 식',
+  '비례식': '문자와 식',
+  '수열': '문자와 식',
+  '일차방정식': '방정식과 부등식',
+  '연립방정식': '방정식과 부등식',
+  '부등식': '방정식과 부등식',
+  '방정식 활용': '방정식과 부등식',
+  '농도 문제': '방정식과 부등식',
+  '거리·속력·시간': '방정식과 부등식',
+  '근의 공식 활용': '방정식과 부등식',
+  '이차방정식': '방정식과 부등식',
+  '일차함수': '함수',
+  '이차함수': '함수',
+  '좌표평면': '함수',
+  '도형': '도형',
+  '평면도형': '도형',
+  '입체도형': '도형',
+  '삼각형의 성질': '도형',
+  '사각형의 성질': '도형',
+  '원의 성질': '도형',
+  '삼각비': '도형',
+  '통계': '확률과 통계',
+  '산포도': '확률과 통계',
+  '확률': '확률과 통계',
+  '경우의 수': '확률과 통계',
+};
+
 let templates: ProblemTemplateInput[] | null = null;
+// 파일에 실제로 들어 있는 전체 목록(생성 풀에서 제외된 확률·경우의 수 포함).
+// persistTemplates가 파일을 다시 쓸 때 이 순서와 제외 단원을 그대로 보존해야 한다.
+let fileTemplates: ProblemTemplateInput[] = [];
+// 마지막 로드 시 생성 풀에 있던 id. 파일에서 '삭제된' 템플릿과 '제외 단원이라 애초에 풀에 없는' 템플릿을 구분한다.
+let poolIds: Set<string> = new Set();
 
 const clampMassProducedRating = (value: number): number =>
   Math.round(Math.max(5000, Math.min(7000, value)) / 500) * 500;
@@ -27,12 +68,21 @@ function normalizeTemplate(
   defaultRewardRating?: number,
 ): ProblemTemplateInput {
   const fallback = defaultRewardRating ?? template.difficulty;
+  const unit = template.unit ?? '';
+  // domain·tags가 빠진 템플릿(관리자 패널에서 새로 만든 경우 등)도 항상 채워 둔다.
+  const domain = template.domain ?? DOMAIN_BY_UNIT[unit] ?? '';
+  const tags =
+    Array.isArray(template.tags) && template.tags.length > 0
+      ? template.tags
+      : [domain, unit, ...(template.concepts ?? [])].filter((tag): tag is string => Boolean(tag));
   return {
     ...template,
     difficulty: clampMassProducedRating(Number(template.difficulty) || 6000),
     reward_rating: clampMassProducedRating(
       typeof template.reward_rating === 'number' ? template.reward_rating : fallback,
     ),
+    domain,
+    tags,
   };
 }
 
@@ -48,7 +98,9 @@ function loadTemplates(): ProblemTemplateInput[] {
     }
 
     // 의도: 확률/경우의 수만 생성 풀에서 제외하고 나머지 템플릿은 모두 유지한다.
+    fileTemplates = parsed;
     parsed = parsed.filter((template) => !EXCLUDED_UNITS.has(template.unit ?? ''));
+    poolIds = new Set(parsed.map((template) => template.id));
 
     if (!Array.isArray(parsed) || parsed.length === 0) {
       throw new Error('templates.json is empty or invalid');
@@ -78,7 +130,20 @@ function persistTemplates(nextTemplates: ProblemTemplateInput[]): ProblemTemplat
   templates = nextTemplates.map(normalizeTemplate);
   if (!process.env.VERCEL) {
     try {
-      writeFileSync(TEMPLATES_PATH, `${JSON.stringify(templates, null, 2)}\n`, 'utf-8');
+      // 주의: templates는 생성 풀(확률·경우의 수 제외)이라 그대로 쓰면 파일에서 그 두 단원이 사라진다.
+      // 파일에 있던 순서를 유지하면서 수정분만 갈아끼우고, 풀에 없는(제외된) 템플릿은 그대로 남긴다.
+      const nextById = new Map(templates.map((t) => [t.id, t]));
+      const fileIds = new Set(fileTemplates.map((t) => t.id));
+      //  · 풀에 없던 항목(제외 단원)은 그대로 보존
+      //  · 풀에 있었고 아직 있으면 수정본으로 교체
+      //  · 풀에 있었는데 사라졌으면 삭제된 것이므로 파일에서도 제거
+      const merged = fileTemplates
+        .filter((t) => !poolIds.has(t.id) || nextById.has(t.id))
+        .map((t) => nextById.get(t.id) ?? t);
+      merged.push(...templates.filter((t) => !fileIds.has(t.id)));
+      fileTemplates = merged;
+      poolIds = new Set(templates.map((t) => t.id));
+      writeFileSync(TEMPLATES_PATH, `${JSON.stringify(merged, null, 2)}\n`, 'utf-8');
     } catch (e) {
       console.warn('Failed to persist templates to disk:', e);
     }

@@ -130,59 +130,76 @@ const renderMath = (content: any) => {
 
 // --- Components ---
 
-const RadarChart: React.FC<{ data: { tag: string; count: number }[]; maxValue: number }> = ({ data, maxValue }) => {
-  if (data.length === 0) return null;
-  const size = 280;
+const RadarChart: React.FC<{ data: { label: string; value: number; sub?: string }[]; size?: number }> = ({ data, size = 340 }) => {
+  const count = data.length;
+  if (count < 3) return null; // 3축 미만이면 다각형이 성립하지 않는다
+
   const cx = size / 2;
   const cy = size / 2;
-  const radius = 110;
-  const levels = 5;
-  const angleStep = (Math.PI * 2) / data.length;
+  const radius = size * 0.335;
+  const levels = 4;
+  const angleStep = (Math.PI * 2) / count;
+  const angleOf = (index: number) => angleStep * index - Math.PI / 2;
 
-  const getPoint = (index: number, value: number) => {
-    const angle = angleStep * index - Math.PI / 2;
-    const r = (value / Math.max(maxValue, 1)) * radius;
-    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  const pointAt = (index: number, value: number) => {
+    const ratio = Math.max(0, Math.min(100, value)) / 100;
+    const angle = angleOf(index);
+    return { x: cx + radius * ratio * Math.cos(angle), y: cy + radius * ratio * Math.sin(angle) };
   };
-
-  const polygonPoints = data.map((d, i) => {
-    const p = getPoint(i, d.count);
-    return `${p.x},${p.y}`;
-  }).join(' ');
-
-  const gridPolygons = [];
-  for (let level = 1; level <= levels; level++) {
-    const pts = data.map((_, i) => {
-      const p = getPoint(i, (maxValue / levels) * level);
-      return `${p.x},${p.y}`;
+  const ringAt = (value: number) =>
+    data.map((_, i) => {
+      const p = pointAt(i, value);
+      return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
     }).join(' ');
-    gridPolygons.push(pts);
-  }
+  const hasData = data.some(d => d.value > 0);
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block', margin: '0 auto' }}>
-      {gridPolygons.map((pts, i) => (
-        <polygon key={i} points={pts} fill="none" stroke="var(--border)" strokeWidth="1" opacity={0.5} />
+    <svg width="100%" height="auto" viewBox={`0 0 ${size} ${size}`} style={{ display: 'block', maxWidth: `${size}px`, margin: '0 auto', overflow: 'visible' }}>
+      {/* 격자 링 25/50/75/100 */}
+      {Array.from({ length: levels }, (_, i) => ((i + 1) * 100) / levels).map(level => (
+        <polygon key={`ring-${level}`} points={ringAt(level)} fill="none" stroke="var(--border)" strokeWidth={level === 100 ? 1.5 : 1} opacity={level === 100 ? 0.85 : 0.45} />
       ))}
+
+      {/* 축 선 */}
       {data.map((_, i) => {
-        const p1 = getPoint(i, maxValue);
-        const p2 = getPoint((i + 1) % data.length, maxValue);
-        return <line key={`axis-${i}`} x1={cx} y1={cy} x2={p1.x} y2={p1.y} stroke="var(--border)" strokeWidth="1" opacity={0.3} />;
+        const outer = pointAt(i, 100);
+        return <line key={`axis-${i}`} x1={cx} y1={cy} x2={outer.x} y2={outer.y} stroke="var(--border)" strokeWidth="1" opacity="0.35" />;
       })}
-      <polygon points={polygonPoints} fill="var(--color-4)" fillOpacity="0.2" stroke="var(--color-4)" strokeWidth="2" />
+
+      {/* 눈금 숫자 (세로축) */}
+      {Array.from({ length: levels }, (_, i) => ((i + 1) * 100) / levels).map(level => (
+        <text key={`tick-${level}`} x={cx + 4} y={cy - (radius * level) / 100} fontSize="9" fill="var(--text-muted)" opacity="0.7">
+          {level}
+        </text>
+      ))}
+
+      {/* 값 다각형 */}
+      {hasData && (
+        <>
+          <polygon points={data.map((d, i) => { const p = pointAt(i, d.value); return `${p.x.toFixed(2)},${p.y.toFixed(2)}`; }).join(' ')} fill="var(--color-4)" fillOpacity="0.22" stroke="var(--color-4)" strokeWidth="2" strokeLinejoin="round" />
+          {data.map((d, i) => {
+            const p = pointAt(i, d.value);
+            return <circle key={`dot-${i}`} cx={p.x} cy={p.y} r="3.5" fill="var(--color-4)" />;
+          })}
+        </>
+      )}
+
+      {/* 축 라벨 + 값 */}
       {data.map((d, i) => {
-        const p = getPoint(i, d.count);
-        return <circle key={i} cx={p.x} cy={p.y} r="4" fill="var(--color-4)" />;
-      })}
-      {data.map((d, i) => {
-        const angle = angleStep * i - Math.PI / 2;
-        const labelR = radius + 25;
-        const lx = cx + labelR * Math.cos(angle);
-        const ly = cy + labelR * Math.sin(angle);
+        const angle = angleOf(i);
+        const lx = cx + (radius + 16) * Math.cos(angle);
+        const ly = cy + (radius + 20) * Math.sin(angle);
+        const dx = lx - cx;
+        const textAnchor = Math.abs(dx) < 8 ? 'middle' : dx > 0 ? 'start' : 'end';
         return (
-          <text key={`label-${i}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="central" fill="var(--text-main)" fontSize="11" fontWeight={700}>
-            {d.tag}
-          </text>
+          <g key={`label-${i}`}>
+            <text x={lx} y={ly} textAnchor={textAnchor} fill="var(--text-main)" fontSize="12" fontWeight={800}>
+              {d.label}
+            </text>
+            <text x={lx} y={ly + 13} textAnchor={textAnchor} fill="var(--color-4)" fontSize="11" fontWeight={700}>
+              {d.value}{d.sub ? ` · ${d.sub}` : ''}
+            </text>
+          </g>
         );
       })}
     </svg>
@@ -2968,8 +2985,8 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
   const [streakHistory, setStreakHistory] = useState<any>(null);
   const [streakOffset, setStreakOffset] = useState(0);
 
-  // Problem type stats for radar chart
-  const [problemTypeStats, setProblemTypeStats] = useState<any[]>([]);
+  // 분야별 정복도(다각형 그래프)
+  const [domainRadar, setDomainRadar] = useState<any>(null);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
 
   const uid = readonly ? profileUserId : user?.id;
@@ -3032,14 +3049,13 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
       }
     }).catch(() => {});
 
-    // Fetch problem type stats for radar chart
+    // 분야별 정복도(다각형 그래프) — 남의 프로필은 userId로 조회
     const token2 = localStorage.getItem('token');
-    fetch('/api/users/problem-type-stats', {
-      headers: { 'Authorization': `Bearer ${token2}` }
-    })
-    .then(res => res.json())
+    const radarUrl = readonly && uid ? `/api/users/domain-radar?userId=${uid}` : '/api/users/domain-radar';
+    fetch(radarUrl, { headers: token2 ? { 'Authorization': `Bearer ${token2}` } : {} })
+    .then(res => (res.ok ? res.json() : null))
     .then(data => {
-      if (Array.isArray(data)) setProblemTypeStats(data);
+      if (data && Array.isArray(data.domains)) setDomainRadar(data);
     })
     .catch(() => {});
   }, [user, readonly, profileUserId]);
@@ -3390,31 +3406,43 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         {u.last_active_date ? `마지막 활동: ${new Date(u.last_active_date).toLocaleDateString()}` : ''}
       </div>
 
-      {/* ─── 분야별 문제 통계 (다각형 그래프) ─── */}
+      {/* ─── 분야별 정복도 (다각형 그래프) ─── */}
       <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '0 0 0.75rem', color: 'var(--color-4)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          분야별 문제 통계
+          분야별 정복도
         </h3>
-        <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          각 분야별로 푼 문제 수를 다각형 그래프로 표시합니다.
+        <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.6 }}>
+          대분류 6개 축으로 실력을 표시합니다. <b>정복도 = 정답률 × 시도량</b>(한 분야에서 10문제 이상 풀면 정답률이 그대로 반영) ·
+          꼭짓점 옆 숫자는 정복도와 정답률입니다.
         </p>
-        {problemTypeStats.length > 0 ? (
+        {domainRadar && domainRadar.totalAttempts > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <RadarChart data={problemTypeStats.map((s: any) => ({ tag: s.tag_name, count: parseInt(s.solved_count) }))} maxValue={Math.max(...problemTypeStats.map((s: any) => parseInt(s.solved_count)), 1)} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem', width: '100%' }}>
-              {problemTypeStats.map((s: any) => (
-                <div key={s.tag_name} style={{
-                  padding: '0.3rem 0.8rem', borderRadius: '99px', background: 'var(--card-bg)',
-                  border: '1px solid var(--border)', fontSize: '0.82rem', fontWeight: 700
-                }}>
-                  {s.tag_name}: <span style={{ color: 'var(--color-4)' }}>{s.solved_count}문제</span>
+            <RadarChart data={domainRadar.domains.map((d: any) => ({ label: d.domain, value: d.mastery, sub: `정답률 ${d.accuracy}%` }))} />
+
+            <div style={{ width: '100%', marginTop: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.5rem' }}>
+              {domainRadar.domains.map((d: any) => (
+                <div key={d.domain} style={{ padding: '0.6rem 0.8rem', borderRadius: '0.6rem', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>{d.domain}</span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    정복도 <b style={{ color: 'var(--color-4)' }}>{d.mastery}</b> · {d.correct}/{d.attempts} 정답 · {d.solved}문제
+                  </span>
                 </div>
               ))}
+            </div>
+
+            <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.7 }}>
+              전체 정답률 <b style={{ color: 'var(--color-4)' }}>{domainRadar.accuracy}%</b> ({domainRadar.totalCorrect}/{domainRadar.totalAttempts})
+              {domainRadar.strongest && domainRadar.weakest && (
+                <>
+                  <br />가장 강한 분야 <b style={{ color: 'var(--color-4)' }}>{domainRadar.strongest.domain}</b> (정복도 {domainRadar.strongest.mastery}) ·
+                  보완할 분야 <b style={{ color: 'var(--text-main)' }}>{domainRadar.weakest.domain}</b> (정복도 {domainRadar.weakest.mastery})
+                </>
+              )}
             </div>
           </div>
         ) : (
           <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', margin: 0, fontSize: '0.9rem', textAlign: 'center' }}>
-            아직 푼 문제가 없습니다. 문제를 풀면 통계가 표시됩니다.
+            아직 푼 문제가 없습니다. 문제를 풀면 분야별 정복도가 표시됩니다.
           </p>
         )}
       </div>
