@@ -13,9 +13,9 @@ import {
 
 describe('Template Problem Generator Service', () => {
   describe('getAllTemplates', () => {
-    it('returns all 39 templates', () => {
+    it('returns all templates', () => {
       const templates = getAllTemplates();
-      expect(templates.length).toBe(39);
+      expect(templates.length).toBe(81);
     });
 
     it('each template has required fields', () => {

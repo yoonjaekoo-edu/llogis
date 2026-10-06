@@ -1330,4 +1330,1217 @@
       "점화식"
     ]
   }
+,
+  {
+    "id": "MS-SPRIME-001",
+    "unit": "소인수분해",
+    "title": "소인수분해와 약수의 개수",
+    "difficulty": 5500,
+    "variables": {
+      "p": {
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          5,
+          7
+        ]
+      },
+      "q": {
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          5,
+          7
+        ]
+      },
+      "e1": {
+        "type": "integer",
+        "min": 1,
+        "max": 3
+      },
+      "e2": {
+        "type": "integer",
+        "min": 1,
+        "max": 3
+      }
+    },
+    "constraints": [
+      "p != q"
+    ],
+    "problem_template": "자연수 ${{p^e1 * q^e2}}$의 약수의 개수를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(e1 + 1) * (e2 + 1)"
+    },
+    "concepts": [
+      "소인수분해",
+      "약수의 개수"
+    ],
+    "reward_rating": 5500
+  },
+  {
+    "id": "MS-SPRIME-002",
+    "unit": "최대공약수와 최소공배수",
+    "title": "최소공배수 구하기",
+    "difficulty": 5500,
+    "variables": {
+      "g": {
+        "type": "integer",
+        "min": 2,
+        "max": 9
+      },
+      "x": {
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          5,
+          7
+        ]
+      },
+      "y": {
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          5,
+          7
+        ]
+      }
+    },
+    "constraints": [
+      "x != y"
+    ],
+    "problem_template": "두 자연수 ${{g * x}}$와 ${{g * y}}$의 최소공배수를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "g * x * y"
+    },
+    "concepts": [
+      "최대공약수",
+      "최소공배수"
+    ],
+    "reward_rating": 5500
+  },
+  {
+    "id": "MS-NUM-003",
+    "unit": "정수와 유리수",
+    "title": "부호가 있는 정수의 덧셈과 뺄셈",
+    "difficulty": 5000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 20
+      },
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 20
+      },
+      "c": {
+        "type": "integer",
+        "min": 2,
+        "max": 20
+      }
+    },
+    "constraints": [],
+    "problem_template": "${{a}} + (-{{b}}) - (-{{c}})$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a - b + c"
+    },
+    "concepts": [
+      "정수와 유리수",
+      "정수의 사칙계산"
+    ],
+    "reward_rating": 5000
+  },
+  {
+    "id": "MS-NUM-004",
+    "unit": "정수와 유리수",
+    "title": "정수의 곱셈과 나눗셈",
+    "difficulty": 5500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 12
+      },
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 12
+      },
+      "c": {
+        "type": "integer",
+        "min": 2,
+        "max": 12
+      }
+    },
+    "constraints": [
+      "(a * b) % c == 0"
+    ],
+    "problem_template": "$(-{{a}}) \\times {{b}} \\div (-{{c}})$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a * b / c"
+    },
+    "concepts": [
+      "정수와 유리수",
+      "정수의 사칙계산"
+    ],
+    "reward_rating": 5500
+  },
+  {
+    "id": "MS-EXPR-002",
+    "unit": "식의 계산",
+    "title": "식의 값 대입",
+    "difficulty": 5000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 9
+      },
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 9
+      },
+      "c": {
+        "type": "integer",
+        "min": 1,
+        "max": 20
+      }
+    },
+    "constraints": [],
+    "problem_template": "$x = {{a}}$일 때, ${{b}}x - {{c}}$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "b * a - c"
+    },
+    "concepts": [
+      "문자와 식",
+      "식의 값"
+    ],
+    "reward_rating": 5000
+  },
+  {
+    "id": "MS-COORD-002",
+    "unit": "좌표평면",
+    "title": "선분의 중점",
+    "difficulty": 5500,
+    "variables": {
+      "x1": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      },
+      "y1": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      },
+      "x2": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      },
+      "y2": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      }
+    },
+    "constraints": [
+      "(x1 + x2) % 2 == 0",
+      "(y1 + y2) % 2 == 0"
+    ],
+    "problem_template": "두 점 $A({{x1}}, {{y1}})$, $B({{x2}}, {{y2}})$를 이은 선분 $AB$의 중점의 좌표를 $(a, b)$라 할 때, $a + b$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(x1 + x2 + y1 + y2) / 2"
+    },
+    "concepts": [
+      "좌표평면",
+      "선분의 중점"
+    ],
+    "reward_rating": 5500
+  },
+  {
+    "id": "MS-DEC-001",
+    "unit": "유리수와 순환소수",
+    "title": "순환소수를 분수로",
+    "difficulty": 6000,
+    "variables": {
+      "a": {
+        "type": "choice",
+        "choices": [
+          1,
+          2,
+          4,
+          5,
+          7,
+          8
+        ]
+      }
+    },
+    "constraints": [],
+    "problem_template": "순환소수 $0.\\overline{{{a}}}$를 기약분수로 나타낼 때, 분모와 분자의 합을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a + 9"
+    },
+    "concepts": [
+      "유리수와 순환소수",
+      "순환소수의 분수 표현"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-TRI-002",
+    "unit": "삼각형의 성질",
+    "title": "이등변삼각형의 꼭지각",
+    "difficulty": 5500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 30,
+        "max": 80
+      }
+    },
+    "constraints": [],
+    "problem_template": "이등변삼각형 $ABC$에서 $\\angle B = \\angle C = {{a}}^\\circ$일 때, 꼭지각 $\\angle A$의 크기를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "180 - 2 * a"
+    },
+    "concepts": [
+      "삼각형의 성질",
+      "이등변삼각형"
+    ],
+    "reward_rating": 5500
+  },
+  {
+    "id": "MS-TRI-003",
+    "unit": "삼각형의 성질",
+    "title": "삼각형의 외각",
+    "difficulty": 6000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 30,
+        "max": 80
+      },
+      "b": {
+        "type": "integer",
+        "min": 30,
+        "max": 80
+      }
+    },
+    "constraints": [
+      "a + b < 180"
+    ],
+    "problem_template": "삼각형 $ABC$에서 $\\angle A = {{a}}^\\circ$, $\\angle B = {{b}}^\\circ$일 때, $\\angle C$의 외각의 크기를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a + b"
+    },
+    "concepts": [
+      "삼각형의 성질",
+      "외각"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-QUADL-001",
+    "unit": "사각형의 성질",
+    "title": "평행사변형의 이웃한 각",
+    "difficulty": 5500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 40,
+        "max": 140
+      }
+    },
+    "constraints": [],
+    "problem_template": "평행사변형 $ABCD$에서 $\\angle A = {{a}}^\\circ$일 때, $\\angle B$의 크기를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "180 - a"
+    },
+    "concepts": [
+      "사각형의 성질",
+      "평행사변형"
+    ],
+    "reward_rating": 5500
+  },
+  {
+    "id": "MS-GEO-POLY-001",
+    "unit": "평면도형",
+    "title": "다각형의 내각의 합",
+    "difficulty": 5500,
+    "variables": {
+      "n": {
+        "type": "integer",
+        "min": 5,
+        "max": 12
+      }
+    },
+    "constraints": [],
+    "problem_template": "${{n}}$각형의 내각의 크기의 합을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(n - 2) * 180"
+    },
+    "concepts": [
+      "평면도형",
+      "다각형의 내각"
+    ],
+    "reward_rating": 5500
+  },
+  {
+    "id": "MS-GEO-POLY-002",
+    "unit": "평면도형",
+    "title": "정다각형의 한 내각",
+    "difficulty": 6000,
+    "variables": {
+      "n": {
+        "type": "choice",
+        "choices": [
+          3,
+          4,
+          5,
+          6,
+          8,
+          9,
+          10,
+          12,
+          15,
+          18,
+          20
+        ]
+      }
+    },
+    "constraints": [
+      "360 % n == 0"
+    ],
+    "problem_template": "정${{n}}$각형의 한 내각의 크기를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "180 - 360 / n"
+    },
+    "concepts": [
+      "평면도형",
+      "정다각형"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-GEO-POLY-003",
+    "unit": "평면도형",
+    "title": "다각형의 대각선의 개수",
+    "difficulty": 6000,
+    "variables": {
+      "n": {
+        "type": "integer",
+        "min": 4,
+        "max": 12
+      }
+    },
+    "constraints": [],
+    "problem_template": "${{n}}$각형의 대각선의 개수를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "n * (n - 3) / 2"
+    },
+    "concepts": [
+      "평면도형",
+      "대각선"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-GEO-ARC-001",
+    "unit": "평면도형",
+    "title": "부채꼴의 호의 길이",
+    "difficulty": 6500,
+    "variables": {
+      "r": {
+        "type": "choice",
+        "choices": [
+          6,
+          10,
+          12,
+          15,
+          18,
+          20
+        ]
+      },
+      "x": {
+        "type": "choice",
+        "choices": [
+          30,
+          36,
+          45,
+          60,
+          90,
+          120
+        ]
+      }
+    },
+    "constraints": [
+      "(x * r) % 180 == 0"
+    ],
+    "problem_template": "반지름의 길이가 ${{r}}$이고 중심각의 크기가 ${{x}}^\\circ$인 부채꼴의 호의 길이를 $k\\pi$라 할 때, $k$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "x * r / 180"
+    },
+    "concepts": [
+      "평면도형",
+      "부채꼴"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-GEO-SEC-001",
+    "unit": "평면도형",
+    "title": "부채꼴의 넓이",
+    "difficulty": 6500,
+    "variables": {
+      "r": {
+        "type": "choice",
+        "choices": [
+          4,
+          6,
+          9,
+          10,
+          12,
+          15
+        ]
+      },
+      "x": {
+        "type": "choice",
+        "choices": [
+          30,
+          40,
+          45,
+          60,
+          90,
+          120
+        ]
+      }
+    },
+    "constraints": [
+      "(x * r * r) % 360 == 0"
+    ],
+    "problem_template": "반지름의 길이가 ${{r}}$이고 중심각의 크기가 ${{x}}^\\circ$인 부채꼴의 넓이를 $k\\pi$라 할 때, $k$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "x * r * r / 360"
+    },
+    "concepts": [
+      "평면도형",
+      "부채꼴"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-SOLID-001",
+    "unit": "입체도형",
+    "title": "원기둥의 부피",
+    "difficulty": 6000,
+    "variables": {
+      "r": {
+        "type": "integer",
+        "min": 2,
+        "max": 8
+      },
+      "h": {
+        "type": "integer",
+        "min": 2,
+        "max": 10
+      }
+    },
+    "constraints": [],
+    "problem_template": "밑면의 반지름의 길이가 ${{r}}$, 높이가 ${{h}}$인 원기둥의 부피를 $k\\pi$라 할 때, $k$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "r * r * h"
+    },
+    "concepts": [
+      "입체도형",
+      "원기둥의 부피"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-SOLID-002",
+    "unit": "입체도형",
+    "title": "원뿔의 부피",
+    "difficulty": 6500,
+    "variables": {
+      "r": {
+        "type": "choice",
+        "choices": [
+          3,
+          6,
+          9,
+          12
+        ]
+      },
+      "h": {
+        "type": "integer",
+        "min": 2,
+        "max": 10
+      }
+    },
+    "constraints": [],
+    "problem_template": "밑면의 반지름의 길이가 ${{r}}$, 높이가 ${{h}}$인 원뿔의 부피를 $k\\pi$라 할 때, $k$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "r * r * h / 3"
+    },
+    "concepts": [
+      "입체도형",
+      "원뿔의 부피"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-SOLID-003",
+    "unit": "입체도형",
+    "title": "구의 겉넓이",
+    "difficulty": 6000,
+    "variables": {
+      "r": {
+        "type": "integer",
+        "min": 2,
+        "max": 9
+      }
+    },
+    "constraints": [],
+    "problem_template": "반지름의 길이가 ${{r}}$인 구의 겉넓이를 $k\\pi$라 할 때, $k$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "4 * r * r"
+    },
+    "concepts": [
+      "입체도형",
+      "구의 겉넓이"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-STAT-003",
+    "unit": "통계",
+    "title": "평균이 주어진 자료의 미지수",
+    "difficulty": 6000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 3,
+        "max": 15
+      },
+      "b": {
+        "type": "integer",
+        "min": 3,
+        "max": 15
+      },
+      "c": {
+        "type": "integer",
+        "min": 3,
+        "max": 15
+      },
+      "m": {
+        "type": "integer",
+        "min": 5,
+        "max": 15
+      }
+    },
+    "constraints": [
+      "4 * m - (a + b + c) > 0"
+    ],
+    "problem_template": "네 개의 자료 ${{a}}, {{b}}, {{c}}, x$의 평균이 ${{m}}$일 때, $x$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "4 * m - (a + b + c)"
+    },
+    "concepts": [
+      "통계",
+      "평균"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-STAT-004",
+    "unit": "산포도",
+    "title": "자료의 분산",
+    "difficulty": 6500,
+    "variables": {
+      "m": {
+        "type": "integer",
+        "min": 6,
+        "max": 15
+      },
+      "d1": {
+        "type": "integer",
+        "min": 1,
+        "max": 5
+      },
+      "d2": {
+        "type": "integer",
+        "min": 6,
+        "max": 10
+      }
+    },
+    "constraints": [
+      "m > d2",
+      "(d1 * d1 + d2 * d2) % 2 == 0"
+    ],
+    "problem_template": "네 개의 자료 ${{m - d2}}, {{m - d1}}, {{m + d1}}, {{m + d2}}$의 분산을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(d1 * d1 + d2 * d2) / 2"
+    },
+    "concepts": [
+      "산포도",
+      "분산"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-FUNC-004",
+    "unit": "일차함수",
+    "title": "일차함수의 x절편",
+    "difficulty": 6000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      },
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 12
+      }
+    },
+    "constraints": [
+      "b % a == 0"
+    ],
+    "problem_template": "일차함수 $y = {{a}}x - {{b}}$의 그래프의 $x$절편을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "b / a"
+    },
+    "concepts": [
+      "일차함수",
+      "절편"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-FUNC-005",
+    "unit": "일차함수",
+    "title": "두 점을 지나는 직선의 기울기",
+    "difficulty": 6000,
+    "variables": {
+      "x1": {
+        "type": "integer",
+        "min": -5,
+        "max": 5
+      },
+      "y1": {
+        "type": "integer",
+        "min": -5,
+        "max": 5
+      },
+      "x2": {
+        "type": "integer",
+        "min": -5,
+        "max": 5
+      },
+      "m": {
+        "type": "integer",
+        "min": -4,
+        "max": 4
+      }
+    },
+    "constraints": [
+      "x1 != x2",
+      "m != 0"
+    ],
+    "problem_template": "두 점 $A({{x1}}, {{y1}})$, $B({{x2}}, {{y1 + m * (x2 - x1)}})$를 지나는 직선의 기울기를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "m"
+    },
+    "concepts": [
+      "일차함수",
+      "기울기"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-FACT-004",
+    "unit": "인수분해",
+    "title": "합차 공식의 값 계산",
+    "difficulty": 6000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 11,
+        "max": 25
+      },
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 10
+      }
+    },
+    "constraints": [],
+    "problem_template": "$({{a}} + {{b}})({{a}} - {{b}})$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a * a - b * b"
+    },
+    "concepts": [
+      "인수분해",
+      "합차 공식"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-FACT-005",
+    "unit": "인수분해",
+    "title": "곱셈 공식의 변형",
+    "difficulty": 6500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 3,
+        "max": 15
+      },
+      "b": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      }
+    },
+    "constraints": [],
+    "problem_template": "$({{a}} + {{b}})^2 - ({{a}} - {{b}})^2$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "4 * a * b"
+    },
+    "concepts": [
+      "인수분해",
+      "곱셈 공식"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-QUAD-004",
+    "unit": "이차방정식",
+    "title": "두 근의 제곱의 합",
+    "difficulty": 6500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 12
+      },
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 12
+      }
+    },
+    "constraints": [],
+    "problem_template": "이차방정식 $x^2 - {{a + b}}x + {{a * b}} = 0$의 두 근을 $\\alpha, \\beta$라 할 때, $\\alpha^2 + \\beta^2$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a * a + b * b"
+    },
+    "concepts": [
+      "이차방정식",
+      "근과 계수의 관계"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-QUAD-005",
+    "unit": "이차방정식",
+    "title": "두 근의 차",
+    "difficulty": 6000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 3,
+        "max": 15
+      },
+      "b": {
+        "type": "integer",
+        "min": 1,
+        "max": 12
+      }
+    },
+    "constraints": [
+      "a > b"
+    ],
+    "problem_template": "이차방정식 $x^2 - {{a + b}}x + {{a * b}} = 0$의 두 근의 차를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a - b"
+    },
+    "concepts": [
+      "이차방정식",
+      "인수분해"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-QUAD-006",
+    "unit": "이차방정식",
+    "title": "이차방정식의 활용 (직사각형)",
+    "difficulty": 6500,
+    "variables": {
+      "d": {
+        "type": "integer",
+        "min": 1,
+        "max": 8
+      },
+      "s": {
+        "type": "integer",
+        "min": 2,
+        "max": 15
+      }
+    },
+    "constraints": [],
+    "problem_template": "가로의 길이가 세로의 길이보다 ${{d}}$만큼 긴 직사각형의 넓이가 ${{s * (s + d)}}$일 때, 세로의 길이를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "s"
+    },
+    "concepts": [
+      "이차방정식",
+      "방정식의 활용"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-QUADF-003",
+    "unit": "이차함수",
+    "title": "이차함수의 축의 방정식",
+    "difficulty": 6500,
+    "variables": {
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 12
+      }
+    },
+    "constraints": [
+      "b % 2 == 0"
+    ],
+    "problem_template": "이차함수 $y = x^2 - {{b}}x + 3$의 그래프의 축의 방정식을 $x = p$라 할 때, $p$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "b / 2"
+    },
+    "concepts": [
+      "이차함수",
+      "축의 방정식"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-QUADF-004",
+    "unit": "이차함수",
+    "title": "이차함수의 최솟값",
+    "difficulty": 6500,
+    "variables": {
+      "p": {
+        "type": "integer",
+        "min": 1,
+        "max": 6
+      },
+      "q": {
+        "type": "integer",
+        "min": 1,
+        "max": 20
+      }
+    },
+    "constraints": [],
+    "problem_template": "이차함수 $y = x^2 - {{2 * p}}x + {{p * p + q}}$의 최솟값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "q"
+    },
+    "concepts": [
+      "이차함수",
+      "최솟값"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-ROOT2-001",
+    "unit": "제곱근과 실수",
+    "title": "제곱수가 되도록 하는 최소의 자연수",
+    "difficulty": 6000,
+    "variables": {
+      "s": {
+        "type": "integer",
+        "min": 2,
+        "max": 9
+      },
+      "m": {
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    "constraints": [],
+    "problem_template": "$\\sqrt{{{s * s * m}} \\times x}$가 자연수가 되도록 하는 가장 작은 자연수 $x$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "m"
+    },
+    "concepts": [
+      "제곱근과 실수",
+      "제곱수"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-ROOT2-002",
+    "unit": "제곱근과 실수",
+    "title": "제곱근을 포함한 합차 공식",
+    "difficulty": 6000,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 8
+      },
+      "b": {
+        "type": "integer",
+        "min": 2,
+        "max": 20
+      }
+    },
+    "constraints": [
+      "b < a * a"
+    ],
+    "problem_template": "$({{a}} + \\sqrt{{{b}}})({{a}} - \\sqrt{{{b}}})$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a * a - b"
+    },
+    "concepts": [
+      "제곱근과 실수",
+      "합차 공식"
+    ],
+    "reward_rating": 6000
+  },
+  {
+    "id": "MS-TRIG-001",
+    "unit": "삼각비",
+    "title": "삼각비를 이용한 변의 길이",
+    "difficulty": 6500,
+    "variables": {
+      "k": {
+        "type": "integer",
+        "min": 2,
+        "max": 6
+      }
+    },
+    "constraints": [],
+    "problem_template": "직각삼각형 $ABC$에서 $\\angle C = 90^\\circ$, 빗변 $AB = {{5 * k}}$이고 $\\sin A = \\dfrac{3}{5}$일 때, 변 $BC$의 길이를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "3 * k"
+    },
+    "concepts": [
+      "삼각비",
+      "직각삼각형"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-TRIG-002",
+    "unit": "삼각비",
+    "title": "탄젠트를 이용한 변의 길이",
+    "difficulty": 6500,
+    "variables": {
+      "k": {
+        "type": "integer",
+        "min": 2,
+        "max": 8
+      }
+    },
+    "constraints": [],
+    "problem_template": "직각삼각형 $ABC$에서 $\\angle C = 90^\\circ$, 변 $AC = {{3 * k}}$이고 $\\tan A = \\dfrac{4}{3}$일 때, 변 $BC$의 길이를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "4 * k"
+    },
+    "concepts": [
+      "삼각비",
+      "직각삼각형"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-CIRCLE-001",
+    "unit": "원의 성질",
+    "title": "원주각과 중심각",
+    "difficulty": 6500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 10,
+        "max": 80
+      }
+    },
+    "constraints": [],
+    "problem_template": "원 $O$에서 중심각 $\\angle AOB = {{2 * a}}^\\circ$일 때, 같은 호 $AB$에 대한 원주각 $\\angle APB$의 크기를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "a"
+    },
+    "concepts": [
+      "원의 성질",
+      "원주각"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-CIRCLE-002",
+    "unit": "원의 성질",
+    "title": "접선의 길이",
+    "difficulty": 6500,
+    "variables": {
+      "k": {
+        "type": "integer",
+        "min": 1,
+        "max": 5
+      }
+    },
+    "constraints": [],
+    "problem_template": "원 $O$의 반지름의 길이가 ${{5 * k}}$이고, 원 밖의 점 $P$에 대하여 $OP = {{13 * k}}$일 때, 점 $P$에서 원 $O$에 그은 접선의 길이를 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "12 * k"
+    },
+    "concepts": [
+      "원의 성질",
+      "접선"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-GEO-SIM-002",
+    "unit": "도형",
+    "title": "닮음비와 부피비",
+    "difficulty": 6500,
+    "variables": {
+      "k": {
+        "type": "integer",
+        "min": 2,
+        "max": 5
+      }
+    },
+    "constraints": [],
+    "problem_template": "두 닮은 도형의 닮음비가 ${{k}}:1$일 때, 부피의 비를 가장 간단한 자연수의 비로 나타내면 $a:b$이다. $a + b$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "k^3 + 1"
+    },
+    "concepts": [
+      "도형",
+      "닮음"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-SYSEQ-004",
+    "unit": "연립방정식",
+    "title": "두 수의 제곱의 합",
+    "difficulty": 6500,
+    "variables": {
+      "s": {
+        "type": "integer",
+        "min": 5,
+        "max": 30
+      },
+      "d": {
+        "type": "integer",
+        "min": 1,
+        "max": 10
+      }
+    },
+    "constraints": [
+      "s > d",
+      "(s + d) % 2 == 0"
+    ],
+    "problem_template": "두 자연수 $x, y$가 $x + y = {{s}}$, $x - y = {{d}}$를 만족할 때, $xy$의 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "(s * s - d * d) / 4"
+    },
+    "concepts": [
+      "연립방정식",
+      "곱셈 공식"
+    ],
+    "reward_rating": 6500
+  },
+  {
+    "id": "MS-INEQ-003",
+    "unit": "부등식",
+    "title": "부등식을 만족하는 가장 큰 자연수",
+    "difficulty": 6500,
+    "variables": {
+      "a": {
+        "type": "integer",
+        "min": 2,
+        "max": 9
+      },
+      "b": {
+        "type": "integer",
+        "min": 1,
+        "max": 20
+      },
+      "c": {
+        "type": "integer",
+        "min": 30,
+        "max": 100
+      }
+    },
+    "constraints": [
+      "c > b",
+      "(c - b) % a != 0"
+    ],
+    "problem_template": "어떤 자연수 $x$에 대하여 ${{a}}x + {{b}} < {{c}}$를 만족하는 $x$의 값 중 가장 큰 값을 구하시오.",
+    "answer_formula": {
+      "type": "expression",
+      "value": "floor((c - b) / a)"
+    },
+    "concepts": [
+      "부등식",
+      "일차부등식의 활용"
+    ],
+    "reward_rating": 6500
+  }
 ]
