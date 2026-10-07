@@ -431,13 +431,27 @@ const ensureSchema = async () => {
       UNIQUE(user_id, badge_id)
     )
   `);
-  // 유저 출제 문제에 붙는 이미지. Vercel 서버리스는 파일 저장이 안 되므로 DB에 직접 넣고,
-  // 추측 불가한 토큰으로 서빙한다(<img src>는 인증 헤더를 못 보내므로 공개 경로여야 한다).
+  // 업로드 이미지 저장소(문제 그림 + 프로필 사진). Vercel 서버리스는 파일 저장이 안 되므로
+  // DB에 직접 넣고, 추측 불가한 토큰으로 서빙한다(<img src>는 인증 헤더를 못 보내므로 공개 경로여야 한다).
+  // 처음엔 problem_images였고 프로필 사진까지 담게 되어 uploaded_images로 이름을 바꿨다(기존 표는 이름만 변경).
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS problem_images (
+    DO $$
+    BEGIN
+      IF to_regclass('public.problem_images') IS NOT NULL AND to_regclass('public.uploaded_images') IS NULL THEN
+        ALTER TABLE problem_images RENAME TO uploaded_images;
+        -- 인덱스 이름도 함께 맞춰 둔다(안 맞추면 새 DB와 이름이 갈린다).
+        ALTER INDEX IF EXISTS problem_images_problem_id_idx RENAME TO uploaded_images_problem_id_idx;
+        ALTER INDEX IF EXISTS problem_images_pkey RENAME TO uploaded_images_pkey;
+        ALTER INDEX IF EXISTS problem_images_token_key RENAME TO uploaded_images_token_key;
+      END IF;
+    END $$
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS uploaded_images (
       id SERIAL PRIMARY KEY,
       token VARCHAR(64) UNIQUE NOT NULL,
       created_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      scope VARCHAR(16) NOT NULL DEFAULT 'problem',
       mime VARCHAR(64) NOT NULL,
       data BYTEA NOT NULL,
       byte_size INTEGER NOT NULL,
@@ -445,9 +459,8 @@ const ensureSchema = async () => {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS problem_images_problem_id_idx ON problem_images (problem_id)
-  `);
+  await pool.query(`ALTER TABLE uploaded_images ADD COLUMN IF NOT EXISTS scope VARCHAR(16) NOT NULL DEFAULT 'problem'`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS uploaded_images_problem_id_idx ON uploaded_images (problem_id)`);
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_theme VARCHAR(50) DEFAULT 'default'
   `);
@@ -732,15 +745,28 @@ app.post('/api/users/profile-image', authenticateToken, (req: any, res: Response
     if (!req.file) {
       return res.status(400).json({ error: 'Profile image file is required' });
     }
+    if (req.file.size > UPLOADED_IMAGE_MAX_BYTES) {
+      return res.status(413).json({ error: '이미지는 3MB 이하만 올릴 수 있습니다.' });
+    }
 
-    const profileImageUrl = `/uploads/${req.file.filename}`;
     const userId = req.user.id;
 
     try {
+      // Vercel에서는 파일시스템이 없어(req.file.filename도 없음) 이미지를 DB에 넣고 토큰으로 서빙한다.
+      const stored = await storeUploadedImage(userId, req.file, 'profile');
+      const profileImageUrl = `/api/images/${stored.token}`;
+
       await pool.query('UPDATE users SET profile_image_url = $1 WHERE id = $2', [profileImageUrl, userId]);
+      // 바꿀 때마다 쌓이지 않도록 이전 프로필 이미지는 지운다.
+      await pool.query(
+        "DELETE FROM uploaded_images WHERE created_by = $1 AND scope = 'profile' AND token <> $2",
+        [userId, stored.token]
+      );
+
       res.json({ message: 'Profile image updated successfully', profileImageUrl });
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to update profile image' });
+    } catch (err: any) {
+      console.error('프로필 이미지 업로드 실패:', err);
+      res.status(err?.status || 500).json({ error: err?.message || 'Failed to update profile image' });
     }
   });
 });
@@ -2017,7 +2043,7 @@ app.get('/api/problems', async (req: Request, res: Response) => {
     let query = `
       SELECT p.id, p.title, p.content, p.current_difficulty, p.is_custom, p.custom_reward_rating,
              p.created_by,
-             (SELECT pi.token FROM problem_images pi WHERE pi.problem_id = p.id ORDER BY pi.id LIMIT 1) AS image_token,
+             (SELECT pi.token FROM uploaded_images pi WHERE pi.problem_id = p.id ORDER BY pi.id LIMIT 1) AS image_token,
              COALESCE(array_remove(array_agg(t.name), NULL), '{}') as tags
       FROM problems p
       LEFT JOIN problem_tags pt ON p.id = pt.problem_id
@@ -2071,11 +2097,34 @@ const USER_PROBLEM_LIMITS = { title: 120, content: 1000, answer: 120, explanatio
 const stripHtmlTags = (value: unknown, maxLen: number): string =>
   typeof value === 'string' ? value.replace(/<[a-zA-Z/][^>]*>/g, '').trim().slice(0, maxLen) : '';
 
-// 출제 문제 이미지: 최대 3MB. 클라이언트가 미리 줄여서 올리는 것을 전제로 한다.
-const USER_PROBLEM_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
-const USER_PROBLEM_IMAGE_HOURLY_LIMIT = 20;
+// 업로드 이미지: 최대 3MB. 클라이언트가 미리 줄여서 올리는 것을 전제로 한다.
+const UPLOADED_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
+const UPLOADED_IMAGE_HOURLY_LIMIT = 20;
 
-app.post('/api/problems/image', authenticateToken, (req: any, res: Response) => {
+// 파일을 DB에 넣고 토큰을 돌려준다(문제 그림·프로필 사진 공용).
+const storeUploadedImage = async (
+  userId: number,
+  file: Express.Multer.File,
+  scope: 'problem' | 'profile'
+): Promise<{ id: number; token: string }> => {
+  const recent = await pool.query(
+    "SELECT COUNT(*) FROM uploaded_images WHERE created_by = $1 AND created_at > NOW() - INTERVAL '1 hour'",
+    [userId]
+  );
+  if (parseInt(recent.rows[0].count, 10) >= UPLOADED_IMAGE_HOURLY_LIMIT) {
+    throw Object.assign(new Error('이미지를 너무 많이 올렸습니다. 잠시 후 다시 시도해주세요.'), { status: 429 });
+  }
+
+  const token = randomBytes(16).toString('hex');
+  const inserted = await pool.query(
+    `INSERT INTO uploaded_images (token, created_by, scope, mime, data, byte_size)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [token, userId, scope, file.mimetype || 'image/webp', file.buffer, file.size]
+  );
+  return { id: inserted.rows[0].id, token };
+};
+
+const uploadImageHandler = (req: any, res: Response) => {
   upload.single('image')(req, res, async (uploadErr: any) => {
     if (uploadErr) {
       return res.status(400).json({ error: uploadErr.message || '이미지를 올리지 못했습니다.' });
@@ -2083,43 +2132,34 @@ app.post('/api/problems/image', authenticateToken, (req: any, res: Response) => 
     if (!req.file) {
       return res.status(400).json({ error: '이미지 파일이 필요합니다.' });
     }
-    if (req.file.size > USER_PROBLEM_IMAGE_MAX_BYTES) {
+    if (req.file.size > UPLOADED_IMAGE_MAX_BYTES) {
       return res.status(413).json({ error: '이미지는 3MB 이하만 올릴 수 있습니다.' });
     }
 
     try {
-      const recent = await pool.query(
-        "SELECT COUNT(*) FROM problem_images WHERE created_by = $1 AND created_at > NOW() - INTERVAL '1 hour'",
-        [req.user.id]
-      );
-      if (parseInt(recent.rows[0].count, 10) >= USER_PROBLEM_IMAGE_HOURLY_LIMIT) {
-        return res.status(429).json({ error: '이미지를 너무 많이 올렸습니다. 잠시 후 다시 시도해주세요.' });
-      }
-
-      const token = randomBytes(16).toString('hex');
-      const inserted = await pool.query(
-        `INSERT INTO problem_images (token, created_by, mime, data, byte_size)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [token, req.user.id, req.file.mimetype || 'image/webp', req.file.buffer, req.file.size]
-      );
-
+      const scope = req.body?.scope === 'profile' ? 'profile' : 'problem';
+      const stored = await storeUploadedImage(req.user.id, req.file, scope);
       res.status(201).json({
-        imageId: inserted.rows[0].id,
-        token,
-        url: `/api/problems/images/${token}`,
+        imageId: stored.id,
+        token: stored.token,
+        url: `/api/images/${stored.token}`,
         byteSize: req.file.size,
       });
-    } catch (err) {
-      console.error('문제 이미지 업로드 실패:', err);
-      res.status(500).json({ error: '이미지를 저장하지 못했습니다.' });
+    } catch (err: any) {
+      console.error('이미지 업로드 실패:', err);
+      res.status(err?.status || 500).json({ error: err?.message || '이미지를 저장하지 못했습니다.' });
     }
   });
-});
+};
+
+app.post('/api/images', authenticateToken, uploadImageHandler);
+// 이전 배포본 경로(캐시된 옛 번들이 쓰던 주소) — 같은 처리기에 연결해 둔다.
+app.post('/api/problems/image', authenticateToken, uploadImageHandler);
 
 // 이미지 서빙: 토큰을 아는 사람만 접근할 수 있다(순번이 아니라 32자 난수).
-app.get('/api/problems/images/:token', async (req: Request, res: Response) => {
+const serveImageHandler = async (req: Request, res: Response) => {
   try {
-    const result = await pool.query('SELECT mime, data FROM problem_images WHERE token = $1', [req.params.token]);
+    const result = await pool.query('SELECT mime, data FROM uploaded_images WHERE token = $1', [req.params.token]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: '이미지를 찾을 수 없습니다.' });
     }
@@ -2127,10 +2167,13 @@ app.get('/api/problems/images/:token', async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.send(Buffer.from(result.rows[0].data));
   } catch (err) {
-    console.error('문제 이미지 조회 실패:', err);
+    console.error('이미지 조회 실패:', err);
     res.status(500).json({ error: '이미지를 불러오지 못했습니다.' });
   }
-});
+};
+
+app.get('/api/images/:token', serveImageHandler);
+app.get('/api/problems/images/:token', serveImageHandler);
 
 app.post('/api/problems/submit', authenticateToken, async (req: any, res: Response) => {
   const userId = req.user.id;
@@ -2192,7 +2235,7 @@ app.post('/api/problems/submit', authenticateToken, async (req: any, res: Respon
     // 본인이 올린, 아직 어느 문제에도 붙지 않은 이미지만 연결한다.
     if (imageToken) {
       await pool.query(
-        'UPDATE problem_images SET problem_id = $1 WHERE token = $2 AND created_by = $3 AND problem_id IS NULL',
+        'UPDATE uploaded_images SET problem_id = $1 WHERE token = $2 AND created_by = $3 AND problem_id IS NULL',
         [problemId, imageToken, userId]
       );
     }
@@ -2228,7 +2271,7 @@ app.get('/api/problems/mine', authenticateToken, async (req: any, res: Response)
   try {
     const result = await pool.query(
       `SELECT id, title, content, answer, explanation, current_difficulty, review_status, review_note, created_at,
-              (SELECT pi.token FROM problem_images pi WHERE pi.problem_id = problems.id ORDER BY pi.id LIMIT 1) AS image_token
+              (SELECT pi.token FROM uploaded_images pi WHERE pi.problem_id = problems.id ORDER BY pi.id LIMIT 1) AS image_token
        FROM problems WHERE created_by = $1 ORDER BY id DESC LIMIT 100`,
       [req.user.id]
     );
@@ -2248,7 +2291,7 @@ app.get('/api/admin/problem-submissions', authenticateToken, async (req: any, re
     const result = await pool.query(
       `SELECT p.id, p.title, p.content, p.answer, p.explanation, p.current_difficulty,
               p.review_status, p.review_note, p.created_at, u.username,
-              (SELECT pi.token FROM problem_images pi WHERE pi.problem_id = p.id ORDER BY pi.id LIMIT 1) AS image_token
+              (SELECT pi.token FROM uploaded_images pi WHERE pi.problem_id = p.id ORDER BY pi.id LIMIT 1) AS image_token
        FROM problems p
        LEFT JOIN users u ON u.id = p.created_by
        WHERE p.created_by IS NOT NULL AND p.review_status = $1

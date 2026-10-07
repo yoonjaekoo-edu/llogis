@@ -62,6 +62,37 @@ interface Problem {
   image_token?: string | null;
 }
 
+// 업로드 전에 브라우저에서 줄인다. 폰 원본 사진은 서버 제한(3MB)과
+// Vercel 함수 본문 제한(약 4.5MB)에 걸린다. 프로필 사진·출제 그림 양쪽에서 쓴다.
+// 폰 사진을 그대로 올리면 3MB 제한에 걸린다. 브라우저에서 먼저 줄여서 올린다.
+const resizeUploadImage = (file: File): Promise<File> => new Promise((resolve, reject) => {
+  const MAX_EDGE = 1600;
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(objectUrl);
+    const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+    // 이미 작고 가벼우면 손대지 않는다(도형 그림의 투명 배경·선명도 보존).
+    if (scale === 1 && file.size <= 600 * 1024) return resolve(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return resolve(file);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      if (!blob) return resolve(file);
+      const base = file.name.replace(/\.[^.]+$/, '') || 'problem';
+      // 브라우저가 webp 인코딩을 못 하면 png가 올 수 있다 — 확장자와 실제 형식을 맞춰야 서버 검사를 통과한다.
+      const type = blob.type || 'image/webp';
+      const ext = type === 'image/png' ? 'png' : type === 'image/jpeg' ? 'jpg' : 'webp';
+      resolve(new File([blob], `${base}.${ext}`, { type }));
+    }, 'image/webp', 0.82);
+  };
+  img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지를 읽지 못했습니다.')); };
+  img.src = objectUrl;
+});
+
 interface User {
   id: number;
   username: string;
@@ -3139,8 +3170,15 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
     if (!newProfileImageFile) return;
 
     const token = localStorage.getItem('token');
+    // 폰 사진 원본은 서버 제한(3MB)에 걸리므로 먼저 줄인다.
+    let uploadFile = newProfileImageFile;
+    try {
+      uploadFile = await resizeUploadImage(newProfileImageFile);
+    } catch {
+      // 리사이즈 실패 시 원본 그대로 시도한다(서버가 크기로 거른다).
+    }
     const formData = new FormData();
-    formData.append('profileImage', newProfileImageFile);
+    formData.append('profileImage', uploadFile);
 
     const res = await fetch('/api/users/profile-image', {
       method: 'POST',
@@ -4144,42 +4182,13 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
     setCustomSubmitting(false);
   };
 
-  // 폰 사진을 그대로 올리면 3MB 제한에 걸린다. 브라우저에서 먼저 줄여서 올린다.
-  const resizeProblemImage = (file: File): Promise<File> => new Promise((resolve, reject) => {
-    const MAX_EDGE = 1600;
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
-      // 이미 작고 가벼우면 손대지 않는다(도형 그림의 투명 배경·선명도 보존).
-      if (scale === 1 && file.size <= 600 * 1024) return resolve(file);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return resolve(file);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => {
-        if (!blob) return resolve(file);
-        const base = file.name.replace(/\.[^.]+$/, '') || 'problem';
-        // 브라우저가 webp 인코딩을 못 하면 png가 올 수 있다 — 확장자와 실제 형식을 맞춰야 서버 검사를 통과한다.
-        const type = blob.type || 'image/webp';
-        const ext = type === 'image/png' ? 'png' : type === 'image/jpeg' ? 'jpg' : 'webp';
-        resolve(new File([blob], `${base}.${ext}`, { type }));
-      }, 'image/webp', 0.82);
-    };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지를 읽지 못했습니다.')); };
-    img.src = objectUrl;
-  });
-
   const handleCustomImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     setCustomImageUploading(true);
     try {
-      const resized = await resizeProblemImage(file);
+      const resized = await resizeUploadImage(file);
       if (resized.size > 3 * 1024 * 1024) throw new Error('이미지가 너무 큽니다. 3MB 이하로 올려주세요.');
       const token = localStorage.getItem('token');
       const formData = new FormData();
