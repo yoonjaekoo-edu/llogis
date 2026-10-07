@@ -35,6 +35,7 @@ import {
 } from './security/signupGuard';
 import { calculateExchangeQuote, canReceiveTokens, MAX_TOKEN_BALANCE, MIN_EXCHANGE_RP } from './rpExchange.js';
 import path from 'path';
+import { randomBytes } from 'crypto';
 import fs from 'fs';
 import multer from 'multer';
 
@@ -430,6 +431,23 @@ const ensureSchema = async () => {
       UNIQUE(user_id, badge_id)
     )
   `);
+  // 유저 출제 문제에 붙는 이미지. Vercel 서버리스는 파일 저장이 안 되므로 DB에 직접 넣고,
+  // 추측 불가한 토큰으로 서빙한다(<img src>는 인증 헤더를 못 보내므로 공개 경로여야 한다).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS problem_images (
+      id SERIAL PRIMARY KEY,
+      token VARCHAR(64) UNIQUE NOT NULL,
+      created_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      mime VARCHAR(64) NOT NULL,
+      data BYTEA NOT NULL,
+      byte_size INTEGER NOT NULL,
+      problem_id INTEGER REFERENCES problems(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS problem_images_problem_id_idx ON problem_images (problem_id)
+  `);
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_theme VARCHAR(50) DEFAULT 'default'
   `);
@@ -462,7 +480,7 @@ const ensureSchema = async () => {
     ON CONFLICT (badge_id) DO NOTHING
   `);
   // 템플릿에서 나온 기존 문제들에 단원·도메인·태그를 채워 넣는다.
-  // (생성기는 문제 제목을 템플릿 제목 그대로 쓰고 83개 제목이 모두 고유하므로 되짚을 수 있다.
+  // (생성기는 문제 제목을 템플릿 제목 그대로 쓰고 78개 제목이 모두 고유하므로 되짚을 수 있다.
   //  멱등하므로 배포·기동 때마다 돌려도 안전하다.) 실패해도 서버는 계속 뜬다.
   try {
     const backfilled = await backfillProblemDomains();
@@ -1998,7 +2016,9 @@ app.get('/api/problems', async (req: Request, res: Response) => {
 
     let query = `
       SELECT p.id, p.title, p.content, p.current_difficulty, p.is_custom, p.custom_reward_rating,
-             p.created_by, COALESCE(array_remove(array_agg(t.name), NULL), '{}') as tags
+             p.created_by,
+             (SELECT pi.token FROM problem_images pi WHERE pi.problem_id = p.id ORDER BY pi.id LIMIT 1) AS image_token,
+             COALESCE(array_remove(array_agg(t.name), NULL), '{}') as tags
       FROM problems p
       LEFT JOIN problem_tags pt ON p.id = pt.problem_id
       LEFT JOIN tags t ON pt.tag_id = t.id
@@ -2051,6 +2071,67 @@ const USER_PROBLEM_LIMITS = { title: 120, content: 1000, answer: 120, explanatio
 const stripHtmlTags = (value: unknown, maxLen: number): string =>
   typeof value === 'string' ? value.replace(/<[a-zA-Z/][^>]*>/g, '').trim().slice(0, maxLen) : '';
 
+// 출제 문제 이미지: 최대 3MB. 클라이언트가 미리 줄여서 올리는 것을 전제로 한다.
+const USER_PROBLEM_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
+const USER_PROBLEM_IMAGE_HOURLY_LIMIT = 20;
+
+app.post('/api/problems/image', authenticateToken, (req: any, res: Response) => {
+  upload.single('image')(req, res, async (uploadErr: any) => {
+    if (uploadErr) {
+      return res.status(400).json({ error: uploadErr.message || '이미지를 올리지 못했습니다.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: '이미지 파일이 필요합니다.' });
+    }
+    if (req.file.size > USER_PROBLEM_IMAGE_MAX_BYTES) {
+      return res.status(413).json({ error: '이미지는 3MB 이하만 올릴 수 있습니다.' });
+    }
+
+    try {
+      const recent = await pool.query(
+        "SELECT COUNT(*) FROM problem_images WHERE created_by = $1 AND created_at > NOW() - INTERVAL '1 hour'",
+        [req.user.id]
+      );
+      if (parseInt(recent.rows[0].count, 10) >= USER_PROBLEM_IMAGE_HOURLY_LIMIT) {
+        return res.status(429).json({ error: '이미지를 너무 많이 올렸습니다. 잠시 후 다시 시도해주세요.' });
+      }
+
+      const token = randomBytes(16).toString('hex');
+      const inserted = await pool.query(
+        `INSERT INTO problem_images (token, created_by, mime, data, byte_size)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [token, req.user.id, req.file.mimetype || 'image/webp', req.file.buffer, req.file.size]
+      );
+
+      res.status(201).json({
+        imageId: inserted.rows[0].id,
+        token,
+        url: `/api/problems/images/${token}`,
+        byteSize: req.file.size,
+      });
+    } catch (err) {
+      console.error('문제 이미지 업로드 실패:', err);
+      res.status(500).json({ error: '이미지를 저장하지 못했습니다.' });
+    }
+  });
+});
+
+// 이미지 서빙: 토큰을 아는 사람만 접근할 수 있다(순번이 아니라 32자 난수).
+app.get('/api/problems/images/:token', async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query('SELECT mime, data FROM problem_images WHERE token = $1', [req.params.token]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '이미지를 찾을 수 없습니다.' });
+    }
+    res.setHeader('Content-Type', result.rows[0].mime || 'image/webp');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(Buffer.from(result.rows[0].data));
+  } catch (err) {
+    console.error('문제 이미지 조회 실패:', err);
+    res.status(500).json({ error: '이미지를 불러오지 못했습니다.' });
+  }
+});
+
 app.post('/api/problems/submit', authenticateToken, async (req: any, res: Response) => {
   const userId = req.user.id;
   const isAdmin = req.user.username === 'admin';
@@ -2059,6 +2140,9 @@ app.post('/api/problems/submit', authenticateToken, async (req: any, res: Respon
   const answer = stripHtmlTags(req.body?.answer, USER_PROBLEM_LIMITS.answer);
   const explanation = stripHtmlTags(req.body?.explanation, USER_PROBLEM_LIMITS.explanation);
   const level = ['easy', 'normal', 'hard'].includes(req.body?.level) ? String(req.body.level) : 'normal';
+  // 출제 폼에서 먼저 올린 이미지(선택). 형식이 맞지 않으면 그냥 무시한다.
+  const rawImageToken = req.body?.imageToken;
+  const imageToken = typeof rawImageToken === 'string' && /^[a-f0-9]{32}$/.test(rawImageToken) ? rawImageToken : null;
   const rawTags: unknown = req.body?.tags;
   const tags = (Array.isArray(rawTags) ? rawTags : [])
     .map((t) => stripHtmlTags(t, USER_PROBLEM_LIMITS.tag))
@@ -2105,6 +2189,14 @@ app.post('/api/problems/submit', authenticateToken, async (req: any, res: Respon
     );
     const problemId = result.rows[0].id;
 
+    // 본인이 올린, 아직 어느 문제에도 붙지 않은 이미지만 연결한다.
+    if (imageToken) {
+      await pool.query(
+        'UPDATE problem_images SET problem_id = $1 WHERE token = $2 AND created_by = $3 AND problem_id IS NULL',
+        [problemId, imageToken, userId]
+      );
+    }
+
     for (const tagName of tags) {
       const tagRes = await pool.query('SELECT id FROM tags WHERE name = $1', [tagName]);
       const tagId = tagRes.rows.length > 0
@@ -2135,7 +2227,8 @@ app.post('/api/problems/submit', authenticateToken, async (req: any, res: Respon
 app.get('/api/problems/mine', authenticateToken, async (req: any, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT id, title, content, answer, explanation, current_difficulty, review_status, review_note, created_at
+      `SELECT id, title, content, answer, explanation, current_difficulty, review_status, review_note, created_at,
+              (SELECT pi.token FROM problem_images pi WHERE pi.problem_id = problems.id ORDER BY pi.id LIMIT 1) AS image_token
        FROM problems WHERE created_by = $1 ORDER BY id DESC LIMIT 100`,
       [req.user.id]
     );
@@ -2154,7 +2247,8 @@ app.get('/api/admin/problem-submissions', authenticateToken, async (req: any, re
   try {
     const result = await pool.query(
       `SELECT p.id, p.title, p.content, p.answer, p.explanation, p.current_difficulty,
-              p.review_status, p.review_note, p.created_at, u.username
+              p.review_status, p.review_note, p.created_at, u.username,
+              (SELECT pi.token FROM problem_images pi WHERE pi.problem_id = p.id ORDER BY pi.id LIMIT 1) AS image_token
        FROM problems p
        LEFT JOIN users u ON u.id = p.created_by
        WHERE p.created_by IS NOT NULL AND p.review_status = $1

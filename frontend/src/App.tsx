@@ -59,6 +59,7 @@ interface Problem {
   tags: string[];
   custom_reward_rating?: number;
   is_custom?: boolean;
+  image_token?: string | null;
 }
 
 interface User {
@@ -2423,6 +2424,9 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                     <span style={{ fontSize: '0.7rem', opacity: 0.6, whiteSpace: 'nowrap' }}>#{s.id} · {s.username || '알 수 없음'}</span>
                   </div>
                   <div style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0.4rem 0', whiteSpace: 'pre-wrap' }}>{s.content}</div>
+                  {s.image_token && (
+                    <img src={`/api/problems/images/${s.image_token}`} alt="문제 이미지" style={{ display: 'block', maxHeight: '240px', maxWidth: '100%', borderRadius: '0.4rem', margin: '0.4rem 0', border: '1px solid var(--border)' }} />
+                  )}
                   <div style={{ fontSize: '0.8rem', marginBottom: '0.3rem' }}>
                     <strong>정답:</strong> {s.answer} · <strong>보상:</strong> +{Number(s.current_difficulty).toLocaleString()} RP
                   </div>
@@ -3858,6 +3862,10 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   const [customLevel, setCustomLevel] = useState<'easy' | 'normal' | 'hard'>('normal');
   const [customTags, setCustomTags] = useState('');
   const [customRewardRating, setCustomRewardRating] = useState(50000);
+  // 출제 문제 이미지 (업로드 후 토큰만 제출에 실어 보낸다)
+  const [customImageToken, setCustomImageToken] = useState('');
+  const [customImagePreview, setCustomImagePreview] = useState('');
+  const [customImageUploading, setCustomImageUploading] = useState(false);
   const [customSubmitting, setCustomSubmitting] = useState(false);
   const [myProblems, setMyProblems] = useState<any[]>([]);
   const [showMyProblems, setShowMyProblems] = useState(false);
@@ -4103,6 +4111,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
           explanation: customExplanation,
           level: customLevel,
           tags: customTags.split(',').map(t => t.trim()).filter(Boolean),
+          ...(customImageToken ? { imageToken: customImageToken } : {}),
           ...(user.username === 'admin' ? { ratingReward: customRewardRating } : {})
         })
       });
@@ -4117,6 +4126,8 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
         setCustomTags('');
         setCustomLevel('normal');
         setCustomRewardRating(50000);
+        setCustomImageToken('');
+        setCustomImagePreview('');
         if (user.username === 'admin') {
           setPage(1);
           fetchProblems();
@@ -4131,6 +4142,61 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       alert('네트워크 오류로 출제하지 못했습니다.');
     }
     setCustomSubmitting(false);
+  };
+
+  // 폰 사진을 그대로 올리면 3MB 제한에 걸린다. 브라우저에서 먼저 줄여서 올린다.
+  const resizeProblemImage = (file: File): Promise<File> => new Promise((resolve, reject) => {
+    const MAX_EDGE = 1600;
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+      // 이미 작고 가벼우면 손대지 않는다(도형 그림의 투명 배경·선명도 보존).
+      if (scale === 1 && file.size <= 600 * 1024) return resolve(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(file);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        if (!blob) return resolve(file);
+        const base = file.name.replace(/\.[^.]+$/, '') || 'problem';
+        // 브라우저가 webp 인코딩을 못 하면 png가 올 수 있다 — 확장자와 실제 형식을 맞춰야 서버 검사를 통과한다.
+        const type = blob.type || 'image/webp';
+        const ext = type === 'image/png' ? 'png' : type === 'image/jpeg' ? 'jpg' : 'webp';
+        resolve(new File([blob], `${base}.${ext}`, { type }));
+      }, 'image/webp', 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('이미지를 읽지 못했습니다.')); };
+    img.src = objectUrl;
+  });
+
+  const handleCustomImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setCustomImageUploading(true);
+    try {
+      const resized = await resizeProblemImage(file);
+      if (resized.size > 3 * 1024 * 1024) throw new Error('이미지가 너무 큽니다. 3MB 이하로 올려주세요.');
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('image', resized);
+      const res = await fetch('/api/problems/image', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '이미지를 올리지 못했습니다.');
+      setCustomImageToken(data.token);
+      setCustomImagePreview(data.url);
+    } catch (err: any) {
+      alert(err?.message || '이미지를 올리지 못했습니다.');
+    }
+    setCustomImageUploading(false);
   };
 
   const selectedProblem = problems.find(p => p.id === selectedProblemId);
@@ -4207,7 +4273,22 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
               </select>
               <input type="text" placeholder="태그 (쉼표로 구분, 선택)" value={customTags} onChange={e => setCustomTags(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
             </div>
-            <button type="submit" disabled={customSubmitting} className="btn" style={{ padding: '0.5rem', fontSize: '0.85rem', background: 'var(--color-4)', color: 'white', opacity: customSubmitting ? 0.6 : 1 }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+              <label className="btn" style={{ width: 'auto', padding: '0.4rem 0.7rem', fontSize: '0.75rem', background: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}>
+                {customImageUploading ? '이미지 올리는 중...' : (customImagePreview ? '이미지 바꾸기' : '이미지 첨부 (선택)')}
+                <input type="file" accept="image/*" onChange={handleCustomImageSelect} style={{ display: 'none' }} />
+              </label>
+              {customImagePreview && (
+                <>
+                  <img src={customImagePreview} alt="첨부한 이미지" style={{ maxHeight: '80px', maxWidth: '160px', borderRadius: '0.4rem', border: '1px solid var(--border)' }} />
+                  <button type="button" onClick={() => { setCustomImageToken(''); setCustomImagePreview(''); }} className="btn" style={{ width: 'auto', padding: '0.3rem 0.6rem', fontSize: '0.7rem', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)' }}>이미지 삭제</button>
+                </>
+              )}
+            </div>
+            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0 0 0.6rem' }}>
+              도형·그래프가 있는 문제는 이미지를 함께 올려주세요. 큰 사진은 자동으로 줄여서 올립니다(3MB 이하).
+            </p>
+            <button type="submit" disabled={customSubmitting || customImageUploading} className="btn" style={{ padding: '0.5rem', fontSize: '0.85rem', background: 'var(--color-4)', color: 'white', opacity: customSubmitting ? 0.6 : 1 }}>
               {customSubmitting ? '등록 중...' : (user.username === 'admin' ? '등록하기' : '출제하고 검수 요청')}
             </button>
           </form>
@@ -4235,6 +4316,9 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
                         <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{mp.title}</span>
                         <span style={{ fontSize: '0.65rem', fontWeight: 700, color: badge.color, border: `1px solid ${badge.color}`, borderRadius: '99px', padding: '0.1rem 0.4rem', whiteSpace: 'nowrap' }}>{badge.text}</span>
                       </div>
+                      {mp.image_token && (
+                        <img src={`/api/problems/images/${mp.image_token}`} alt="문제 이미지" style={{ display: 'block', maxHeight: '90px', maxWidth: '200px', borderRadius: '0.4rem', marginTop: '0.35rem', border: '1px solid var(--border)' }} />
+                      )}
                       <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '0.2rem' }}>
                         정답: {mp.answer} · +{Number(mp.current_difficulty).toLocaleString()} RP
                       </div>
@@ -4315,6 +4399,15 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
                 return <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d50000', padding: '0.2rem 0.6rem', borderRadius: '99px', background: 'rgba(213,0,0,0.12)', border: '1px solid rgba(213,0,0,0.3)' }}>매우어려움</span>;
               })()}
             </div>
+            {selectedProblem.image_token && (
+              <div style={{ marginBottom: '0.6rem' }}>
+                <img
+                  src={`/api/problems/images/${selectedProblem.image_token}`}
+                  alt="문제 이미지"
+                  style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: '0.5rem', border: '1px solid var(--border)' }}
+                />
+              </div>
+            )}
             <div className="math-content" style={{ fontSize: '1.8rem' }}>{renderMath(selectedProblem.content)}</div>
             {lastCorrectFeedback && (
               <div style={{ marginTop: '1rem', padding: '0.8rem 1rem', background: 'rgba(0, 200, 83, 0.08)', borderRadius: '0.5rem', border: '1px solid rgba(0, 200, 83, 0.25)' }}>
