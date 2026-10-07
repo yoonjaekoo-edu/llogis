@@ -116,23 +116,32 @@
     "difficulty": 5000,
     "variables": {
       "initial_conc": {
-        "type": "integer",
-        "min": 5,
-        "max": 10
+        "type": "choice",
+        "choices": [
+          5,
+          8,
+          12
+        ]
       },
       "initial_water": {
-        "type": "integer",
-        "min": 200,
-        "max": 500
+        "type": "choice",
+        "choices": [
+          300,
+          400,
+          500,
+          600
+        ]
       },
       "target_conc": {
-        "type": "integer",
-        "min": 12,
-        "max": 20
+        "type": "choice",
+        "choices": [
+          10,
+          20,
+          25
+        ]
       }
     },
     "constraints": [
-      "(initial_conc * initial_water) % target_conc == 0",
       "target_conc > initial_conc"
     ],
     "problem_template": "{{initial_conc}}\\%의 소금물 {{initial_water}}g이 있다. 이 소금물에서 물을 몇 g 증발시켜야 {{target_conc}}\\%의 소금물이 되는지 구하시오.",
@@ -160,26 +169,39 @@
     "difficulty": 5000,
     "variables": {
       "dist": {
-        "type": "integer",
-        "min": 10,
-        "max": 30
+        "type": "choice",
+        "choices": [
+          6,
+          12,
+          24
+        ]
       },
       "speed1": {
-        "type": "integer",
-        "min": 3,
-        "max": 5
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          4,
+          6,
+          12
+        ]
       },
       "speed2": {
-        "type": "integer",
-        "min": 2,
-        "max": 4
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          4,
+          6
+        ]
       }
     },
     "constraints": [
       "speed1 > speed2",
-      "(dist * (speed1 + speed2)) % (speed1 * speed2) == 0"
+      "dist % speed1 == 0",
+      "dist % speed2 == 0"
     ],
-    "problem_template": "집에서 학교까지 갈 때는 시속 {{speed1}}km로 걷고, 올 때는 시속 {{speed2}}km로 걸어서 왕복하는 데 총 $\\frac{{{dist * (speed1 + speed2)}}}{{{speed1 * speed2}}}$시간이 걸렸다. 집과 학교 사이의 거리를 구하시오. (단, 단위는 km)",
+    "problem_template": "집에서 학교까지 갈 때는 시속 {{speed1}}km로, 올 때는 시속 {{speed2}}km로 이동하여 왕복하는 데 총 ${{(dist * (speed1 + speed2)) / (speed1 * speed2)}}$시간이 걸렸다. 집과 학교 사이의 거리를 구하시오. (단, 단위는 km)",
     "answer_formula": {
       "type": "expression",
       "value": "dist"
@@ -214,7 +236,9 @@
         "max": 5
       }
     },
-    "constraints": [],
+    "constraints": [
+      "b != 1"
+    ],
     "problem_template": "$(ax + {{a}})(x - {{b}})$를 전개했을 때, $x$의 계수가 ${{a - a*b}}$라면 $a$의 값을 구하시오.",
     "answer_formula": {
       "type": "expression",
@@ -444,43 +468,6 @@
     ]
   },
   {
-    "id": "MS-COORD-001",
-    "unit": "좌표평면",
-    "title": "사분면 위의 점",
-    "difficulty": 5500,
-    "variables": {
-      "a": {
-        "type": "integer",
-        "min": 1,
-        "max": 10
-      },
-      "b": {
-        "type": "integer",
-        "min": -10,
-        "max": -1
-      }
-    },
-    "constraints": [],
-    "problem_template": "점 $P({{a}}, {{b}})$를 $x$축에 대하여 대칭이동한 점이 속하는 사분면을 구하시오. (예: 1, 2, 3, 4)",
-    "answer_formula": {
-      "type": "expression",
-      "value": "1"
-    },
-    "concepts": [
-      "좌표평면",
-      "대칭이동",
-      "사분면"
-    ],
-    "reward_rating": 5500,
-    "domain": "함수",
-    "tags": [
-      "함수",
-      "좌표평면",
-      "대칭이동",
-      "사분면"
-    ]
-  },
-  {
     "id": "MS-QUADF-001",
     "unit": "이차함수",
     "title": "이차함수의 꼭짓점",
@@ -497,8 +484,10 @@
         "max": 5
       }
     },
-    "constraints": [],
-    "problem_template": "이차함수 $y = (x - {{p}})^2 + {{q}}$의 꼭짓점의 좌표가 $(a, b)$일 때, $a+b$의 값을 구하시오.",
+    "constraints": [
+      "p * p + q > 0"
+    ],
+    "problem_template": "이차함수 $y = x^2 - {{2 * p}}x + {{p * p + q}}$의 꼭짓점의 좌표가 $(a, b)$일 때, $a+b$의 값을 구하시오.",
     "answer_formula": {
       "type": "expression",
       "value": "p + q"
@@ -533,7 +522,8 @@
       }
     },
     "constraints": [
-      "a != b"
+      "a != b",
+      "(a * b) % 2 == 0"
     ],
     "problem_template": "비례식 $x : {{a}} = (x + {{b}}) : {{a + 2}}$를 만족하는 $x$의 값을 구하시오.",
     "answer_formula": {
@@ -668,7 +658,7 @@
       }
     },
     "constraints": [],
-    "problem_template": "$x^2 - 2{{m}}x + k = 0$이 중근을 가질 때, 상수 $k$의 값을 구하시오.",
+    "problem_template": "$x^2 - {{2 * m}}x + k = 0$이 중근을 가질 때, 상수 $k$의 값을 구하시오.",
     "answer_formula": {
       "type": "expression",
       "value": "m * m"
@@ -795,19 +785,29 @@
     "difficulty": 6000,
     "variables": {
       "cost": {
-        "type": "integer",
-        "min": 5000,
-        "max": 10000
+        "type": "choice",
+        "choices": [
+          5000,
+          6000,
+          7000,
+          8000,
+          9000,
+          12000
+        ]
       },
       "rate": {
-        "type": "integer",
-        "min": 10,
-        "max": 30
+        "type": "choice",
+        "choices": [
+          5,
+          10,
+          15,
+          20,
+          25,
+          30
+        ]
       }
     },
-    "constraints": [
-      "cost % 10 == 0"
-    ],
+    "constraints": [],
     "problem_template": "원가가 {{cost}}원인 물건에 {{rate}}\\%의 이익을 붙여서 정가를 정하였다. 이 물건의 정가를 구하시오.",
     "answer_formula": {
       "type": "expression",
@@ -873,17 +873,23 @@
     "difficulty": 6000,
     "variables": {
       "a": {
-        "type": "integer",
-        "min": 2,
-        "max": 5
+        "type": "choice",
+        "choices": [
+          2,
+          3,
+          5,
+          7
+        ]
       },
       "b": {
         "type": "integer",
         "min": 3,
-        "max": 7
+        "max": 9
       }
     },
-    "constraints": [],
+    "constraints": [
+      "b % a != 0"
+    ],
     "problem_template": "$\\frac{{{a}}}{{{b}}}$의 역수를 $x$, $-{{a}}$의 역수를 $y$라 할 때, $x \\times y$의 값을 구하시오.",
     "answer_formula": {
       "type": "expression",
@@ -900,65 +906,6 @@
       "정수와 유리수",
       "역수",
       "유리수의 곱셈"
-    ]
-  },
-  {
-    "id": "MS-INEQ-002",
-    "unit": "부등식",
-    "title": "부등식의 성질",
-    "difficulty": 6000,
-    "variables": {
-      "a": {
-        "type": "integer",
-        "min": -5,
-        "max": -2
-      }
-    },
-    "constraints": [],
-    "problem_template": "$x < y$일 때, 다음 중 옳은 것을 고르면? (정답: ${{a}}x > {{a}}y$)",
-    "answer_formula": {
-      "type": "expression",
-      "value": "a"
-    },
-    "concepts": [
-      "부등식의 성질"
-    ],
-    "reward_rating": 6000,
-    "domain": "방정식과 부등식",
-    "tags": [
-      "방정식과 부등식",
-      "부등식",
-      "부등식의 성질"
-    ]
-  },
-  {
-    "id": "MS-FACT-003",
-    "unit": "인수분해",
-    "title": "공통인수 추출",
-    "difficulty": 6000,
-    "variables": {
-      "a": {
-        "type": "integer",
-        "min": 2,
-        "max": 6
-      }
-    },
-    "constraints": [],
-    "problem_template": "${{a}}x^2 - {{a*a}}x$를 인수분해했을 때 인수가 아닌 것은? (단, 보기 생략하고 공통인수 구하기)",
-    "answer_formula": {
-      "type": "expression",
-      "value": "a"
-    },
-    "concepts": [
-      "인수분해",
-      "공통인수"
-    ],
-    "reward_rating": 6000,
-    "domain": "문자와 식",
-    "tags": [
-      "문자와 식",
-      "인수분해",
-      "공통인수"
     ]
   },
   {
@@ -997,43 +944,6 @@
       "식의 계산",
       "식의 값",
       "대입"
-    ]
-  },
-  {
-    "id": "MS-SYSEQ-003",
-    "unit": "연립방정식",
-    "title": "속력차를 이용한 연립방정식",
-    "difficulty": 6500,
-    "variables": {
-      "sum_v": {
-        "type": "integer",
-        "min": 10,
-        "max": 20
-      },
-      "diff_v": {
-        "type": "integer",
-        "min": 2,
-        "max": 6
-      }
-    },
-    "constraints": [
-      "(sum_v + diff_v) % 2 == 0"
-    ],
-    "problem_template": "강물이 시속 $v_w$km로 흐를 때, 배의 정지 상태 속력을 $v_b$라 하자. 강을 거슬러 올라갈 때의 속력이 {{ (sum_v - diff_v)/2 }}km/h, 내려갈 때의 속력이 {{ (sum_v + diff_v)/2 }}km/h라면 배의 원래 속력 $v_b$를 구하시오.",
-    "answer_formula": {
-      "type": "expression",
-      "value": "sum_v / 2"
-    },
-    "concepts": [
-      "연립방정식",
-      "강물의 속력"
-    ],
-    "reward_rating": 6500,
-    "domain": "방정식과 부등식",
-    "tags": [
-      "방정식과 부등식",
-      "연립방정식",
-      "강물의 속력"
     ]
   },
   {
@@ -1192,58 +1102,6 @@
     "tags": [
       "도형",
       "닮음"
-    ]
-  },
-  {
-    "id": "MS-STAT-001",
-    "unit": "통계",
-    "title": "평균 계산",
-    "difficulty": 6500,
-    "variables": {
-      "a": {
-        "type": "integer",
-        "min": 5,
-        "max": 20
-      },
-      "b": {
-        "type": "integer",
-        "min": 5,
-        "max": 20
-      },
-      "c": {
-        "type": "integer",
-        "min": 5,
-        "max": 20
-      },
-      "d": {
-        "type": "integer",
-        "min": 5,
-        "max": 20
-      },
-      "e": {
-        "type": "integer",
-        "min": 5,
-        "max": 20
-      }
-    },
-    "constraints": [
-      "(a + b + c + d + e) % 5 == 0"
-    ],
-    "problem_template": "다음 자료의 평균을 구하시오. ${{a}}, {{b}}, {{c}}, {{d}}, {{e}}$",
-    "answer_formula": {
-      "type": "expression",
-      "value": "(a + b + c + d + e) / 5"
-    },
-    "concepts": [
-      "통계",
-      "평균"
-    ],
-    "reward_rating": 6500,
-    "domain": "확률과 통계",
-    "tags": [
-      "확률과 통계",
-      "통계",
-      "평균"
     ]
   },
   {

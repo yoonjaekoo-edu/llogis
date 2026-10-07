@@ -472,6 +472,32 @@ const ensureSchema = async () => {
   } catch (err) {
     console.warn('도메인 백필을 건너뜁니다:', err);
   }
+
+  // 문제가 성립하지 않던 템플릿의 문제를 지우고, 오류를 고친 템플릿 문제를 다시 생성한다.
+  // 파괴적이라 정확히 한 번만 돌도록 app_migrations 마커로 막는다.
+  try {
+    const cleanupId = 'template-cleanup-2026-10';
+    const already = await pool.query('SELECT 1 FROM app_migrations WHERE id = $1', [cleanupId]);
+    if (already.rows.length === 0) {
+      const result = await rebuildTemplateProblems();
+      await pool.query('INSERT INTO app_migrations (id) VALUES ($1)', [cleanupId]);
+      const summary = `템플릿 정리: 문제 ${result.deletedProblems}건 삭제, ${result.generatedProblems}건 재생성 (${result.templates.length}개 템플릿)`;
+      console.log(summary);
+      // 조용히 실패/성공하지 않도록 관리자 알림에도 남긴다.
+      await pool.query(
+        'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
+        ['template_cleanup', summary, null, '시스템', null]
+      );
+    }
+  } catch (err: any) {
+    console.warn('템플릿 정리를 건너뜁니다:', err);
+    try {
+      await pool.query(
+        'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
+        ['template_cleanup_error', `템플릿 정리 실패: ${err?.message || err}`, null, '시스템', null]
+      );
+    } catch (e) { /* 알림 실패는 무시 */ }
+  }
 };
 
 const authenticateToken = (req: any, res: any, next: NextFunction) => {
@@ -3124,6 +3150,74 @@ app.get('/api/users/domain-radar', async (req: Request, res: Response) => {
   }
 });
 
+// 문제가 성립하지 않아 없앤 템플릿(제목은 삭제 전 값 — 옛 문제를 제목으로도 잡기 위함).
+const REMOVED_TEMPLATE_IDS = ['MS-STAT-001', 'MS-INEQ-002', 'MS-FACT-003', 'MS-SYSEQ-003', 'MS-COORD-001'];
+const REMOVED_TEMPLATE_TITLES = ['평균 계산', '부등식의 성질', '공통인수 추출', '속력차를 이용한 연립방정식', '사분면 위의 점'];
+// 오류를 고친 뒤 다시 만들어야 하는 템플릿.
+const REBUILT_TEMPLATE_IDS = ['MS-QUAD-002', 'MS-QUADF-001', 'MS-NUM-002', 'MS-EQ-PR-001', 'MS-RATIO-001', 'MS-POLY-001', 'MS-SPD-001', 'MS-CONC-001'];
+const REBUILD_PER_TEMPLATE = 30;
+
+// 지정한 템플릿들의 기존 문제를 지우고(오답·깨진 문제가 남지 않도록) 다시 생성한다.
+// 삭제된 템플릿은 생성할 수 없으므로 삭제만 된다.
+const rebuildTemplateProblems = async (
+  opts?: { templateIds?: string[]; perTemplate?: number; regenerate?: boolean },
+): Promise<{ deletedProblems: number; generatedProblems: number; templates: string[] }> => {
+  const ids = opts?.templateIds ?? REBUILT_TEMPLATE_IDS;
+  const perTemplate = Math.max(0, Math.min(200, opts?.perTemplate ?? REBUILD_PER_TEMPLATE));
+  const regenerate = opts?.regenerate ?? true;
+
+  const titles = [
+    ...REMOVED_TEMPLATE_TITLES,
+    ...ids.map((id) => getTemplateById(id)?.title).filter((t): t is string => Boolean(t)),
+  ];
+
+  // 없앤 템플릿은 id·제목 둘 다로 잡는다(template_id가 아직 없던 옛 문제까지 포함).
+  const deleted = await pool.query(
+    `DELETE FROM problems
+     WHERE is_custom IS NOT TRUE
+       AND (template_id = ANY($1::text[]) OR title = ANY($2::text[]))`,
+    [[...REMOVED_TEMPLATE_IDS, ...ids], titles]
+  );
+
+  let generatedProblems = 0;
+  if (regenerate && perTemplate > 0) {
+    for (const id of ids) {
+      const template = getTemplateById(id);
+      if (!template) continue; // 없앤 템플릿은 다시 만들지 않는다
+      const generated = batchGenerate(template, perTemplate);
+      if (generated.length === 0) continue;
+
+      // 태그는 템플릿별로 한 번만 확보한다.
+      const tagIds: number[] = [];
+      for (const name of new Set(generated.flatMap((p) => p.tags ?? template.tags ?? []))) {
+        const tagRes = await pool.query(
+          'INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id',
+          [name]
+        );
+        tagIds.push(Number(tagRes.rows[0].id));
+      }
+
+      for (const p of generated) {
+        const res = await pool.query(
+          `INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, reward_rating, template_id, unit, domain)
+           VALUES ($1, $2, $3, $4, $5, 'Calculation', $6, $7, $8, $9) RETURNING id`,
+          [p.title, p.problem, String(p.answer), p.difficulty, p.rewardRating, p.rewardRating,
+           p.typeId || template.id, p.unit ?? template.unit ?? null, p.domain ?? template.domain ?? null]
+        );
+        if (tagIds.length > 0) {
+          await pool.query(
+            'INSERT INTO problem_tags (problem_id, tag_id) SELECT $1, unnest($2::int[]) ON CONFLICT DO NOTHING',
+            [res.rows[0].id, tagIds]
+          );
+        }
+        generatedProblems++;
+      }
+    }
+  }
+
+  return { deletedProblems: deleted.rowCount ?? 0, generatedProblems, templates: ids };
+};
+
 // 템플릿 제목 → 기존 문제를 되짚어 단원·도메인·템플릿ID·태그를 채운다. 멱등.
 const backfillProblemDomains = async (): Promise<{
   matchedProblems: number;
@@ -3189,6 +3283,25 @@ const backfillProblemDomains = async (): Promise<{
     templates: templates.length,
   };
 };
+
+// 관리자: 깨진/수정된 템플릿의 문제를 지우고 다시 생성한다.
+// body: { templateIds?: string[], perTemplate?: number, regenerate?: boolean }
+app.post('/api/admin/problems/rebuild-templates', authenticateToken, async (req: any, res: Response) => {
+  if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    const templateIds = Array.isArray(req.body?.templateIds) && req.body.templateIds.length > 0
+      ? req.body.templateIds.map((v: any) => String(v))
+      : undefined;
+    res.json(await rebuildTemplateProblems({
+      templateIds,
+      perTemplate: req.body?.perTemplate,
+      regenerate: req.body?.regenerate !== false,
+    }));
+  } catch (error: any) {
+    console.error('템플릿 문제 재생성 실패:', error?.message || error);
+    res.status(500).json({ error: error?.message || '재생성에 실패했습니다.' });
+  }
+});
 
 // 관리자: 위 백필을 수동으로 다시 돌린다(결과 숫자를 확인할 때 사용).
 app.post('/api/admin/problems/backfill-domains', authenticateToken, async (req: any, res: Response) => {

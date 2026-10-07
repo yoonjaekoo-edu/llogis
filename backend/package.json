@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "worker:dev": "wrangler dev --port 8787",
     "worker:deploy": "wrangler deploy",
-    "worker:typecheck": "tsc --noEmit -p worker/tsconfig.json"
+    "worker:typecheck": "tsc --noEmit -p worker/tsconfig.json",
+    "check:templates": "node scripts/check-templates.cjs"
   },
   "keywords": [],
   "author": "",

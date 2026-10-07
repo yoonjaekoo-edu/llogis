@@ -15,7 +15,7 @@ describe('Template Problem Generator Service', () => {
   describe('getAllTemplates', () => {
     it('returns all templates', () => {
       const templates = getAllTemplates();
-      expect(templates.length).toBe(81);
+      expect(templates.length).toBe(76);
     });
 
     it('each template has required fields', () => {
@@ -72,7 +72,9 @@ describe('Template Problem Generator Service', () => {
       expect(units).toContain('일차방정식');
       expect(units).toContain('도형');
       expect(units).toContain('통계');
-      expect(units).toContain('확률');
+      // 확률·경우의 수는 생성 풀에서 빠지므로(EXCLUDED_UNITS) 단원 목록에도 없어야 한다.
+      expect(units).not.toContain('확률');
+      expect(units).not.toContain('경우의 수');
       expect(units.length).toBeGreaterThan(5);
     });
   });
