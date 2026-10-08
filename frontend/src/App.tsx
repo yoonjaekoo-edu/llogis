@@ -255,6 +255,7 @@ const Navbar: React.FC<{
   const isActive = (path: string) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
   const navLinks = [
     { to: '/solve', label: '문제 풀기' },
+    { to: '/box', label: '상자깡' },
     { to: '/ranking', label: '랭킹' },
     { to: '/groups', label: '그룹' },
     { to: '/shop', label: '상점' },
@@ -4586,6 +4587,288 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   );
 };
 
+const BOX_RARITY_COLORS: Record<string, string> = {
+  common: '#9aa4b2',
+  rare: '#4c8dff',
+  epic: '#a970ff',
+  heroic: '#ffb020',
+  legendary: '#ff5f56'
+};
+
+type BoxTierRow = { rarity: string; label: string; minStreak: number; rating: [number, number]; tokens: [number, number] };
+type BoxHistoryRow = { day_key: string; rarity: string; rating_reward: number; token_reward: number; streak_at: number; upgraded: boolean };
+type BoxInfo = {
+  dayKey: string;
+  streak: number;
+  baseRarity: string;
+  upgradeChance: number;
+  nextRarity: { next: string; days: number } | null;
+  tiers: BoxTierRow[];
+  openedToday: { rarity: string; rating_reward: number; token_reward: number; upgraded: boolean } | null;
+  boxStreak: number;
+  history: BoxHistoryRow[];
+  stats: { total: number; legendary: number; ratingTotal: number; tokenTotal: number; byRarity: { rarity: string; count: number }[] };
+};
+type BoxOpenResult = {
+  rarity: string;
+  upgraded: boolean;
+  tier: { label: string };
+  ratingReward: number;
+  tokenReward: number;
+  unlockedTitles: { title_id: string; name: string; description: string }[];
+};
+
+const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ user, setUser }) => {
+  const [info, setInfo] = useState<BoxInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [opening, setOpening] = useState(false);
+  const [result, setResult] = useState<BoxOpenResult | null>(null);
+  const [error, setError] = useState('');
+
+  const rarityLabel = (rarity: string) => info?.tiers.find(t => t.rarity === rarity)?.label || rarity;
+
+  const load = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch('/api/box', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '상자 정보를 불러오지 못했어');
+      setInfo(data);
+      if (data.openedToday) {
+        setResult({
+          rarity: data.openedToday.rarity,
+          upgraded: data.openedToday.upgraded,
+          tier: data.tiers.find((t: BoxTierRow) => t.rarity === data.openedToday.rarity),
+          ratingReward: data.openedToday.rating_reward,
+          tokenReward: data.openedToday.token_reward,
+          unlockedTitles: []
+        });
+      }
+    } catch (err: any) {
+      setError(err?.message || '상자 정보를 불러오지 못했어');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openBox = async () => {
+    const token = localStorage.getItem('token');
+    if (!token || opening) return;
+    setOpening(true);
+    setError('');
+    try {
+      const res = await fetch('/api/box/open', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '상자를 열지 못했어');
+      // 여는 맛을 조금 살린다(잠깐 돌린 뒤 결과를 보여준다)
+      setTimeout(async () => {
+        setResult(data);
+        setOpening(false);
+        if (user && (data.rating !== undefined || data.tokens !== undefined)) {
+          setUser({ ...user, rating: data.rating ?? user.rating, tokens: data.tokens ?? user.tokens });
+        }
+        await load();
+      }, 700);
+    } catch (err: any) {
+      setOpening(false);
+      setError(err?.message || '상자를 열지 못했어');
+      await load();
+    }
+  };
+
+  if (!user) {
+    return (
+      <main className="container" style={{ padding: '3rem 1rem', maxWidth: '720px' }}>
+        <h2>상자깡</h2>
+        <p style={{ opacity: 0.8 }}>로그인하면 매일 상자를 하나씩 열 수 있어. <Link to="/login" style={{ color: 'var(--color-4)' }}>로그인</Link></p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="container" style={{ padding: '2rem 1rem 4rem', maxWidth: '860px' }}>
+      <style>{`
+        @keyframes boxShake {
+          0% { transform: rotate(0deg) scale(1); }
+          20% { transform: rotate(-9deg) scale(1.04); }
+          40% { transform: rotate(9deg) scale(1.06); }
+          60% { transform: rotate(-6deg) scale(1.04); }
+          80% { transform: rotate(6deg) scale(1.02); }
+          100% { transform: rotate(0deg) scale(1); }
+        }
+        @keyframes boxPop {
+          0% { transform: scale(0.9); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+
+      <h2 style={{ marginBottom: '0.4rem' }}>상자깡</h2>
+      <p style={{ opacity: 0.75, fontSize: '0.92rem', marginBottom: '1.5rem' }}>
+        하루 한 개. 연속 방문(스트릭)이 길수록 더 좋은 상자가 나오고, 한 단계 위 등급이 나올 확률도 올라가.
+      </p>
+
+      <section style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '1rem', padding: '1.4rem', marginBottom: '1.2rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.2rem', justifyContent: 'space-between', marginBottom: '1.1rem' }}>
+          <div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>현재 연속 방문</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700 }}>{info ? `${info.streak}일` : '-'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>기본 등급</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: info ? BOX_RARITY_COLORS[info.baseRarity] : undefined }}>
+              {info ? rarityLabel(info.baseRarity) : '-'}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>등급 업그레이드 확률</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700 }}>{info ? `${Math.round(info.upgradeChance * 100)}%` : '-'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>다음 등급까지</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700 }}>
+              {info?.nextRarity ? `${info.nextRarity.days}일 (${rarityLabel(info.nextRarity.next)})` : '최고 등급'}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', padding: '1.2rem 0' }}>
+          <div
+            aria-hidden="true"
+            style={{
+              width: '120px',
+              height: '120px',
+              margin: '0 auto 1.1rem',
+              borderRadius: '1rem',
+              border: `2px solid ${result ? BOX_RARITY_COLORS[result.rarity] : 'var(--border)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1rem',
+              fontWeight: 700,
+              letterSpacing: '0.05rem',
+              color: result ? BOX_RARITY_COLORS[result.rarity] : 'var(--color-4)',
+              animation: opening ? 'boxShake 0.7s ease-in-out infinite' : result ? 'boxPop 0.35s ease-out' : 'none'
+            }}
+          >
+            {opening ? '여는 중' : result ? rarityLabel(result.rarity) : '상자'}
+          </div>
+
+          {result ? (
+            <div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.3rem' }}>
+                {result.upgraded ? `한 단계 위! ${rarityLabel(result.rarity)} 상자` : `${rarityLabel(result.rarity)} 상자`}
+              </div>
+              <div style={{ opacity: 0.85 }}>
+                레이팅 <b>+{result.ratingReward.toLocaleString()}</b> · 토큰 <b>+{result.tokenReward}</b>
+              </div>
+              {result.unlockedTitles.length > 0 && (
+                <div style={{ marginTop: '0.7rem', fontSize: '0.9rem' }}>
+                  새 칭호: {result.unlockedTitles.map(t => <b key={t.title_id} style={{ marginLeft: '0.35rem' }}>{t.name}</b>)}
+                </div>
+              )}
+              <div style={{ marginTop: '0.8rem', fontSize: '0.85rem', opacity: 0.6 }}>
+                {info?.openedToday ? '오늘 상자는 이미 열었어. 내일 또 오면 연속 기록이 이어져.' : ''}
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={openBox}
+              disabled={opening || loading}
+              style={{
+                padding: '0.85rem 2.2rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                borderRadius: '0.8rem',
+                border: 'none',
+                background: 'var(--color-4)',
+                color: '#fff',
+                cursor: opening ? 'wait' : 'pointer',
+                opacity: opening || loading ? 0.7 : 1
+              }}
+            >
+              {opening ? '상자 여는 중...' : '오늘 상자 열기'}
+            </button>
+          )}
+        </div>
+
+        {error && <p style={{ color: '#ff6b6b', textAlign: 'center', margin: 0 }}>{error}</p>}
+      </section>
+
+      <section style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '1rem', padding: '1.4rem', marginBottom: '1.2rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '0.9rem', fontSize: '1.05rem' }}>등급표</h3>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', opacity: 0.65 }}>
+                <th style={{ padding: '0.4rem 0.5rem' }}>등급</th>
+                <th style={{ padding: '0.4rem 0.5rem' }}>필요 연속 방문</th>
+                <th style={{ padding: '0.4rem 0.5rem' }}>레이팅</th>
+                <th style={{ padding: '0.4rem 0.5rem' }}>토큰</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(info?.tiers || []).map(tier => (
+                <tr key={tier.rarity} style={{ borderTop: '1px solid var(--border)', fontWeight: info?.baseRarity === tier.rarity ? 700 : 400 }}>
+                  <td style={{ padding: '0.45rem 0.5rem', color: BOX_RARITY_COLORS[tier.rarity] }}>{tier.label}</td>
+                  <td style={{ padding: '0.45rem 0.5rem' }}>{tier.minStreak === 0 ? '없음' : `${tier.minStreak}일`}</td>
+                  <td style={{ padding: '0.45rem 0.5rem' }}>{tier.rating[0].toLocaleString()} ~ {tier.rating[1].toLocaleString()}</td>
+                  <td style={{ padding: '0.45rem 0.5rem' }}>{tier.tokens[0]} ~ {tier.tokens[1]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ marginBottom: 0, marginTop: '0.8rem', fontSize: '0.85rem', opacity: 0.7 }}>
+          연속 방문이 끊기면 다시 일반 등급부터 시작해. 상자깡 전용 칭호도 있어 — 깡의 시작 / 상자깡 중독 / 깡 고인물 / 개근 깡 / 운빨의 화신.
+        </p>
+      </section>
+
+      <section style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '1rem', padding: '1.4rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '0.9rem', fontSize: '1.05rem' }}>내 기록</h3>
+        {info && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.2rem', marginBottom: '1rem', fontSize: '0.92rem' }}>
+            <span>총 <b>{info.stats.total}</b>회 개봉</span>
+            <span>전설 <b>{info.stats.legendary}</b>회</span>
+            <span>연속 개봉 <b>{info.boxStreak}</b>일</span>
+            <span>누적 레이팅 <b>+{info.stats.ratingTotal.toLocaleString()}</b></span>
+            <span>누적 토큰 <b>+{info.stats.tokenTotal}</b></span>
+          </div>
+        )}
+        {loading ? (
+          <p style={{ opacity: 0.7 }}>불러오는 중...</p>
+        ) : info && info.history.length > 0 ? (
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {info.history.map(row => (
+              <li key={row.day_key} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.5rem 0', borderTop: '1px solid var(--border)', fontSize: '0.9rem', flexWrap: 'wrap' }}>
+                <span style={{ opacity: 0.75 }}>{row.day_key} · {row.streak_at}일차</span>
+                <span>
+                  <b style={{ color: BOX_RARITY_COLORS[row.rarity] }}>{rarityLabel(row.rarity)}</b>
+                  {row.upgraded ? ' (업그레이드)' : ''} · 레이팅 +{row.rating_reward.toLocaleString()} · 토큰 +{row.token_reward}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p style={{ opacity: 0.7, margin: 0 }}>아직 연 상자가 없어. 오늘 하나 열어봐.</p>
+        )}
+      </section>
+    </main>
+  );
+};
+
 const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ user, setUser }) => {
   type StoreItem = { id: string; name: string; cost: number; description: string };
   type ExchangeResponse = {
@@ -5081,6 +5364,7 @@ const AppContent: React.FC = () => {
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
           <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
           <Route path="/shop" element={<Shop user={user} setUser={setUser} />} />
+          <Route path="/box" element={<BoxPage user={user} setUser={setUser} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/bug-report" element={<BugReport user={user} />} />
           <Route path="/goose-room" element={<GooseRoom />} />

@@ -21,6 +21,14 @@ import {
 } from './templateProblemGenerator';
 import { getTier, processSubmission, getTierConfig, updateTierConfig } from './rating/ratingService';
 import { LEAGUE_MIN_SCORE, LEAGUE_REWARD_TOKENS, pickLeagueWinners } from './rating/leagueWinners';
+import {
+  BOX_RARITY_ORDER,
+  BOX_TIERS,
+  daysToNextRarity,
+  rarityForStreak,
+  rollDailyBox,
+  upgradeChance
+} from './box/dailyBox';
 import { getTodayString, getWeekKeyString, shiftWeekKey, getWeekRange } from './rating/gameSystemService';
 import { signupRateLimit, loginRateLimit, profileRateLimit } from './security/rateLimiter';
 import {
@@ -293,6 +301,24 @@ const ensureSchema = async () => {
     )
   `);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS box_openings (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      day_key VARCHAR(10) NOT NULL,
+      rarity VARCHAR(16) NOT NULL,
+      rating_reward INTEGER NOT NULL,
+      token_reward INTEGER NOT NULL,
+      streak_at INTEGER NOT NULL DEFAULT 0,
+      upgraded BOOLEAN NOT NULL DEFAULT FALSE,
+      opened_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (user_id, day_key)
+    )
+  `);
+  // (user_id, day_key) UNIQUE가 하루 1회를 서버에서 강제한다(동시 요청도 하나만 통과).
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS box_openings_user_idx ON box_openings (user_id, opened_at DESC)
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS titles (
       id SERIAL PRIMARY KEY,
       title_id VARCHAR(50) UNIQUE NOT NULL,
@@ -332,7 +358,12 @@ const ensureSchema = async () => {
       ('accuracy_master', '빗나가지 않는 자', '통합 정확도 90% 이상', 'accuracy', 90),
       ('first_correct', '첫 걸음', '첫 문제 정답 맞추기', 'solve_count', 1),
       ('token_hoarder', '토큰은 내 친구', '토큰 1000개 이상 보유', 'tokens', 1000),
-      ('xp_master', '경험치 중독자', 'XP 10000 이상 획득', 'xp', 10000)
+      ('xp_master', '경험치 중독자', 'XP 10000 이상 획득', 'xp', 10000),
+      ('box_first', '깡의 시작', '상자깡을 1번 개봉하세요', 'box_openings', 1),
+      ('box_10', '상자깡 중독', '상자깡을 10번 개봉하세요', 'box_openings', 10),
+      ('box_50', '깡 고인물', '상자깡을 50번 개봉하세요', 'box_openings', 50),
+      ('box_streak_7', '개근 깡', '상자깡을 7일 연속 개봉하세요', 'box_streak', 7),
+      ('box_legend_5', '운빨의 화신', '전설 상자를 5번 개봉하세요', 'box_legendary', 5)
     ON CONFLICT (title_id) DO UPDATE SET condition_value = EXCLUDED.condition_value, description = EXCLUDED.description
   `);
   await pool.query(`
@@ -1329,6 +1360,11 @@ app.post('/api/titles/check', authenticateToken, async (req: any, res: Response)
       }
     }
 
+    // 상자깡 칭호(개봉 횟수 / 전설 개봉 / 연속 개봉)는 여기서도 확인한다.
+    for (const t of await unlockBoxTitles(client, userId)) {
+      if (!newlyUnlocked.some((x: any) => x.title_id === t.title_id)) newlyUnlocked.push(t);
+    }
+
     res.json({ newlyUnlocked, correctCount, streak: user.streak, rank: userRank });
   } catch (err) {
     console.error('Failed to check titles:', err);
@@ -1915,6 +1951,190 @@ app.post('/api/admin/league/settle', authenticateToken, async (req: any, res: Re
   }
 });
 
+// 상자깡 칭호(개봉 횟수 / 전설 개봉 / 연속 개봉)를 확인해 새로 딴 칭호를 돌려준다.
+const unlockBoxTitles = async (client: any, userId: number) => {
+  const statsRes = await client.query(
+    `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE rarity = 'legendary')::int AS legendary
+     FROM box_openings WHERE user_id = $1`,
+    [userId]
+  );
+  const total = statsRes.rows[0]?.total || 0;
+  const legendary = statsRes.rows[0]?.legendary || 0;
+
+  // 상자깡 연속 개봉일: 오늘까지 거슬러 올라가며 하루도 빠지지 않은 날 수
+  const streakRes = await client.query(
+    `SELECT day_key FROM box_openings WHERE user_id = $1 ORDER BY day_key DESC LIMIT 400`,
+    [userId]
+  );
+  const days = new Set(streakRes.rows.map((r: any) => String(r.day_key)));
+  let boxStreak = 0;
+  const cursor = new Date(`${getTodayString()}T00:00:00Z`);
+  while (days.has(cursor.toISOString().split('T')[0])) {
+    boxStreak += 1;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+
+  const titlesRes = await client.query(
+    "SELECT * FROM titles WHERE condition_type IN ('box_openings', 'box_legendary', 'box_streak')"
+  );
+  const ownedRes = await client.query('SELECT title_id FROM user_titles WHERE user_id = $1', [userId]);
+  const owned = new Set(ownedRes.rows.map((r: any) => r.title_id));
+
+  const unlocked: any[] = [];
+  for (const title of titlesRes.rows) {
+    if (owned.has(title.title_id)) continue;
+    const value =
+      title.condition_type === 'box_openings' ? total : title.condition_type === 'box_legendary' ? legendary : boxStreak;
+    if (value >= title.condition_value) {
+      await client.query('INSERT INTO user_titles (user_id, title_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [
+        userId,
+        title.title_id
+      ]);
+      unlocked.push({ title_id: title.title_id, name: title.name, description: title.description });
+    }
+  }
+  return unlocked;
+};
+
+// 오늘 상자 상태 + 등급표 + 기록
+app.get('/api/box', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const userId = req.user.id;
+    const today = getTodayString();
+    const userRes = await pool.query('SELECT streak FROM users WHERE id = $1', [userId]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+    }
+    const streak = userRes.rows[0].streak || 0;
+
+    const todayRes = await pool.query(
+      'SELECT rarity, rating_reward, token_reward, streak_at, upgraded, opened_at FROM box_openings WHERE user_id = $1 AND day_key = $2',
+      [userId, today]
+    );
+    const historyRes = await pool.query(
+      'SELECT day_key, rarity, rating_reward, token_reward, streak_at, upgraded FROM box_openings WHERE user_id = $1 ORDER BY day_key DESC LIMIT 10',
+      [userId]
+    );
+    const statsRes = await pool.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE rarity = 'legendary')::int AS legendary,
+              COALESCE(SUM(rating_reward), 0)::int AS rating_total,
+              COALESCE(SUM(token_reward), 0)::int AS token_total
+       FROM box_openings WHERE user_id = $1`,
+      [userId]
+    );
+    const byRarityRes = await pool.query(
+      'SELECT rarity, COUNT(*)::int AS count FROM box_openings WHERE user_id = $1 GROUP BY rarity',
+      [userId]
+    );
+
+    const streakRes = await pool.query(
+      'SELECT day_key FROM box_openings WHERE user_id = $1 ORDER BY day_key DESC LIMIT 400',
+      [userId]
+    );
+    const daySet = new Set(streakRes.rows.map((r: any) => String(r.day_key)));
+    let streakDays = 0;
+    const cursor = new Date(`${today}T00:00:00Z`);
+    while (daySet.has(cursor.toISOString().split('T')[0])) {
+      streakDays += 1;
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+
+    res.json({
+      dayKey: today,
+      streak,
+      baseRarity: rarityForStreak(streak),
+      upgradeChance: upgradeChance(streak),
+      nextRarity: daysToNextRarity(streak),
+      tiers: BOX_RARITY_ORDER.map((rarity) => ({ rarity, ...BOX_TIERS[rarity] })),
+      openedToday: todayRes.rows[0] || null,
+      boxStreak: streakDays,
+      history: historyRes.rows,
+      stats: {
+        total: statsRes.rows[0]?.total || 0,
+        legendary: statsRes.rows[0]?.legendary || 0,
+        ratingTotal: statsRes.rows[0]?.rating_total || 0,
+        tokenTotal: statsRes.rows[0]?.token_total || 0,
+        byRarity: byRarityRes.rows
+      }
+    });
+  } catch (err: any) {
+    console.error('Failed to load box:', err);
+    res.status(500).json({ error: '상자 정보를 불러오지 못했습니다.' });
+  }
+});
+
+// 오늘 상자 개봉 — 보상은 서버가 정하고 서버가 지급한다
+app.post('/api/box/open', authenticateToken, async (req: any, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const userId = req.user.id;
+    const today = getTodayString();
+
+    await client.query('BEGIN');
+    const userRes = await client.query('SELECT streak FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (userRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+    }
+    const streak = userRes.rows[0].streak || 0;
+    const roll = rollDailyBox(streak);
+
+    const inserted = await client.query(
+      `INSERT INTO box_openings (user_id, day_key, rarity, rating_reward, token_reward, streak_at, upgraded)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (user_id, day_key) DO NOTHING
+       RETURNING rarity, rating_reward, token_reward, streak_at, upgraded, opened_at`,
+      [userId, today, roll.rarity, roll.ratingReward, roll.tokenReward, streak, roll.upgraded]
+    );
+
+    if (inserted.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: '오늘 상자는 이미 열었습니다. 내일 다시 만나요.' });
+    }
+
+    await client.query('UPDATE users SET rating = rating + $1, tokens = COALESCE(tokens, 0) + $2 WHERE id = $3', [
+      roll.ratingReward,
+      roll.tokenReward,
+      userId
+    ]);
+    // 레이팅 변화 기록(활동 로그). 주간 리그 점수에는 넣지 않는다(daily_box는 백필/적립에서 제외).
+    await client.query(
+      `INSERT INTO rating_activity_logs (user_id, problem_id, activity_type, change_amount, before_rating, after_rating, description)
+       SELECT $1, NULL, 'daily_box', $2, rating - $2, rating, $3 FROM users WHERE id = $1`,
+      [userId, roll.ratingReward, `상자깡(${BOX_TIERS[roll.rarity].label})`]
+    );
+
+    const unlocked = await unlockBoxTitles(client, userId);
+    const totals = await client.query('SELECT rating, tokens FROM users WHERE id = $1', [userId]);
+    await client.query('COMMIT');
+
+    res.json({
+      dayKey: today,
+      rarity: roll.rarity,
+      baseRarity: roll.baseRarity,
+      upgraded: roll.upgraded,
+      tier: BOX_TIERS[roll.rarity],
+      ratingReward: roll.ratingReward,
+      tokenReward: roll.tokenReward,
+      streakAt: streak,
+      unlockedTitles: unlocked,
+      rating: totals.rows[0]?.rating,
+      tokens: totals.rows[0]?.tokens
+    });
+  } catch (err: any) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* 롤백 실패는 무시 */
+    }
+    console.error('Failed to open box:', err);
+    res.status(500).json({ error: '상자를 여는 데 실패했습니다.' });
+  } finally {
+    client.release();
+  }
+});
+
 // 관리자: 이번 주 점수를 rating_activity_logs에서 한 번 채워 넣는다(기능 배포 이전 데이터 구제).
 // 테이블/컬럼이 예상과 다르면 아무것도 하지 않고 이유만 돌려준다.
 app.post('/api/admin/league/backfill', authenticateToken, async (req: any, res: Response) => {
@@ -1939,6 +2159,7 @@ app.post('/api/admin/league/backfill', authenticateToken, async (req: any, res: 
        SELECT user_id, $1, SUM(GREATEST(change_amount, 0))::bigint, COUNT(*), NOW()
        FROM rating_activity_logs
        WHERE ${timeCol} >= $2 AND ${timeCol} < $3 AND change_amount > 0
+         AND activity_type <> 'daily_box'  -- 상자깡 레이팅은 주간 리그 점수가 아니다
        GROUP BY user_id
        ON CONFLICT (user_id, week_key) DO UPDATE SET
          score = EXCLUDED.score, solved = EXCLUDED.solved, updated_at = NOW()`,
