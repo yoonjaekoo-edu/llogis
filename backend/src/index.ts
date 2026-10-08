@@ -5,6 +5,7 @@ import { getPool } from './db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { evaluateExpression } from './generation/mathParser.js';
+import { checkAnswer } from './grading/answerCheck.js';
 import { generateProblem } from './problemGenerator';
 import {
   getAllTemplates,
@@ -30,7 +31,7 @@ import {
   upgradeChance
 } from './box/dailyBox';
 import { getTodayString, getWeekKeyString, shiftWeekKey, getWeekRange } from './rating/gameSystemService';
-import { signupRateLimit, loginRateLimit, profileRateLimit } from './security/rateLimiter';
+import { signupRateLimit, loginRateLimit, profileRateLimit, trialRateLimit } from './security/rateLimiter';
 import {
   isDisposableEmail,
   getIpSubnet,
@@ -134,6 +135,11 @@ if (fs.existsSync(frontendDist)) {
 
 const ensureSchema = async () => {
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT');
+  // 초대(추천) 링크용 — 코드는 대문자+숫자 8자리, 계정당 하나
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_code VARCHAR(16)');
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER');
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0');
+  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS users_invite_code_key ON users (invite_code) WHERE invite_code IS NOT NULL');
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT');
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS can_generate_problems BOOLEAN DEFAULT FALSE');
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_title VARCHAR(50) DEFAULT ''");
@@ -177,6 +183,40 @@ const ensureSchema = async () => {
     UPDATE problems SET current_difficulty = GREATEST(5000, LEAST(150000, COALESCE(current_difficulty, initial_difficulty, 60000)))
     WHERE (total_attempts IS NULL OR total_attempts = 0) AND is_custom = TRUE
   `);
+
+  // CURATED-CUSTOM-2026-08-19: hand-checked custom problems. Idempotent by title.
+  await pool.query(`
+    INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, is_custom, custom_reward_rating, reward_rating)
+    SELECT v.title, v.content, v.answer, v.difficulty, v.difficulty, 'Calculation', TRUE, v.difficulty, v.difficulty
+    FROM (VALUES
+      ('[검수] 일차방정식 기본', '$3(x-2)+5=2x+11$을 만족하는 $x$의 값을 구하시오.', '12', 12000),
+      ('[검수] 등차수열 제12항', '첫째항이 $7$, 공차가 $3$인 등차수열의 제12항을 구하시오.', '40', 14000),
+      ('[검수] 세 자리 짝수의 개수', '숫자 $1,2,3,4$ 중 서로 다른 세 숫자를 사용하여 만들 수 있는 세 자리 자연수 중 짝수의 개수를 구하시오.', '12', 16000),
+      ('[검수] 연립방정식과 곱', '$x+y=17$, $x-y=5$일 때, $xy$의 값을 구하시오.', '66', 17000),
+      ('[검수] 직사각형의 넓이', '직사각형의 한 변의 길이가 $5$이고 대각선의 길이가 $13$일 때, 이 직사각형의 넓이를 구하시오.', '60', 18000),
+      ('[검수] 같은 색 공의 확률', '주머니에 빨간 공 3개와 파란 공 2개가 있다. 한 번에 2개의 공을 동시에 꺼낼 때, 두 공의 색이 같을 확률을 기약분수로 나타내시오.', '2/5', 20000),
+      ('[검수] 이차방정식 두 근의 제곱합', '이차방정식 $x^2-7x+12=0$의 두 근을 $\alpha, \beta$라 할 때, $\alpha^2+\beta^2$의 값을 구하시오.', '25', 22000),
+      ('[검수] 나머지 조건의 합', '200보다 작은 자연수 $n$ 중 $n$을 5로 나누면 나머지가 2이고, 7로 나누면 나머지가 4인 모든 $n$의 합을 구하시오.', '510', 24000)
+    ) AS v(title, content, answer, difficulty)
+    WHERE NOT EXISTS (SELECT 1 FROM problems p WHERE p.title = v.title);
+  `);
+  // CURATED-CUSTOM-2026-08-22: hard hand-checked custom problems. Idempotent by title.
+  await pool.query(`
+    INSERT INTO problems (title, content, answer, initial_difficulty, current_difficulty, type, is_custom, custom_reward_rating, reward_rating)
+    SELECT v.title, v.content, v.answer, v.difficulty, v.difficulty, 'Calculation', TRUE, v.difficulty, v.difficulty
+    FROM (VALUES
+      ('[검수 II] 나머지 조건의 자연수', '1000보다 작은 자연수 $n$이 있다. $n$을 7로 나누면 나머지가 3, 9로 나누면 나머지가 5, 11로 나누면 나머지가 7이다. $n$의 값을 구하시오.', '689', 20000),
+      ('[검수 II] 이차방정식 근의 세제곱합', '이차방정식 $x^2-8x+10=0$의 두 근을 $\alpha, \beta$라 할 때, $\alpha^3+\beta^3$의 값을 구하시오.', '272', 21000),
+      ('[검수 II] 삼각형 내접원의 반지름', '세 변의 길이가 각각 13, 14, 15인 삼각형의 내접원의 반지름을 구하시오.', '4', 19000),
+      ('[검수 II] 합이 3의 배수인 조합', '숫자 1, 2, 3, 4, 5, 6, 7 중 서로 다른 세 수를 고를 때, 세 수의 합이 3의 배수인 경우의 수를 구하시오.', '13', 21000),
+      ('[검수 II] 부정방정식의 양의 정수해', '양의 정수 $x, y$가 $3x+5y=100$을 만족할 때, 순서쌍 $(x,y)$의 개수를 구하시오.', '6', 19000),
+      ('[검수 II] 제곱수가 되는 곱', '1부터 9까지 적힌 카드 중 서로 다른 두 장을 고를 때, 두 수의 곱이 완전제곱수가 되는 경우의 수를 구하시오.', '4', 20000),
+      ('[검수 II] 세 변수의 음이 아닌 정수해', '음이 아닌 정수 $x, y, z$가 $x+2y+3z=12$를 만족할 때, 순서쌍 $(x,y,z)$의 개수를 구하시오.', '19', 22000),
+      ('[검수 II] 배수 조건과 포함배제', '1부터 100까지의 자연수 중 2 또는 3의 배수이면서 5의 배수가 아닌 수의 개수를 구하시오.', '54', 20000)
+    ) AS v(title, content, answer, difficulty)
+    WHERE NOT EXISTS (SELECT 1 FROM problems p WHERE p.title = v.title);
+  `);
+
   // Drop the CASCADE constraint and recreate with SET NULL (submissions survive problem deletion)
   // 레이팅 기준: 커스텀 문제 보상은 문제에 저장된 값(current_difficulty)을 그대로 쓰고,
   // 양산 문제만 5,000~7,000으로 정규화한다. (예전에는 커스텀도 45,000~55,000으로 강제 정규화해
@@ -359,11 +399,14 @@ const ensureSchema = async () => {
       ('first_correct', '첫 걸음', '첫 문제 정답 맞추기', 'solve_count', 1),
       ('token_hoarder', '토큰은 내 친구', '토큰 1000개 이상 보유', 'tokens', 1000),
       ('xp_master', '경험치 중독자', 'XP 10000 이상 획득', 'xp', 10000),
+      ('one_shot_one_kill', '원샷원킬', '문제 20개를 연속으로 정답 맞히세요', 'consecutive_correct', 20),
       ('box_first', '깡의 시작', '상자깡을 1번 개봉하세요', 'box_openings', 1),
       ('box_10', '상자깡 중독', '상자깡을 10번 개봉하세요', 'box_openings', 10),
       ('box_50', '깡 고인물', '상자깡을 50번 개봉하세요', 'box_openings', 50),
       ('box_streak_7', '개근 깡', '상자깡을 7일 연속 개봉하세요', 'box_streak', 7),
-      ('box_legend_5', '운빨의 화신', '전설 상자를 5번 개봉하세요', 'box_legendary', 5)
+      ('box_legend_5', '운빨의 화신', '전설 상자를 5번 개봉하세요', 'box_legendary', 5),
+      ('welcome', '새로 온 자', '가입을 환영합니다', 'signup', 1),
+      ('invite_3', '전도의 손', '친구 3명을 초대하세요', 'referrals', 3)
     ON CONFLICT (title_id) DO UPDATE SET condition_value = EXCLUDED.condition_value, description = EXCLUDED.description
   `);
   await pool.query(`
@@ -580,8 +623,26 @@ const canGenerateProblems = async (userId: number) => {
   return !!user && (user.username === 'admin' || user.can_generate_problems === true);
 };
 
+// 가입 축하 보상 — 새 유저가 빈 화면 대신 뭔가 가진 상태로 시작하게 한다.
+const WELCOME_RATING = 5000;
+const WELCOME_TOKENS = 30;
+// 초대 보상 — 초대한 사람과 초대받은 사람 모두에게
+const REFERRAL_TOKENS = 30;
+
+// 초대 코드 생성(대문자+숫자 8자리, 헷갈리는 O/0·I/1 제외)
+const generateInviteCode = async (): Promise<string> => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for (let attempt = 0; attempt < 20; attempt++) {
+    let code = '';
+    for (let i = 0; i < 8; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const exists = await pool.query('SELECT 1 FROM users WHERE invite_code = $1', [code]);
+    if (exists.rows.length === 0) return code;
+  }
+  throw new Error('초대 코드를 만들지 못했습니다.');
+};
+
 app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response) => {
-  const { username, email, password, userAgent, language } = req.body;
+  const { username, email, password, userAgent, language, ref } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields are required' });
 
   // 1. 입력값 유효성 검사
@@ -613,11 +674,73 @@ app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    // 초대 코드는 가입 즉시 발급한다(내 초대 링크를 바로 쓸 수 있게).
+    let inviteCode: string | null = null;
+    try {
+      inviteCode = await generateInviteCode();
+    } catch (codeErr) {
+      console.error('초대 코드 생성 실패(가입은 계속):', codeErr);
+    }
     const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash, streak_repaired) VALUES ($1, $2, $3, TRUE) RETURNING id, username',
-      [username, email, hashedPassword]
+      'INSERT INTO users (username, email, password_hash, streak_repaired, invite_code) VALUES ($1, $2, $3, TRUE, $4) RETURNING id, username',
+      [username, email, hashedPassword, inviteCode]
     );
     const user = result.rows[0];
+
+    // 가입 축하 보상 + 가입 칭호
+    let extraTokens = 0;
+    try {
+      await pool.query('UPDATE users SET rating = rating + $1, tokens = COALESCE(tokens, 0) + $2 WHERE id = $3', [
+        WELCOME_RATING,
+        WELCOME_TOKENS,
+        user.id
+      ]);
+      await pool.query(
+        `INSERT INTO rating_activity_logs (user_id, problem_id, activity_type, change_amount, before_rating, after_rating, description)
+         SELECT $1, NULL, 'signup_bonus', $2, rating - $2, rating, '가입 축하 보너스' FROM users WHERE id = $1`,
+        [user.id, WELCOME_RATING]
+      );
+      await pool.query(
+        "INSERT INTO user_titles (user_id, title_id) SELECT $1, title_id FROM titles WHERE title_id = 'welcome' ON CONFLICT DO NOTHING",
+        [user.id]
+      );
+    } catch (bonusErr) {
+      console.error('가입 보상 실패(가입은 계속):', bonusErr);
+    }
+
+    // 초대 코드로 들어왔으면 양쪽에 보상을 준다
+    if (typeof ref === 'string' && ref.trim()) {
+      try {
+        const inviterRes = await pool.query('SELECT id, username FROM users WHERE invite_code = $1', [
+          ref.trim().toUpperCase()
+        ]);
+        const inviter = inviterRes.rows[0];
+        if (inviter && Number(inviter.id) !== Number(user.id)) {
+          extraTokens += REFERRAL_TOKENS;
+          await pool.query('UPDATE users SET referred_by = $1, tokens = COALESCE(tokens, 0) + $2 WHERE id = $3', [
+            inviter.id,
+            REFERRAL_TOKENS,
+            user.id
+          ]);
+          await pool.query(
+            'UPDATE users SET tokens = COALESCE(tokens, 0) + $1, referral_count = COALESCE(referral_count, 0) + 1 WHERE id = $2',
+            [REFERRAL_TOKENS, inviter.id]
+          );
+          await pool.query(
+            'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
+            [
+              'referral',
+              `${inviter.username}님의 초대 링크로 ${username}님이 가입했습니다. 양쪽 토큰 +${REFERRAL_TOKENS}`,
+              user.id,
+              username,
+              inviter.id
+            ]
+          );
+        }
+      } catch (refErr) {
+        console.error('초대 보상 실패(가입은 계속):', refErr);
+      }
+    }
 
     // 3. 가입 기록 저장 (다중계정 추적용)
     try {
@@ -632,16 +755,18 @@ app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response
     }
 
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
-    res.status(201).json({ 
+    res.status(201).json({
       token,
+      welcome: { rating: WELCOME_RATING, tokens: WELCOME_TOKENS, referralTokens: extraTokens },
       user: {
         id: user.id,
         username: user.username,
-        rating: 0,
+        invite_code: inviteCode,
+        rating: WELCOME_RATING,
         tier: 'Bronze',
         streak: 0,
         xp: 0,
-        tokens: 0,
+        tokens: WELCOME_TOKENS + extraTokens,
         level: 1,
         problems_solved: 0,
         equipped_title: '',
@@ -1283,6 +1408,17 @@ app.post('/api/titles/check', authenticateToken, async (req: any, res: Response)
     );
     const correctCount = parseInt(statsRes.rows[0].count);
 
+    // Current consecutive-correct combo, calculated from trusted submission history.
+    const recentComboSubmissionsRes = await client.query(
+      'SELECT is_correct FROM submissions WHERE user_id = $1 ORDER BY submitted_at DESC, id DESC LIMIT 100',
+      [userId]
+    );
+    let consecutiveCorrect = 0;
+    for (const row of recentComboSubmissionsRes.rows) {
+      if (!row.is_correct) break;
+      consecutiveCorrect++;
+    }
+
     // Get ranking position (exclude admin)
     const rankRes = await client.query(
       "SELECT id FROM users WHERE username != 'admin' ORDER BY rating DESC"
@@ -1307,7 +1443,7 @@ app.post('/api/titles/check', authenticateToken, async (req: any, res: Response)
       let shouldUnlock = false;
 
       const userInfo = await client.query(
-        'SELECT tokens, xp FROM users WHERE id = $1',
+        'SELECT tokens, xp, referral_count FROM users WHERE id = $1',
         [userId]
       );
       const u = userInfo.rows[0];
@@ -1319,6 +1455,9 @@ app.post('/api/titles/check', authenticateToken, async (req: any, res: Response)
       const overallAccuracy = totalSubs > 0 ? Math.round((correctCount / totalSubs) * 100) : 0;
 
       switch (title.condition_type) {
+        case 'referrals':
+          if ((u.referral_count || 0) >= title.condition_value) shouldUnlock = true;
+          break;
         case 'goose_room':
           if (action === 'goose_room') shouldUnlock = true;
           break;
@@ -1349,6 +1488,9 @@ app.post('/api/titles/check', authenticateToken, async (req: any, res: Response)
         case 'xp':
           if ((u.xp || 0) >= title.condition_value) shouldUnlock = true;
           break;
+        case 'consecutive_correct':
+          if (consecutiveCorrect >= title.condition_value) shouldUnlock = true;
+          break;
       }
 
       if (shouldUnlock) {
@@ -1365,7 +1507,7 @@ app.post('/api/titles/check', authenticateToken, async (req: any, res: Response)
       if (!newlyUnlocked.some((x: any) => x.title_id === t.title_id)) newlyUnlocked.push(t);
     }
 
-    res.json({ newlyUnlocked, correctCount, streak: user.streak, rank: userRank });
+    res.json({ newlyUnlocked, correctCount, streak: user.streak, rank: userRank, consecutiveCorrect });
   } catch (err) {
     console.error('Failed to check titles:', err);
     res.status(500).json({ error: 'Failed to check titles' });
@@ -2135,6 +2277,90 @@ app.post('/api/box/open', authenticateToken, async (req: any, res: Response) => 
   }
 });
 
+// ---------- 익명 체험(가입 없이 맛보기) ----------
+// 가입 전 방문자가 빈 화면을 보지 않도록 3문제를 내주고, 채점은 서버가 하되 레이팅은 건드리지 않는다.
+// 정답을 돌려주지 않고, 토큰에 담긴 문제만 채점하므로 이 경로로 정답을 캐낼 수 없다(탐색 차단).
+const TRIAL_PROBLEM_COUNT = 3;
+
+app.get('/api/trial/problems', trialRateLimit, async (_req: Request, res: Response) => {
+  try {
+    const rows = await pool.query(
+      `SELECT id, title, content FROM problems
+       WHERE (review_status IS NULL OR review_status = 'approved')
+         AND created_by IS NULL
+         AND answer IS NOT NULL AND content IS NOT NULL
+       ORDER BY random() LIMIT $1`,
+      [TRIAL_PROBLEM_COUNT]
+    );
+    if (rows.rows.length === 0) {
+      return res.status(503).json({ error: '체험 문제를 준비하지 못했습니다. 잠시 후 다시 시도해주세요.' });
+    }
+    const ids = rows.rows.map((row: any) => Number(row.id));
+    const trialToken = jwt.sign({ trial: true, ids }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token: trialToken, problems: rows.rows });
+  } catch (err: any) {
+    console.error('체험 문제 조회 실패:', err);
+    res.status(500).json({ error: '체험 문제를 불러오지 못했습니다.' });
+  }
+});
+
+app.post('/api/trial/answer', trialRateLimit, async (req: Request, res: Response) => {
+  try {
+    const { token, problemId, answer } = req.body || {};
+    if (!token || problemId === undefined || typeof answer !== 'string') {
+      return res.status(400).json({ error: '잘못된 요청입니다.' });
+    }
+    let payload: any;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: '체험이 만료되었습니다. 새로 시작해주세요.' });
+    }
+    if (!payload?.trial || !Array.isArray(payload.ids) || !payload.ids.map(Number).includes(Number(problemId))) {
+      return res.status(400).json({ error: '체험 목록에 없는 문제입니다.' });
+    }
+    const problemRes = await pool.query('SELECT answer, content FROM problems WHERE id = $1', [problemId]);
+    if (problemRes.rows.length === 0) {
+      return res.status(404).json({ error: '문제를 찾을 수 없습니다.' });
+    }
+    const isCorrect = checkAnswer(answer, problemRes.rows[0].answer, problemRes.rows[0].content || '');
+    // 정답은 알려주지 않는다 — 체험은 맛보기고, 알려주면 그 문제를 그대로 베낄 수 있다.
+    res.json({ isCorrect });
+  } catch (err: any) {
+    console.error('체험 채점 실패:', err);
+    res.status(500).json({ error: '채점하지 못했습니다.' });
+  }
+});
+
+// 내 초대 링크(없으면 이때 발급) + 초대 현황
+app.get('/api/users/invite', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const userId = req.user.id;
+    const userRes = await pool.query('SELECT invite_code, referral_count FROM users WHERE id = $1', [userId]);
+    if (userRes.rows.length === 0) return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+
+    let inviteCode = userRes.rows[0].invite_code as string | null;
+    if (!inviteCode) {
+      inviteCode = await generateInviteCode();
+      await pool.query('UPDATE users SET invite_code = $1 WHERE id = $2', [inviteCode, userId]);
+    }
+
+    const invitedRes = await pool.query(
+      'SELECT username, created_at FROM users WHERE referred_by = $1 ORDER BY created_at DESC LIMIT 20',
+      [userId]
+    );
+    res.json({
+      inviteCode,
+      referralCount: userRes.rows[0].referral_count || 0,
+      referralTokens: REFERRAL_TOKENS,
+      invited: invitedRes.rows
+    });
+  } catch (err: any) {
+    console.error('초대 정보 조회 실패:', err);
+    res.status(500).json({ error: '초대 정보를 불러오지 못했습니다.' });
+  }
+});
+
 // 관리자: 이번 주 점수를 rating_activity_logs에서 한 번 채워 넣는다(기능 배포 이전 데이터 구제).
 // 테이블/컬럼이 예상과 다르면 아무것도 하지 않고 이유만 돌려준다.
 app.post('/api/admin/league/backfill', authenticateToken, async (req: any, res: Response) => {
@@ -2159,7 +2385,7 @@ app.post('/api/admin/league/backfill', authenticateToken, async (req: any, res: 
        SELECT user_id, $1, SUM(GREATEST(change_amount, 0))::bigint, COUNT(*), NOW()
        FROM rating_activity_logs
        WHERE ${timeCol} >= $2 AND ${timeCol} < $3 AND change_amount > 0
-         AND activity_type <> 'daily_box'  -- 상자깡 레이팅은 주간 리그 점수가 아니다
+         AND activity_type NOT IN ('daily_box', 'signup_bonus')  -- 상자깡·가입 보상은 주간 리그 점수가 아니다
        GROUP BY user_id
        ON CONFLICT (user_id, week_key) DO UPDATE SET
          score = EXCLUDED.score, solved = EXCLUDED.solved, updated_at = NOW()`,
@@ -2948,41 +3174,8 @@ app.post('/api/submissions', authenticateToken, async (req: any, res: any) => {
     const problemRow = problemRes.rows[0];
     const correctAnswer = problemRow.answer;
     const problemContent = problemRow.content || '';
-    // 공백 전체 제거 및 소문자 변환 비교 (기본)
-    const normalizedUserAnswer = userAnswer.replace(/\s+/g, '').toLowerCase();
-    const normalizedCorrectAnswer = correctAnswer.replace(/\s+/g, '').toLowerCase();
-    let isCorrect = normalizedUserAnswer === normalizedCorrectAnswer;
-
-    // A/B/C/D 단일 문자 입력 처리: 선택지에서 해당 글자의 텍스트를 추출하여 정답과 비교
-    if (!isCorrect && /^[a-dA-D]$/.test(userAnswer.trim())) {
-      const letter = userAnswer.trim().toUpperCase();
-      const optionMatch = problemContent.match(new RegExp(`${letter}\\.\\s*([^\\n]+)`));
-      if (optionMatch) {
-        const optionText = optionMatch[1].trim().replace(/\s+/g, '').toLowerCase();
-        isCorrect = optionText === normalizedCorrectAnswer
-          || optionText === normalizedUserAnswer;
-      }
-    }
-
-    // 수학적 동등성 평가 시도 (둘 다 숫자로 평가되면 1e-9 이내 비교)
-    if (!isCorrect) {
-      try {
-        let cleanedUser = userAnswer.replace(/\$/g, '').trim();
-        const cleanedCorrect = correctAnswer.replace(/\$/g, '').trim();
-        // "4:1" 형태의 비율 입력 처리 → 첫 번째 숫자 추출
-        const ratioMatch = cleanedUser.match(/^(\d+(?:\.\d+)?)\s*:\s*\d+(?:\.\d+)?$/);
-        if (ratioMatch) {
-          cleanedUser = ratioMatch[1];
-        }
-        const userVal = evaluateExpression(cleanedUser, {});
-        const correctVal = evaluateExpression(cleanedCorrect, {});
-        if (typeof userVal === 'number' && typeof correctVal === 'number') {
-          isCorrect = Math.abs(userVal - correctVal) < 1e-9;
-        }
-      } catch {
-        // 평가 실패 시 문자열 비교 결과 유지
-      }
-    }
+    // 채점 규칙은 src/grading/answerCheck.ts 한 곳에 있다(익명 체험과 동일).
+    const isCorrect = checkAnswer(userAnswer, correctAnswer, problemContent);
 
     const updateResult = await processSubmission(userId, problemId, isCorrect, {
       is_custom: problemRow.is_custom,
@@ -2993,12 +3186,45 @@ app.post('/api/submissions', authenticateToken, async (req: any, res: any) => {
     if ((updateResult as any).alreadySolved) {
       return res.status(400).json({ error: 'Already solved this problem correctly!' });
     }
+
+    // Combo is authoritative on the server: count backwards until the first wrong answer.
+    let consecutiveCorrect = 0;
+    let newlyUnlockedTitle: { title_id: string; name: string; description: string } | null = null;
+    if (isCorrect) {
+      const recentComboSubmissionsRes = await pool.query(
+        'SELECT is_correct FROM submissions WHERE user_id = $1 ORDER BY submitted_at DESC, id DESC LIMIT 100',
+        [userId]
+      );
+      for (const row of recentComboSubmissionsRes.rows) {
+        if (!row.is_correct) break;
+        consecutiveCorrect++;
+      }
+
+      if (consecutiveCorrect >= 20) {
+        const unlockRes = await pool.query(
+          `INSERT INTO user_titles (user_id, title_id)
+           SELECT $1, title_id FROM titles WHERE title_id = 'one_shot_one_kill'
+           ON CONFLICT (user_id, title_id) DO NOTHING
+           RETURNING title_id`,
+          [userId]
+        );
+        if (unlockRes.rowCount && unlockRes.rowCount > 0) {
+          const titleRes = await pool.query(
+            "SELECT title_id, name, description FROM titles WHERE title_id = 'one_shot_one_kill'"
+          );
+          newlyUnlockedTitle = titleRes.rows[0] || null;
+        }
+      }
+    }
+
     if (process.env.LOG_SUBMISSION_PERF === '1') {
       console.log(`[submission-perf] handler user=${userId} problem=${problemId} total:${Date.now() - handlerStart}ms`);
     }
     res.json({ 
       isCorrect,
-      ...updateResult 
+      ...updateResult,
+      consecutiveCorrect,
+      newlyUnlockedTitle
     });
   } catch (err) {
     if (process.env.LOG_SUBMISSION_PERF === '1') {

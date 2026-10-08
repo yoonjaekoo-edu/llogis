@@ -94,3 +94,10 @@ export const loginRateLimit = rateLimit({
   max: 10,
   message: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.',
 });
+
+// 익명 체험 rate limit (IP 기준 1시간 60회) — 가입 없이 쓰는 공개 경로라 넉넉하되 남용은 막는다
+export const trialRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1시간
+  max: 60,
+  message: '체험 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+});

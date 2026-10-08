@@ -480,6 +480,9 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
   const navigate = useNavigate();
   const rootRef = useRef<HTMLElement | null>(null);
   useLandingMotion(rootRef);
+  const location = useLocation();
+  // 가입 직후에만 넘어오는 값(새로고침하면 사라진다)
+  const welcome = (location.state as any)?.welcome as { rating?: number; tokens?: number; referralTokens?: number } | undefined;
 
   const [overviewStats, setOverviewStats] = useState({
     totalUsers: 0,
@@ -514,6 +517,23 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
 
   return (
     <main ref={rootRef}>
+      {welcome && (
+        <div className="container" style={{ paddingTop: '1rem' }}>
+          <div role="status" style={{ border: '1px solid var(--border)', background: 'var(--card-bg)', borderRadius: '1rem', padding: '0.9rem 1.1rem', display: 'flex', justifyContent: 'space-between', gap: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span>
+              가입 축하! 레이팅 <b>+{Number(welcome.rating || 0).toLocaleString()}</b> · 토큰 <b>+{Number(welcome.tokens || 0)}</b>
+              {welcome.referralTokens ? ` · 초대 보상 토큰 +${welcome.referralTokens}` : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate('/box')}
+              style={{ background: 'var(--color-4)', color: '#fff', border: 'none', borderRadius: '0.7rem', padding: '0.5rem 0.9rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
+            >
+              상자깡 열러 가기
+            </button>
+          </div>
+        </div>
+      )}
       <Helmet>
         <title>홈 | Logis - 수학 문제 풀이 플랫폼</title>
         <meta name="description" content="Logis에서 수학 실력을 키우세요. Glicko-2 레이팅, 스트릭, 일일 퀘스트, 토큰 시스템으로 매일 성장합니다." />
@@ -577,6 +597,14 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
                 className="btn-hero btn-hero-secondary"
               >
                 무료로 시작하기
+              </button>
+            )}
+            {!user && (
+              <button
+                onClick={() => navigate('/trial')}
+                className="btn-hero btn-hero-secondary"
+              >
+                가입 없이 체험하기
               </button>
             )}
             {user && (
@@ -3454,6 +3482,8 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         {u.last_active_date ? `마지막 활동: ${new Date(u.last_active_date).toLocaleDateString()}` : ''}
       </div>
 
+      <InviteCard readonly={readonly} />
+
       {/* ─── 분야별 정복도 (다각형 그래프) ─── */}
       <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '0 0 0.75rem', color: 'var(--color-4)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -3892,6 +3922,9 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   const [wrongGlowTrigger, setWrongGlowTrigger] = useState(0);
   const [lastWrongAnswer, setLastWrongAnswer] = useState<{problemId: number} | null>(null);
   const [lastCorrectFeedback, setLastCorrectFeedback] = useState<{rpGained: number} | null>(null);
+  const [comboCount, setComboCount] = useState(0);
+  const [comboImpactKey, setComboImpactKey] = useState(0);
+  const [unlockedComboTitle, setUnlockedComboTitle] = useState<string | null>(null);
   // 문제 출제 (일반 유저는 검수 대기 → 관리자 승인 후 공개, 관리자는 즉시 공개)
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
@@ -4021,6 +4054,13 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       if (data.isCorrect) {
         setShowFirework(true);
         setLastWrongAnswer(null);
+        const nextCombo = Math.max(1, Number(data.consecutiveCorrect) || 1);
+        setComboCount(nextCombo);
+        setComboImpactKey(prev => prev + 1);
+        if (data.newlyUnlockedTitle?.name) {
+          setUnlockedComboTitle(data.newlyUnlockedTitle.name);
+          setTimeout(() => setUnlockedComboTitle(null), 5000);
+        }
         const rpGained = Number.isFinite(Number(data.ratingChange))
           ? Math.round(Number(data.ratingChange))
           : Math.round(data.newUserRating - user.rating);
@@ -4032,6 +4072,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
           : null;
         fetchProblems(nextProblemId);
       } else {
+        setComboCount(0);
         setWrongGlowTrigger(prev => prev + 1);
         setLastWrongAnswer({ problemId });
       }
@@ -4419,6 +4460,45 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
               </div>
             )}
             <div className="math-content" style={{ fontSize: '1.8rem' }}>{renderMath(selectedProblem.content)}</div>
+            {comboCount > 0 && (
+              <div aria-live="polite" style={{ position: 'relative', height: '116px', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <motion.div
+                  key={`combo-wave-${comboImpactKey}`}
+                  initial={{ scale: 0.2, opacity: 0.85 }}
+                  animate={{ scale: 2.6, opacity: 0 }}
+                  transition={{ duration: 0.48, ease: 'easeOut' }}
+                  style={{ position: 'absolute', width: 64, height: 64, borderRadius: '50%', border: '5px solid #ffb000', pointerEvents: 'none' }}
+                />
+                <motion.div
+                  key={`combo-hit-${comboImpactKey}`}
+                  initial={{ opacity: 0, scale: 2.1, rotate: -9, y: -18 }}
+                  animate={{ opacity: [0, 1, 1, 0.78], scale: [2.1, 0.84, 1.08, 1], rotate: [-9, 4, -1, 0], y: [-18, -28, -31, -31] }}
+                  transition={{ duration: 0.52, times: [0, 0.24, 0.58, 1], ease: 'easeOut' }}
+                  style={{ position: 'absolute', top: 22, fontWeight: 1000, fontStyle: 'italic', letterSpacing: '0.12em', fontSize: '1.05rem', color: '#ff8a00', textShadow: '0 2px 0 #fff, 0 0 16px rgba(255,138,0,0.65)', transformOrigin: 'center', pointerEvents: 'none' }}
+                >
+                  {comboCount >= 20 ? 'CRITICAL HIT!' : comboCount >= 10 ? 'HEAVY HIT!' : 'HIT!'}
+                </motion.div>
+                <motion.div
+                  key={`combo-count-${comboImpactKey}`}
+                  initial={{ scale: 1.55, rotate: 3 }}
+                  animate={{ scale: [1.55, 0.92, 1.06, 1], rotate: [3, -2, 1, 0] }}
+                  transition={{ duration: 0.42, times: [0, 0.28, 0.65, 1], ease: 'easeOut' }}
+                  style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', padding: '1.25rem 1.6rem 0.65rem', borderRadius: '1rem', background: 'linear-gradient(135deg, rgba(255,176,0,0.14), rgba(255,90,0,0.08))', border: '1px solid rgba(255,138,0,0.28)', boxShadow: '0 10px 28px rgba(255,110,0,0.14)' }}
+                >
+                  <span style={{ fontSize: '2.4rem', lineHeight: 1, fontWeight: 1000, color: '#ff8a00', letterSpacing: '-0.08em' }}>{comboCount}</span>
+                  <span style={{ fontSize: '1rem', fontWeight: 1000, letterSpacing: '0.13em', color: 'var(--text-main)' }}>COMBO</span>
+                </motion.div>
+              </div>
+            )}
+            {unlockedComboTitle && (
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.94 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                style={{ marginTop: '0.5rem', padding: '0.85rem 1rem', borderRadius: '0.75rem', textAlign: 'center', fontWeight: 900, background: 'rgba(255, 176, 0, 0.12)', border: '1px solid rgba(255, 176, 0, 0.35)', color: '#e68a00' }}
+              >
+                새 칭호 획득 · {unlockedComboTitle}
+              </motion.div>
+            )}
             {lastCorrectFeedback && (
               <div style={{ marginTop: '1rem', padding: '0.8rem 1rem', background: 'rgba(0, 200, 83, 0.08)', borderRadius: '0.5rem', border: '1px solid rgba(0, 200, 83, 0.25)' }}>
                 <div style={{ fontWeight: 700, color: '#00c853', marginBottom: '0.3rem', fontSize: '1.05rem' }}>정답!</div>
@@ -5096,6 +5176,294 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
   );
 };
 
+const InviteCard: React.FC<{ readonly?: boolean }> = ({ readonly }) => {
+  const [info, setInfo] = useState<{ inviteCode: string; referralCount: number; referralTokens: number; invited: { username: string }[] } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (readonly) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/users/invite', { headers: { Authorization: `Bearer ${token}` } })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '초대 정보를 불러오지 못했어');
+        setInfo(data);
+      })
+      .catch((err: any) => setError(err?.message || '초대 정보를 불러오지 못했어'));
+  }, [readonly]);
+
+  if (readonly) return null;
+
+  const link = info ? `${window.location.origin}/signup?ref=${info.inviteCode}` : '';
+
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('복사가 안 됐어. 입력칸을 길게 눌러 직접 복사해줘.');
+    }
+  };
+
+  return (
+    <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
+      <h3 style={{ margin: '0 0 0.75rem', color: 'var(--color-4)', fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        친구 초대
+      </h3>
+      <p style={{ margin: '0 0 0.9rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+        내 링크로 친구가 가입하면 <b>둘 다 토큰 +{info?.referralTokens ?? 30}</b>. 친구 3명을 초대하면 칭호 '전도의 손'도 받아.
+      </p>
+      {error && <p style={{ color: '#ff6b6b', margin: '0 0 0.6rem', fontSize: '0.9rem' }}>{error}</p>}
+      {info ? (
+        <>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              readOnly
+              value={link}
+              aria-label="내 초대 링크"
+              onFocus={e => e.currentTarget.select()}
+              style={{ flex: 1, minWidth: '240px', padding: '0.7rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', boxSizing: 'border-box' }}
+            />
+            <button
+              type="button"
+              onClick={copy}
+              className="btn"
+              style={{ background: 'var(--color-4)', color: 'white', padding: '0.7rem 1.1rem', fontSize: '0.9rem' }}
+            >
+              {copied ? '복사됨' : '링크 복사'}
+            </button>
+          </div>
+          <p style={{ margin: '0.8rem 0 0', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+            초대한 친구 <b>{info.referralCount}</b>명
+            {info.invited.length > 0 ? ` · ${info.invited.map(i => i.username).join(', ')}` : ''}
+          </p>
+        </>
+      ) : (
+        <p style={{ margin: 0, color: 'var(--text-muted)' }}>초대 링크를 준비하는 중...</p>
+      )}
+    </div>
+  );
+};
+
+const TrialPage: React.FC = () => {
+  type TrialProblem = { id: number; title: string; content: string };
+  const [problems, setProblems] = useState<TrialProblem[]>([]);
+  const [trialToken, setTrialToken] = useState('');
+  const [index, setIndex] = useState(0);
+  const [answer, setAnswer] = useState('');
+  const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [finished, setFinished] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const refCode = new URLSearchParams(location.search).get('ref') || '';
+  const signupPath = refCode ? `/signup?ref=${encodeURIComponent(refCode)}` : '/signup';
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    setFinished(false);
+    try {
+      const res = await fetch('/api/trial/problems');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '체험 문제를 불러오지 못했어');
+      setProblems(data.problems || []);
+      setTrialToken(data.token || '');
+      setIndex(0);
+      setAnswer('');
+      setFeedback(null);
+      setCorrectCount(0);
+    } catch (err: any) {
+      setError(err?.message || '체험 문제를 불러오지 못했어');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const current = problems[index];
+    if (!current || !answer.trim() || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await fetch('/api/trial/answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: trialToken, problemId: current.id, answer })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '채점하지 못했어');
+      setFeedback(data.isCorrect ? 'correct' : 'wrong');
+      if (data.isCorrect) setCorrectCount(count => count + 1);
+    } catch (err: any) {
+      setError(err?.message || '채점하지 못했어');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const next = () => {
+    if (index + 1 >= problems.length) {
+      setFinished(true);
+      return;
+    }
+    setIndex(index + 1);
+    setAnswer('');
+    setFeedback(null);
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--card-bg)',
+    border: '1px solid var(--border)',
+    borderRadius: '1rem',
+    padding: '1.4rem'
+  };
+
+  if (finished) {
+    return (
+      <main className="container" style={{ padding: '3rem 1rem 4rem', maxWidth: '620px' }}>
+        <Helmet>
+          <title>체험 결과 | Logis</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
+        <h2 style={{ marginBottom: '0.5rem' }}>맛보기 끝</h2>
+        <p style={{ fontSize: '1.05rem' }}>
+          {problems.length}문제 중 <b>{correctCount}문제</b> 정답.
+        </p>
+        <div style={{ ...cardStyle, margin: '1.4rem 0' }}>
+          <p style={{ marginTop: 0, fontWeight: 700 }}>가입하면 열리는 것</p>
+          <ul style={{ margin: 0, paddingLeft: '1.2rem', lineHeight: 1.9 }}>
+            <li>레이팅 <b>+5,000</b> 과 토큰 <b>+30</b> 로 시작</li>
+            <li>가입 축하 칭호 + 레이팅·랭킹 기록</li>
+            <li>매일 상자깡(연속 방문할수록 등급 상승)</li>
+            <li>스트릭·퀘스트·주간 리그</li>
+          </ul>
+        </div>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => navigate(signupPath)}
+            className="btn"
+            style={{ background: 'var(--color-4)', color: '#fff', padding: '0.85rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
+          >
+            무료로 가입하고 이어서 풀기
+          </button>
+          <button
+            type="button"
+            onClick={load}
+            className="btn"
+            style={{ background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border)', padding: '0.85rem 1.4rem', borderRadius: '0.8rem', cursor: 'pointer' }}
+          >
+            다른 문제로 다시 체험
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const current = problems[index];
+
+  return (
+    <main className="container" style={{ padding: '3rem 1rem 4rem', maxWidth: '720px' }}>
+      <Helmet>
+        <title>가입 없이 체험 | Logis</title>
+        <meta name="description" content="가입 없이 수학 문제를 풀어보고 Logis의 채점과 레이팅을 미리 경험해보세요." />
+        <link rel="canonical" href="https://llogis.xyz/trial" />
+      </Helmet>
+
+      <h2 style={{ marginBottom: '0.4rem' }}>가입 없이 체험</h2>
+      <p style={{ opacity: 0.75, fontSize: '0.92rem', marginBottom: '1.4rem' }}>
+        {problems.length > 0 ? `${problems.length}문제까지 그냥 풀 수 있어. 기록은 저장되지 않아.` : '문제를 준비하는 중...'}
+      </p>
+
+      {loading && <p>문제를 불러오는 중...</p>}
+      {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+
+      {!loading && current && (
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '1rem' }}>
+            <span>{index + 1} / {problems.length}</span>
+            <span>맞힌 문제 {correctCount}</span>
+          </div>
+
+          <div className="math-content" style={{ fontSize: '1.25rem', marginBottom: '1.2rem' }}>
+            {renderMath(current.content)}
+          </div>
+
+          <form onSubmit={submit}>
+            <label htmlFor="trial-answer" style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', opacity: 0.75 }}>답</label>
+            <input
+              id="trial-answer"
+              value={answer}
+              onChange={e => setAnswer(e.target.value)}
+              disabled={feedback !== null}
+              placeholder="답을 입력하세요"
+              autoComplete="off"
+              style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '1rem', marginBottom: '0.8rem' }}
+            />
+
+            {feedback === null ? (
+              <button
+                type="submit"
+                disabled={submitting || !answer.trim()}
+                className="btn"
+                style={{ background: 'var(--color-4)', color: '#fff', padding: '0.8rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: submitting ? 'wait' : 'pointer' }}
+              >
+                {submitting ? '채점 중...' : '정답 확인'}
+              </button>
+            ) : (
+              <div>
+                <p role="status" style={{ fontWeight: 700, color: feedback === 'correct' ? '#5fae35' : '#ff6b6b', marginBottom: '0.8rem' }}>
+                  {feedback === 'correct' ? '정답' : '오답'}
+                  <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: '0.5rem' }}>
+                    {feedback === 'correct' ? '체험 채점은 실제와 같은 방식으로 이뤄져.' : '정답은 가입 후 내 기록에서 확인할 수 있어.'}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={next}
+                  className="btn"
+                  style={{ background: 'var(--color-4)', color: '#fff', padding: '0.8rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
+                >
+                  {index + 1 >= problems.length ? '결과 보기' : '다음 문제'}
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
+      {!loading && !current && !error && (
+        <button
+          type="button"
+          onClick={load}
+          className="btn"
+          style={{ background: 'var(--color-4)', color: '#fff', padding: '0.8rem 1.6rem', border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
+        >
+          다시 시도
+        </button>
+      )}
+
+      <p style={{ marginTop: '1.6rem', fontSize: '0.9rem', opacity: 0.75 }}>
+        체험 기록은 저장되지 않아. 이어서 풀고 싶으면 <Link to={signupPath} style={{ color: 'var(--color-4)' }}>무료로 가입</Link>하면 돼.
+      </p>
+    </main>
+  );
+};
+
 const Login: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -5158,6 +5526,8 @@ const Login: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ onL
 
 const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
+  // 초대 링크로 들어온 경우(?ref=코드) 가입 요청에 실어 보내고 안내도 띄운다
+  const refCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || '' : '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -5179,6 +5549,7 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
           password,
           userAgent: navigator.userAgent,
           language: navigator.language,
+          ref: refCode || undefined,
         })
       });
       const data = await res.json().catch(() => ({}));
@@ -5187,7 +5558,8 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
         return;
       }
       onLogin(data.token, data.user);
-      navigate('/');
+      // 가입 보상은 랜딩에서 한 번 보여준다
+      navigate('/', { state: { welcome: data.welcome } });
     } catch {
       setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
@@ -5209,6 +5581,9 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
         </div>
         <h2 style={{ color: 'var(--color-4)' }}>가입하기</h2>
         <p className="auth-subtitle">문제를 풀며 성장하는 습관, 오늘부터 시작해요.</p>
+        <p className="auth-subtitle" style={{ marginTop: '-0.6rem', fontSize: '0.85rem' }}>
+          가입하면 레이팅 5,000 · 토큰 30 · 가입 축하 칭호를 바로 받아.{refCode ? ' 초대 보상 토큰 30도 함께!' : ''}
+        </p>
         {error && <div className="inline-feedback error" role="alert">{error}</div>}
         <form onSubmit={handleSubmit}>
           <label htmlFor="signup-username">사용자 이름</label>
@@ -5367,6 +5742,7 @@ const AppContent: React.FC = () => {
           <Route path="/box" element={<BoxPage user={user} setUser={setUser} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/bug-report" element={<BugReport user={user} />} />
+          <Route path="/trial" element={<TrialPage />} />
           <Route path="/goose-room" element={<GooseRoom />} />
           <Route path="/cat-room" element={<CatRoom />} />
         </Routes>
