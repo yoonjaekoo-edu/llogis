@@ -3507,7 +3507,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         {u.last_active_date ? `마지막 활동: ${new Date(u.last_active_date).toLocaleDateString()}` : ''}
       </div>
 
-      <InviteCard readonly={readonly} />
+      <InviteCard user={user} readonly={readonly} />
 
       {/* ─── 분야별 정복도 (다각형 그래프) ─── */}
       <div className="problem-card" style={{ marginBottom: '1.5rem' }}>
@@ -5201,7 +5201,145 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
   );
 };
 
-const InviteCard: React.FC<{ readonly?: boolean }> = ({ readonly }) => {
+const ShareCardButton: React.FC<{ user: User | null; inviteCode?: string }> = ({ user, inviteCode }) => {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const loadRank = async (): Promise<number | null> => {
+    try {
+      const res = await fetch('/api/users/ranking');
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.users || data.ranking || [];
+      const idx = list.findIndex((row: any) => Number(row.id) === Number(user?.id));
+      return idx >= 0 ? idx + 1 : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const buildCard = async (): Promise<Blob | null> => {
+    if (!user) return null;
+    const rank = await loadRank();
+    const W = 1080;
+    const H = 1080;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const font = "'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+    // 배경(단색 — 사이트 톤과 맞춘다)
+    ctx.fillStyle = '#0e1116';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#e8ecf1';
+    ctx.font = `700 44px ${font}`;
+    ctx.fillText('Logis', 72, 108);
+    ctx.fillStyle = '#8b95a7';
+    ctx.font = `400 30px ${font}`;
+    ctx.fillText('llogis.xyz', 72, 156);
+
+    // 큰 레이팅
+    ctx.fillStyle = '#5c95ff';
+    ctx.font = `800 150px ${font}`;
+    ctx.fillText(`${Math.round(user.rating || 0).toLocaleString()}`, 72, 400);
+    ctx.fillStyle = '#8b95a7';
+    ctx.font = `700 46px ${font}`;
+    ctx.fillText('RP', 72, 460);
+
+    // 티어
+    ctx.fillStyle = '#e8ecf1';
+    ctx.font = `800 72px ${font}`;
+    ctx.fillText(String(user.tier || 'Bronze'), 72, 570);
+
+    // 지표
+    const stats: [string, string][] = [
+      ['푼 문제', `${user.problems_solved || 0}개`],
+      ['연속 스트릭', `${user.streak || 0}일`],
+      ['전체 순위', rank ? `${rank}위` : '-']
+    ];
+    let y = 700;
+    for (const [label, value] of stats) {
+      ctx.fillStyle = '#8b95a7';
+      ctx.font = `600 34px ${font}`;
+      ctx.fillText(label, 72, y);
+      ctx.fillStyle = '#e8ecf1';
+      ctx.font = `800 46px ${font}`;
+      ctx.fillText(value, 360, y);
+      y += 74;
+    }
+
+    // 하단: 초대 링크(있으면) + 유저 이름
+    ctx.strokeStyle = '#232a35';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(72, 980);
+    ctx.lineTo(W - 72, 980);
+    ctx.stroke();
+
+    ctx.fillStyle = '#e8ecf1';
+    ctx.font = `700 36px ${font}`;
+    ctx.fillText(user.username, 72, 1032);
+    ctx.fillStyle = '#5c95ff';
+    ctx.font = `600 30px ${font}`;
+    const tail = inviteCode ? `내 초대 링크 llogis.xyz/signup?ref=${inviteCode}` : 'llogis.xyz 에서 함께 풀어요';
+    ctx.fillText(tail, 72, 1064);
+
+    return new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/png', 0.95));
+  };
+
+  const handleShare = async () => {
+    if (busy || !user) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const blob = await buildCard();
+      if (!blob) throw new Error('카드를 만들지 못했어');
+      const file = new File([blob], `logis-${user.username}.png`, { type: 'image/png' });
+      const nav: any = navigator;
+      if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({
+          files: [file],
+          title: 'Logis 기록',
+          text: `내 수학 레이팅 ${Math.round(user.rating || 0).toLocaleString()} RP (${user.tier})`
+        });
+        setMessage('공유 창을 열었어');
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `logis-${user.username}.png`;
+        link.click();
+        URL.revokeObjectURL(url);
+        setMessage('이미지를 내려받았어. 카톡 단톡방에 붙여봐');
+      }
+    } catch (err: any) {
+      setMessage(err?.message || '공유에 실패했어');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
+      <button
+        type="button"
+        onClick={handleShare}
+        disabled={busy}
+        className="btn"
+        style={{ background: 'var(--color-4)', color: '#fff', padding: '0.7rem 1.2rem', fontSize: '0.9rem', fontWeight: 700, border: 'none', borderRadius: '0.7rem', cursor: busy ? 'wait' : 'pointer' }}
+      >
+        {busy ? '카드 만드는 중...' : '기록 카드 만들기'}
+      </button>
+      {message && <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{message}</span>}
+    </div>
+  );
+};
+
+const InviteCard: React.FC<{ user: User | null; readonly?: boolean }> = ({ user, readonly }) => {
   const [info, setInfo] = useState<{ inviteCode: string; referralCount: number; referralTokens: number; invited: { username: string }[] } | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
@@ -5266,6 +5404,12 @@ const InviteCard: React.FC<{ readonly?: boolean }> = ({ readonly }) => {
             초대한 친구 <b>{info.referralCount}</b>명
             {info.invited.length > 0 ? ` · ${info.invited.map(i => i.username).join(', ')}` : ''}
           </p>
+          <div style={{ marginTop: '1.1rem', paddingTop: '0.9rem', borderTop: '1px solid var(--border)' }}>
+            <p style={{ margin: '0 0 0.6rem', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+              내 기록 카드를 만들어 단톡방에 붙일 수 있어. 카드에 초대 링크가 함께 들어가.
+            </p>
+            <ShareCardButton user={user} inviteCode={info.inviteCode} />
+          </div>
         </>
       ) : (
         <p style={{ margin: 0, color: 'var(--text-muted)' }}>초대 링크를 준비하는 중...</p>
