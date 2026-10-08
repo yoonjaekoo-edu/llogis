@@ -13,11 +13,16 @@ function patchBackend() {
   let source = fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
 
   if (!source.includes("'one_shot_one_kill'")) {
-    source = replaceOnce(
-      source,
-      "      ('token_hoarder', '토큰은 내 친구', '토큰 1000개 이상 보유', 'tokens', 1000),\n      ('xp_master', '경험치 중독자', 'XP 10000 이상 획득', 'xp', 10000)\n",
-      "      ('token_hoarder', '토큰은 내 친구', '토큰 1000개 이상 보유', 'tokens', 1000),\n      ('xp_master', '경험치 중독자', 'XP 10000 이상 획득', 'xp', 10000),\n      ('one_shot_one_kill', '원샷원킬', '문제 20개를 연속으로 정답 맞히세요', 'consecutive_correct', 20)\n",
-      'one-shot title seed'
+    // xp_master 행 **뒤에** 끼워 넣는다. 뒤에 행이 더 있어도(예: 다른 칭호 추가) 동작하도록
+    // 시드 마지막 행을 전제로 한 앵커(줄바꿈 포함)는 쓰지 않는다.
+    const seedAnchor = "      ('xp_master', '경험치 중독자', 'XP 10000 이상 획득', 'xp', 10000)";
+    const seedCount = source.split(seedAnchor).length - 1;
+    if (seedCount !== 1) {
+      throw new Error(`one-shot title seed: expected exactly one anchor, found ${seedCount}`);
+    }
+    source = source.replace(
+      seedAnchor,
+      `${seedAnchor},\n      ('one_shot_one_kill', '원샷원킬', '문제 20개를 연속으로 정답 맞히세요', 'consecutive_correct', 20)`
     );
   }
 
