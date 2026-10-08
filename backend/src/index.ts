@@ -21,7 +21,7 @@ import {
   deleteTemplate,
 } from './templateProblemGenerator';
 import { getTier, processSubmission, getTierConfig, updateTierConfig } from './rating/ratingService';
-import { LEAGUE_MIN_SCORE, LEAGUE_REWARD_TOKENS, pickLeagueWinners } from './rating/leagueWinners';
+import { LEAGUE_BANDS, LEAGUE_MIN_SOLVED, bandById, bandForTier, pickBandWinners } from './rating/leagueBands';
 import {
   BOX_RARITY_ORDER,
   BOX_TIERS,
@@ -1955,9 +1955,11 @@ app.post('/api/users/change-password', authenticateToken, async (req: any, res: 
 // ===================== 주간 리그 =====================
 // 정의: KST 기준 월요일 00:00 ~ 일요일 23:59 사이에 '정답으로 얻은 레이팅' 합계.
 // 오답 패널티는 리그 점수에 넣지 않는다(열심히 도전한 사람이 불리해지지 않도록).
-// 정산(지난 주 상위 3명 토큰 지급)은 별도 크론 없이 조회 시 지연 실행하고,
+// 정산(지난 주 밴드별 상위 3명 토큰 지급)은 별도 크론 없이 조회 시 지연 실행하고,
 // weekly_league_rewards 마커 행으로 주차당 정확히 1번만 돌게 한다.
-// 주간 리그 보상 규칙은 src/rating/leagueWinners.ts 에 있다(순수 함수라 테스트 가능).
+// 전역 순위 하나로는 1위(7.4M)와 신규(15만)가 같은 판에서 겨뤄 신규가 이길 수 없다 —
+// **티어 밴드**로 나눠 같은 급끼리 겨루게 하고, 보상 조건도 절대 점수(10만 RP) 대신
+// 참여 조건(그 주 정답 N문제)으로 바꿨다. 규칙은 src/rating/leagueBands.ts(순수 함수).
 
 const settleWeeklyLeague = async (): Promise<{ weekKey: string; winners: any[] } | null> => {
   const lastWeekKey = shiftWeekKey(getWeekKeyString(), -1);
@@ -1975,15 +1977,23 @@ const settleWeeklyLeague = async (): Promise<{ weekKey: string; winners: any[] }
     }
 
     const winnersRes = await client.query(
-      `SELECT s.user_id, s.score, s.solved, u.username
+      `SELECT s.user_id, s.score, s.solved, u.username, u.rating
        FROM weekly_league_scores s
        JOIN users u ON u.id = s.user_id
        WHERE s.week_key = $1
        ORDER BY s.score DESC, s.updated_at ASC
-       LIMIT $2`,
-      [lastWeekKey, LEAGUE_REWARD_TOKENS.length]
+       LIMIT 300`,
+      [lastWeekKey]
     );
-    const winners = pickLeagueWinners<any>(winnersRes.rows);
+
+    // 밴드별로 나눠 각 밴드 상위 3명에게 그 밴드의 보상을 준다(참여 조건 미달자는 건너뜀).
+    const winners: any[] = [];
+    for (const band of LEAGUE_BANDS) {
+      const bandRows = winnersRes.rows.filter(
+        (row: any) => bandForTier(getTier(Number(row.rating) || 0)) === band.id
+      );
+      winners.push(...pickBandWinners<any>(bandRows, band.id));
+    }
 
     for (const winner of winners) {
       await client.query('UPDATE users SET tokens = COALESCE(tokens, 0) + $1 WHERE id = $2', [winner.tokens, winner.user_id]);
@@ -1991,7 +2001,7 @@ const settleWeeklyLeague = async (): Promise<{ weekKey: string; winners: any[] }
         'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
         [
           'weekly_league',
-          `주간 리그(${lastWeekKey} 시작 주차) ${winner.rank}위 ${winner.username} — ${Math.round(Number(winner.score)).toLocaleString('ko-KR')} RP 획득, 토큰 +${winner.tokens}`,
+          `주간 리그(${lastWeekKey} 시작 주차) ${bandById(winner.band).label} ${winner.rank}위 ${winner.username} — ${Math.round(Number(winner.score)).toLocaleString('ko-KR')} RP 획득, 토큰 +${winner.tokens}`,
           null,
           '리그',
           winner.user_id
@@ -2035,24 +2045,47 @@ app.get('/api/league', async (req: Request, res: Response) => {
        JOIN users u ON u.id = s.user_id
        WHERE s.week_key = $1
        ORDER BY s.score DESC, s.updated_at ASC
-       LIMIT 50`,
+       LIMIT 300`,
       [weekKey]
     );
 
+    // 밴드별로 나눠서 각 밴드의 순위표를 만든다
+    const rowsByBand: Record<string, any[]> = {};
+    for (const row of topRes.rows) {
+      const bandId = bandForTier(getTier(Number(row.rating) || 0));
+      if (!rowsByBand[bandId]) rowsByBand[bandId] = [];
+      rowsByBand[bandId].push(row);
+    }
+
+    const bands = LEAGUE_BANDS.map((band) => {
+      const rows = rowsByBand[band.id] || [];
+      const myIndex = userId ? rows.findIndex((row: any) => Number(row.id) === Number(userId)) : -1;
+      const myRow = myIndex >= 0 ? rows[myIndex] : null;
+      return {
+        id: band.id,
+        label: band.label,
+        tiers: band.tiers,
+        rewards: band.rewards,
+        minSolved: LEAGUE_MIN_SOLVED,
+        top: rows.slice(0, 10).map((row: any, idx: number) => ({ ...row, rank: idx + 1 })),
+        me: userId
+          ? {
+              score: myRow ? Number(myRow.score) : 0,
+              solved: myRow ? Number(myRow.solved) : 0,
+              rank: myRow ? myIndex + 1 : null,
+              qualifies: myRow ? Number(myRow.solved) >= LEAGUE_MIN_SOLVED : false
+            }
+          : null
+      };
+    });
+
+    let myBand: string | null = null;
     let me: any = null;
     if (userId) {
-      const meRes = await pool.query(
-        'SELECT score, solved FROM weekly_league_scores WHERE user_id = $1 AND week_key = $2',
-        [userId, weekKey]
-      );
-      if (meRes.rows.length > 0) {
-        const aheadRes = await pool.query(
-          'SELECT COUNT(*)::int AS ahead FROM weekly_league_scores WHERE week_key = $1 AND score > $2',
-          [weekKey, meRes.rows[0].score]
-        );
-        me = { score: Number(meRes.rows[0].score), solved: Number(meRes.rows[0].solved), rank: aheadRes.rows[0].ahead + 1 };
-      } else {
-        me = { score: 0, solved: 0, rank: null };
+      const myRatingRes = await pool.query('SELECT rating FROM users WHERE id = $1', [userId]);
+      if (myRatingRes.rows.length > 0) {
+        myBand = bandForTier(getTier(Number(myRatingRes.rows[0].rating) || 0));
+        me = bands.find((b) => b.id === myBand)?.me || null;
       }
     }
 
@@ -2066,10 +2099,11 @@ app.get('/api/league', async (req: Request, res: Response) => {
       weekKey,
       weekStart: start,
       weekEnd: end,
-      top: topRes.rows,
+      bands,
+      myBand,
+      top: topRes.rows.slice(0, 10),
       me,
-      rewards: LEAGUE_REWARD_TOKENS,
-      minScore: LEAGUE_MIN_SCORE,
+      minSolved: LEAGUE_MIN_SOLVED,
       lastWeek: {
         weekKey: lastWeekKey,
         winners: lastRes.rows[0]?.winners || [],

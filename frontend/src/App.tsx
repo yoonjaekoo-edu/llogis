@@ -1571,65 +1571,90 @@ const Ranking: React.FC = () => {
             <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.7 }}>
               매주 월요일 00:00 (KST) 시작 · 이번 주에 <b>정답으로 얻은 레이팅</b> 합계<br />
               {league
-                ? <>마감까지 {formatLeagueRemaining(league.weekEnd)} 남음 · 1위 {league.rewards?.[0] ?? 150}토큰 / 2위 {league.rewards?.[1] ?? 100}토큰 / 3위 {league.rewards?.[2] ?? 50}토큰 ({(league.minScore ?? 0).toLocaleString()} RP 이상)</>
-                : '상위 3명에게 토큰 지급'}
+                ? <>마감까지 {formatLeagueRemaining(league.weekEnd)} 남음 · <b>같은 티어 밴드끼리</b> 겨루고, 밴드별 1·2·3위에게 토큰 (그 주 정답 {league.minSolved ?? 3}문제 이상)</>
+                : '티어 밴드별 상위 3명에게 토큰 지급'}
             </p>
 
             {leagueLoading && <p style={{ textAlign: 'center', opacity: 0.6 }}>불러오는 중...</p>}
 
             {league && !leagueLoading && (
               <>
-                {league.me && (
+                {league.me && league.myBand && (
                   <div style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: '0.75rem', background: 'rgba(0,0,0,0.04)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 800 }}>내 순위</span>
+                    <span style={{ fontWeight: 800 }}>
+                      내 리그 · {(league.bands || []).find((b: any) => b.id === league.myBand)?.label || league.myBand}
+                    </span>
                     <span style={{ fontWeight: 800, color: 'var(--color-4)' }}>
                       {league.me.rank ? `${league.me.rank}위` : '이번 주 기록 없음'} · {Number(league.me.score).toLocaleString()} RP · {league.me.solved}문제
+                      {league.me.rank && league.me.qualifies === false ? ' (정답 ' + (league.minSolved ?? 3) + '문제 미만 — 보상 대상 아님)' : ''}
                     </span>
                   </div>
                 )}
 
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '1rem' }}>순위</th>
-                        <th style={{ padding: '1rem' }}>사용자</th>
-                        <th style={{ padding: '1rem' }}>주간 획득</th>
-                        <th style={{ padding: '1rem' }}>푼 문제</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {league.top.map((u: any, i: number) => (
-                        <tr
-                          key={u.id}
-                          onClick={() => navigate(`/users/${u.id}`)}
-                          style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <td style={{ padding: '1.2rem 1rem', fontWeight: 800 }}>{i + 1}</td>
-                          <td style={{ padding: '1.2rem 1rem', fontWeight: 600 }}>
-                            {u.username}
-                            {u.equipped_title && <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-4)' }}>[{u.equipped_title}]</div>}
-                            {u.custom_title && <div style={{ fontSize: '0.75rem', color: '#ff6b9d', fontStyle: 'italic' }}>{u.custom_title}</div>}
-                          </td>
-                          <td style={{ padding: '1.2rem 1rem', fontWeight: 800, color: 'var(--color-4)' }}>{Number(u.score).toLocaleString()} RP</td>
-                          <td style={{ padding: '1.2rem 1rem' }}>{u.solved}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {league.top.length === 0 && (
-                    <p style={{ textAlign: 'center', opacity: 0.6, padding: '2rem 0' }}>이번 주 기록이 아직 없습니다. 문제를 풀면 바로 순위에 들어갑니다.</p>
-                  )}
-                </div>
+                {[...((league.bands as any[]) || [])]
+                  .sort((a: any, b: any) => (a.id === league.myBand ? -1 : b.id === league.myBand ? 1 : 0))
+                  .map((band: any) => (
+                    <div key={band.id} style={{ marginBottom: '1.6rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                        <h4 style={{ margin: 0 }}>
+                          {band.label}
+                          {band.id === league.myBand ? ' (내 리그)' : ''}
+                        </h4>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {band.tiers.join(' · ')} · 1위 {band.rewards[0]} / 2위 {band.rewards[1]} / 3위 {band.rewards[2]} 토큰
+                        </span>
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>
+                              <th style={{ padding: '0.7rem 1rem' }}>순위</th>
+                              <th style={{ padding: '0.7rem 1rem' }}>사용자</th>
+                              <th style={{ padding: '0.7rem 1rem' }}>주간 획득</th>
+                              <th style={{ padding: '0.7rem 1rem' }}>푼 문제</th>
+                              <th style={{ padding: '0.7rem 1rem' }}>보상</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {band.top.map((u: any) => (
+                              <tr
+                                key={u.id}
+                                onClick={() => navigate(`/users/${u.id}`)}
+                                style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                              >
+                                <td style={{ padding: '0.9rem 1rem', fontWeight: 800 }}>{u.rank}</td>
+                                <td style={{ padding: '0.9rem 1rem', fontWeight: 600 }}>
+                                  {u.username}
+                                  {u.equipped_title && <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-4)' }}>[{u.equipped_title}]</div>}
+                                  {u.custom_title && <div style={{ fontSize: '0.75rem', color: '#ff6b9d', fontStyle: 'italic' }}>{u.custom_title}</div>}
+                                </td>
+                                <td style={{ padding: '0.9rem 1rem', fontWeight: 800, color: 'var(--color-4)' }}>{Number(u.score).toLocaleString()} RP</td>
+                                <td style={{ padding: '0.9rem 1rem' }}>{u.solved}</td>
+                                <td style={{ padding: '0.9rem 1rem', fontWeight: 700 }}>
+                                  {u.rank <= 3 && Number(u.solved) >= (league.minSolved ?? 3) ? `토큰 +${band.rewards[u.rank - 1]}` : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {band.top.length === 0 && (
+                          <p style={{ textAlign: 'center', opacity: 0.6, padding: '1.2rem 0', margin: 0 }}>이 리그는 이번 주 기록이 아직 없습니다.</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
 
                 {league.lastWeek && league.lastWeek.winners.length > 0 && (
                   <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
                     <h4 style={{ marginBottom: '0.8rem' }}>지난 주 ({league.lastWeek.weekKey} 주) 결과</h4>
                     {league.lastWeek.winners.map((w: any) => (
                       <div key={w.user_id} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.5rem 0', fontSize: '0.9rem', flexWrap: 'wrap' }}>
-                        <span><b>{w.rank}위</b> {w.username}</span>
+                        <span>
+                          <b>{w.rank}위</b> {w.username}
+                          {w.band ? <span style={{ opacity: 0.7, marginLeft: '0.4rem' }}>({(league.bands || []).find((b: any) => b.id === w.band)?.label || w.band})</span> : null}
+                        </span>
                         <span style={{ color: 'var(--color-4)', fontWeight: 700 }}>{Number(w.score).toLocaleString()} RP · 토큰 +{w.tokens}</span>
                       </div>
                     ))}
