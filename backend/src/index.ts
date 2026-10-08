@@ -20,6 +20,7 @@ import {
   deleteTemplate,
 } from './templateProblemGenerator';
 import { getTier, processSubmission, getTierConfig, updateTierConfig } from './rating/ratingService';
+import { LEAGUE_MIN_SCORE, LEAGUE_REWARD_TOKENS, pickLeagueWinners } from './rating/leagueWinners';
 import { getTodayString, getWeekKeyString, shiftWeekKey, getWeekRange } from './rating/gameSystemService';
 import { signupRateLimit, loginRateLimit, profileRateLimit } from './security/rateLimiter';
 import {
@@ -1778,8 +1779,7 @@ app.post('/api/users/change-password', authenticateToken, async (req: any, res: 
 // 오답 패널티는 리그 점수에 넣지 않는다(열심히 도전한 사람이 불리해지지 않도록).
 // 정산(지난 주 상위 3명 토큰 지급)은 별도 크론 없이 조회 시 지연 실행하고,
 // weekly_league_rewards 마커 행으로 주차당 정확히 1번만 돌게 한다.
-const LEAGUE_REWARD_TOKENS = [150, 100, 50];
-const LEAGUE_MIN_SCORE = 5000;
+// 주간 리그 보상 규칙은 src/rating/leagueWinners.ts 에 있다(순수 함수라 테스트 가능).
 
 const settleWeeklyLeague = async (): Promise<{ weekKey: string; winners: any[] } | null> => {
   const lastWeekKey = shiftWeekKey(getWeekKeyString(), -1);
@@ -1805,23 +1805,20 @@ const settleWeeklyLeague = async (): Promise<{ weekKey: string; winners: any[] }
        LIMIT $2`,
       [lastWeekKey, LEAGUE_REWARD_TOKENS.length]
     );
-    const winners = winnersRes.rows.filter((row: any) => Number(row.score) >= LEAGUE_MIN_SCORE);
+    const winners = pickLeagueWinners<any>(winnersRes.rows);
 
-    for (let i = 0; i < winners.length; i++) {
-      const tokens = LEAGUE_REWARD_TOKENS[i];
-      await client.query('UPDATE users SET tokens = COALESCE(tokens, 0) + $1 WHERE id = $2', [tokens, winners[i].user_id]);
+    for (const winner of winners) {
+      await client.query('UPDATE users SET tokens = COALESCE(tokens, 0) + $1 WHERE id = $2', [winner.tokens, winner.user_id]);
       await client.query(
         'INSERT INTO admin_notifications (type, message, from_user_id, from_username, related_id) VALUES ($1, $2, $3, $4, $5)',
         [
           'weekly_league',
-          `주간 리그(${lastWeekKey} 시작 주차) ${i + 1}위 ${winners[i].username} — ${Math.round(Number(winners[i].score)).toLocaleString('ko-KR')} RP 획득, 토큰 +${tokens}`,
+          `주간 리그(${lastWeekKey} 시작 주차) ${winner.rank}위 ${winner.username} — ${Math.round(Number(winner.score)).toLocaleString('ko-KR')} RP 획득, 토큰 +${winner.tokens}`,
           null,
           '리그',
-          winners[i].user_id
+          winner.user_id
         ]
       );
-      winners[i].rank = i + 1;
-      winners[i].tokens = tokens;
     }
 
     await client.query('UPDATE weekly_league_rewards SET winners = $1::jsonb WHERE week_key = $2', [JSON.stringify(winners), lastWeekKey]);
