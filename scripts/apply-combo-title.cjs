@@ -62,7 +62,9 @@ function patchBackend() {
     );
   }
 
-  if (!source.includes('newlyUnlockedTitle\n    });')) {
+  // 응답에 combo 필드가 이미 들어가 있으면 넘어간다. 다른 필드가 뒤에 붙을 수 있으므로
+  // 'newlyUnlockedTitle\n    });' 처럼 블록 끝을 가정하지 않는다.
+  if (!source.includes('consecutiveCorrect,\n      newlyUnlockedTitle')) {
     source = replaceOnce(
       source,
       "    res.json({ \n      isCorrect,\n      ...updateResult \n    });\n",
