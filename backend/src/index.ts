@@ -31,6 +31,13 @@ import {
   boxOdds,
   upgradeChance
 } from './box/dailyBox';
+import {
+  buildDailyQuests,
+  progressQuests,
+  questRewardTotal,
+  questsAreStale,
+  type Quest,
+} from './quests/dailyQuests';
 import { getTodayString, getWeekKeyString, shiftWeekKey, getWeekRange } from './rating/gameSystemService';
 import { signupRateLimit, loginRateLimit, profileRateLimit, trialRateLimit } from './security/rateLimiter';
 import {
@@ -848,7 +855,7 @@ app.get('/api/users/profile', authenticateToken, async (req: any, res: Response)
     const userId = req.user.id;
 
     const userResult = await pool.query(
-      "SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, tokens, profile_theme, profile_css FROM users WHERE id = $1",
+      "SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, tokens, profile_theme, profile_css, quests, xp, rating, streak FROM users WHERE id = $1",
       [userId]
     );
 
@@ -857,6 +864,13 @@ app.get('/api/users/profile', authenticateToken, async (req: any, res: Response)
     }
 
     const user = userResult.rows[0];
+
+    // 오늘의 퀘스트가 없으면 여기서 만든다(카드가 계속 비어 보이지 않게).
+    try {
+      user.quests = await ensureDailyQuests(userId);
+    } catch (questErr) {
+      console.error('Failed to ensure daily quests:', questErr);
+    }
 
     let equippedTitleName = '';
     if (user.equipped_title) {
@@ -2189,6 +2203,41 @@ const unlockBoxTitles = async (client: any, userId: number) => {
   return unlocked;
 };
 
+/**
+ * 오늘의 퀘스트를 보장한다. 없거나 어제 것이면 여기서 만들어 저장한다.
+ * 날이 바뀌면 새 퀘스트 3개가 생기고 진행도는 초기화된다.
+ */
+const ensureDailyQuests = async (userId: number): Promise<Quest[]> => {
+  const dayKey = getTodayString();
+  const res = await pool.query('SELECT quests FROM users WHERE id = $1', [userId]);
+  const stored = res.rows[0]?.quests;
+  if (!questsAreStale(stored, dayKey)) return stored as Quest[];
+
+  const quests = buildDailyQuests(userId, dayKey);
+  await pool.query('UPDATE users SET quests = $2::jsonb WHERE id = $1', [userId, JSON.stringify(quests)]);
+  return quests;
+};
+
+/**
+ * 제출 하나를 퀘스트 진행에 반영하고, 새로 완료된 퀘스트의 보상(XP·토큰)을 지급한다.
+ * 보상에 레이팅을 주지 않는다 — 퀘스트로 주간 리그 점수를 채우지 못하게 하려는 것(상자깡과 같은 이유).
+ */
+const applyQuestProgress = async (
+  userId: number,
+  event: { correct: boolean; ratingGained?: number }
+): Promise<{ quests: Quest[]; completed: Quest[] }> => {
+  const quests = await ensureDailyQuests(userId);
+  const { quests: next, completed } = progressQuests(quests, event);
+  if (JSON.stringify(next) === JSON.stringify(quests)) return { quests: next, completed: [] };
+
+  const reward = questRewardTotal(completed);
+  await pool.query(
+    'UPDATE users SET quests = $2::jsonb, xp = COALESCE(xp, 0) + $3, tokens = COALESCE(tokens, 0) + $4 WHERE id = $1',
+    [userId, JSON.stringify(next), reward.xp, reward.tokens]
+  );
+  return { quests: next, completed };
+};
+
 // 오늘 상자 상태 + 등급표 + 기록
 app.get('/api/box', authenticateToken, async (req: any, res: Response) => {
   try {
@@ -2516,58 +2565,56 @@ app.get('/api/problems', async (req: Request, res: Response) => {
 
   try {
     // 검수 승인된 문제만 공개하고, 본인이 출제한 문제는 풀 목록에서 제외한다.
-    let countQuery = `
+    // 푼 문제도 목록에 남는다(추천에서 뒤로 밀릴 뿐). 총 개수는 "내가 출제한 문제 제외"만 센다.
+    const countQuery = `
       SELECT COUNT(DISTINCT p.id)
       FROM problems p
       WHERE p.is_custom = $1 AND p.review_status = 'approved'
+        AND ($2::int IS NULL OR p.created_by IS DISTINCT FROM $2::int)
     `;
-    let countParams: any[] = [isCustomFilter];
+    const countParams: any[] = [isCustomFilter, userId || null];
     
-    if (userId) {
-      countQuery = `
-        SELECT COUNT(DISTINCT p.id)
-        FROM problems p
-        WHERE p.is_custom = $1 AND p.review_status = 'approved'
-          AND p.created_by IS DISTINCT FROM $2
-          AND p.id NOT IN (
-          SELECT problem_id FROM submissions WHERE user_id = $2 AND is_correct = true AND problem_id IS NOT NULL
-        )
-      `;
-      countParams.push(userId);
-    }
     
     const countRes = await pool.query(countQuery, countParams);
     const total = parseInt(countRes.rows[0].count);
 
-    let query = `
+    // 추천 순서: ① 안 푼 문제 ② 약한 분야(시도 3회 이상 & 정답률 낮은 순) ③ 사용자·날짜 기준 고정 셔플.
+    // 셔플 이유: 같은 템플릿에서 배치로 만든 문제가 줄줄이 나오면 목록이 재미없다(실제로 소금물 10개 연속이었다).
+    const query = `
+      SELECT * FROM (
       SELECT p.id, p.title, p.content, p.current_difficulty, p.is_custom, p.custom_reward_rating,
-             p.created_by,
+             p.created_by, p.domain,
              (SELECT pi.token FROM uploaded_images pi WHERE pi.problem_id = p.id ORDER BY pi.id LIMIT 1) AS image_token,
-             COALESCE(array_remove(array_agg(t.name), NULL), '{}') as tags
+             COALESCE(array_remove(array_agg(DISTINCT t.name), NULL), '{}') as tags,
+             CASE WHEN $2::int IS NULL THEN FALSE ELSE EXISTS (
+               SELECT 1 FROM submissions s
+               WHERE s.user_id = $2::int AND s.problem_id = p.id AND s.is_correct = true
+             ) END AS solved_by_me,
+             CASE WHEN $2::int IS NULL THEN NULL ELSE (
+               SELECT COUNT(*) FROM submissions s3
+               JOIN problems p3 ON p3.id = s3.problem_id
+               WHERE s3.user_id = $2::int AND p3.domain IS NOT NULL AND p3.domain = p.domain
+             ) END AS domain_attempts,
+             CASE WHEN $2::int IS NULL THEN NULL ELSE (
+               SELECT COUNT(*) FILTER (WHERE s2.is_correct)::float / NULLIF(COUNT(*), 0)
+               FROM submissions s2
+               JOIN problems p2 ON p2.id = s2.problem_id
+               WHERE s2.user_id = $2::int AND p2.domain IS NOT NULL AND p2.domain = p.domain
+             ) END AS domain_accuracy,
+             md5(p.id::text || COALESCE($2::int::text, '-') || $3::text) AS shuffle_key
       FROM problems p
       LEFT JOIN problem_tags pt ON p.id = pt.problem_id
       LEFT JOIN tags t ON pt.tag_id = t.id
       WHERE p.is_custom = $1 AND p.review_status = 'approved'
-    `;
-    
-    let queryParams: any[] = [isCustomFilter];
-    let nextIdx = 2;
-    
-    if (userId) {
-      const userIdx = nextIdx++;
-      query += ` AND p.created_by IS DISTINCT FROM $${userIdx}`;
-      query += ` AND p.id NOT IN (
-        SELECT problem_id FROM submissions WHERE user_id = $${userIdx} AND is_correct = true AND problem_id IS NOT NULL
-      )`;
-      queryParams.push(userId);
-    }
-    
-    query += `
+        AND ($2::int IS NULL OR p.created_by IS DISTINCT FROM $2::int)
       GROUP BY p.id
-      ORDER BY p.id DESC
-      LIMIT $${nextIdx++} OFFSET $${nextIdx++}
+      ) ranked
+      ORDER BY ranked.solved_by_me ASC,
+               (CASE WHEN COALESCE(ranked.domain_attempts, 0) >= 3 THEN ranked.domain_accuracy ELSE 0.5 END) ASC NULLS LAST,
+               ranked.shuffle_key
+      LIMIT $4 OFFSET $5
     `;
-    queryParams.push(limitNum, offset);
+    const queryParams: any[] = [isCustomFilter, userId || null, getTodayString(), limitNum, offset];
 
     const result = await pool.query(query, queryParams);
     
@@ -3272,6 +3319,24 @@ app.post('/api/submissions', authenticateToken, async (req: any, res: any) => {
       }
     }
 
+    // 일일 퀘스트 진행 — 퀘스트가 실패해도 제출은 살아야 하므로 따로 감싼다.
+    let questsCompleted: { title: string; xpReward: number; tokenReward: number }[] = [];
+    let questsAfter: any[] | null = null;
+    try {
+      const questStep = await applyQuestProgress(userId, {
+        correct: isCorrect,
+        ratingGained: isCorrect ? Number((updateResult as any).ratingChange || 0) : 0,
+      });
+      questsAfter = questStep.quests;
+      questsCompleted = questStep.completed.map((q) => ({
+        title: q.title,
+        xpReward: q.xpReward,
+        tokenReward: q.tokenReward,
+      }));
+    } catch (questErr) {
+      console.error('Failed to update daily quests:', questErr);
+    }
+
     if (process.env.LOG_SUBMISSION_PERF === '1') {
       console.log(`[submission-perf] handler user=${userId} problem=${problemId} total:${Date.now() - handlerStart}ms`);
     }
@@ -3279,7 +3344,9 @@ app.post('/api/submissions', authenticateToken, async (req: any, res: any) => {
       isCorrect,
       ...updateResult,
       consecutiveCorrect,
-      newlyUnlockedTitle
+      newlyUnlockedTitle,
+      questsCompleted,
+      quests: questsAfter
     });
   } catch (err) {
     if (process.env.LOG_SUBMISSION_PERF === '1') {

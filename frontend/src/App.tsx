@@ -60,6 +60,9 @@ interface Problem {
   custom_reward_rating?: number;
   is_custom?: boolean;
   image_token?: string | null;
+  // 추천 정렬용: 내가 이미 맞힌 문제인지(서버가 안 푼 문제를 앞으로 보낸다)
+  solved_by_me?: boolean;
+  domain?: string | null;
 }
 
 // 업로드 전에 브라우저에서 줄인다. 폰 원본 사진은 서버 제한(3MB)과
@@ -3649,6 +3652,9 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
         <h3 style={{ margin: '0 0 1.2rem', color: 'var(--color-4)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           오늘의 퀘스트
         </h3>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '-0.8rem 0 1rem' }}>
+          매일 자정에 새 퀘스트 3개로 바뀝니다. 완료 보상(XP·토큰)은 문제를 제출할 때 자동 지급됩니다.
+        </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {Array.isArray(u.quests) && u.quests.length > 0 ? (
             <>
@@ -3685,7 +3691,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
             </>
           ) : (
             <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', margin: 0, fontSize: '0.95rem' }}>
-              오늘의 퀘스트가 아직 생성되지 않았습니다. 문제를 풀면 퀘스트가 자동으로 시작됩니다!
+              퀘스트를 불러오지 못했습니다. 새로고침하면 오늘의 퀘스트 3개가 표시됩니다.
             </p>
           )}
         </div>
@@ -3952,6 +3958,8 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
   const [comboCount, setComboCount] = useState(0);
   const [comboImpactKey, setComboImpactKey] = useState(0);
   const [unlockedComboTitle, setUnlockedComboTitle] = useState<string | null>(null);
+  // 퀘스트를 막 완료했을 때만 뜨는 알림(보상은 서버가 이미 지급했다)
+  const [completedQuests, setCompletedQuests] = useState<{ title: string; xpReward: number; tokenReward: number }[] | null>(null);
   // 문제 출제 (일반 유저는 검수 대기 → 관리자 승인 후 공개, 관리자는 즉시 공개)
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
@@ -4114,6 +4122,12 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       if (data.streak !== undefined) updatedUser.streak = data.streak;
       if (data.xp !== undefined) updatedUser.xp = data.xp;
       if (data.level !== undefined) updatedUser.level = data.level;
+      // 퀘스트 진행은 서버가 계산해 내려준다(화면은 그대로 덮어쓰기만 한다)
+      if (Array.isArray(data.quests)) updatedUser.quests = data.quests;
+      if (Array.isArray(data.questsCompleted) && data.questsCompleted.length > 0) {
+        setCompletedQuests(data.questsCompleted);
+        setTimeout(() => setCompletedQuests(null), 6000);
+      }
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setAnswers(prev => ({ ...prev, [problemId]: '' }));
@@ -4409,6 +4423,12 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
           </div>
         )}
         
+        {user && (
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+            <span>추천 순서 · 안 푼 문제 먼저, 약한 분야 우선</span>
+            <span>해결한 문제는 뒤로 밀립니다</span>
+          </div>
+        )}
         <div ref={problemListRef} role="listbox" aria-label="문제 선택" style={{ maxHeight: '50vh', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '1rem', background: 'var(--card-bg)' }}>
           {loadingProblems ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>로딩 중...</div>
@@ -4428,7 +4448,12 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
                   fontWeight: selectedProblemId === p.id ? 800 : 400
                 }}
               >
-                <div style={{ fontSize: '0.9rem' }}>{p.title}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>
+                  <span style={{ color: p.solved_by_me ? 'var(--text-muted)' : 'inherit' }}>{p.title}</span>
+                  {p.solved_by_me && (
+                    <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-muted)', padding: '0.1rem 0.4rem', borderRadius: '99px', background: 'var(--border)' }}>해결</span>
+                  )}
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
                   <span style={{ fontSize: '0.7rem', color: '#e6a800' }}>
                     +{(p.current_difficulty as number).toLocaleString()} RP
@@ -4524,6 +4549,20 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
                 style={{ marginTop: '0.5rem', padding: '0.85rem 1rem', borderRadius: '0.75rem', textAlign: 'center', fontWeight: 900, background: 'rgba(255, 176, 0, 0.12)', border: '1px solid rgba(255, 176, 0, 0.35)', color: '#e68a00' }}
               >
                 새 칭호 획득 · {unlockedComboTitle}
+              </motion.div>
+            )}
+            {completedQuests && completedQuests.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.94 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                style={{ marginTop: '0.5rem', padding: '0.85rem 1rem', borderRadius: '0.75rem', background: 'rgba(0, 200, 83, 0.12)', border: '1px solid rgba(0, 200, 83, 0.35)', color: '#00a86b' }}
+              >
+                <div style={{ fontWeight: 900, marginBottom: '0.25rem' }}>퀘스트 완료</div>
+                {completedQuests.map(q => (
+                  <div key={q.title} style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                    {q.title} · +{q.xpReward} XP{q.tokenReward > 0 ? ` · +${q.tokenReward} 토큰` : ''}
+                  </div>
+                ))}
               </motion.div>
             )}
             {lastCorrectFeedback && (
