@@ -4703,15 +4703,16 @@ const BOX_RARITY_COLORS: Record<string, string> = {
 };
 
 type BoxTierRow = { rarity: string; label: string; minStreak: number; rating: [number, number]; tokens: [number, number] };
-type BoxHistoryRow = { day_key: string; rarity: string; rating_reward: number; token_reward: number; streak_at: number; upgraded: boolean };
+type BoxHistoryRow = { day_key: string; rarity: string; rating_reward: number; token_reward: number; streak_at: number; upgraded: boolean; jackpot?: boolean; upgraded_by?: number };
 type BoxInfo = {
   dayKey: string;
   streak: number;
   baseRarity: string;
   upgradeChance: number;
+  odds?: { plus1: number; plus2: number; jackpot: number };
   nextRarity: { next: string; days: number } | null;
   tiers: BoxTierRow[];
-  openedToday: { rarity: string; rating_reward: number; token_reward: number; upgraded: boolean } | null;
+  openedToday: { rarity: string; rating_reward: number; token_reward: number; upgraded: boolean; jackpot?: boolean; upgraded_by?: number } | null;
   boxStreak: number;
   history: BoxHistoryRow[];
   stats: { total: number; legendary: number; ratingTotal: number; tokenTotal: number; byRarity: { rarity: string; count: number }[] };
@@ -4719,6 +4720,8 @@ type BoxInfo = {
 type BoxOpenResult = {
   rarity: string;
   upgraded: boolean;
+  upgradedBy?: number;
+  jackpot?: boolean;
   tier: { label: string };
   ratingReward: number;
   tokenReward: number;
@@ -4749,6 +4752,8 @@ const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ 
         setResult({
           rarity: data.openedToday.rarity,
           upgraded: data.openedToday.upgraded,
+          upgradedBy: data.openedToday.upgraded_by,
+          jackpot: data.openedToday.jackpot,
           tier: data.tiers.find((t: BoxTierRow) => t.rarity === data.openedToday.rarity),
           ratingReward: data.openedToday.rating_reward,
           tokenReward: data.openedToday.token_reward,
@@ -4823,7 +4828,8 @@ const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ 
 
       <h2 style={{ marginBottom: '0.4rem' }}>상자깡</h2>
       <p style={{ opacity: 0.75, fontSize: '0.92rem', marginBottom: '1.5rem' }}>
-        하루 한 개. 연속 방문(스트릭)이 길수록 더 좋은 상자가 나오고, 한 단계 위 등급이 나올 확률도 올라가.
+        하루 한 개. 연속 방문(스트릭)이 길수록 더 좋은 상자가 나오고, 한 단계(가끔 두 단계) 위 등급이 나올 확률도 올라가.
+        잭팟이 터지면 그 등급 보상의 1.5배를 받아. 확률은 아래에 그대로 공개돼.
       </p>
 
       <section style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '1rem', padding: '1.4rem', marginBottom: '1.2rem' }}>
@@ -4839,8 +4845,14 @@ const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ 
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>등급 업그레이드 확률</div>
-            <div style={{ fontSize: '1.3rem', fontWeight: 700 }}>{info ? `${Math.round(info.upgradeChance * 100)}%` : '-'}</div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>등급 상승 확률</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+              {info?.odds ? `한 단계 ${Math.round(info.odds.plus1 * 100)}% · 두 단계 ${Math.round(info.odds.plus2 * 100)}%` : '-'}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>잭팟 (보상 1.5배)</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700 }}>{info?.odds ? `${Math.round(info.odds.jackpot * 100)}%` : '-'}</div>
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>다음 등급까지</div>
@@ -4875,8 +4887,18 @@ const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ 
           {result ? (
             <div>
               <div style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.3rem' }}>
-                {result.upgraded ? `한 단계 위! ${rarityLabel(result.rarity)} 상자` : `${rarityLabel(result.rarity)} 상자`}
+                {result.jackpot ? '잭팟! ' : ''}
+                {result.upgradedBy && result.upgradedBy >= 2
+                  ? `두 단계 위! ${rarityLabel(result.rarity)} 상자`
+                  : result.upgraded
+                    ? `한 단계 위! ${rarityLabel(result.rarity)} 상자`
+                    : `${rarityLabel(result.rarity)} 상자`}
               </div>
+              {result.jackpot && (
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-4)', marginBottom: '0.35rem' }}>
+                  잭팟 — 이 등급 보상의 1.5배
+                </div>
+              )}
               <div style={{ opacity: 0.85 }}>
                 레이팅 <b>+{result.ratingReward.toLocaleString()}</b> · 토큰 <b>+{result.tokenReward}</b>
               </div>
@@ -4939,7 +4961,7 @@ const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ 
           </table>
         </div>
         <p style={{ marginBottom: 0, marginTop: '0.8rem', fontSize: '0.85rem', opacity: 0.7 }}>
-          연속 방문이 끊기면 다시 일반 등급부터 시작해. 상자깡 전용 칭호도 있어 — 깡의 시작 / 상자깡 중독 / 깡 고인물 / 개근 깡 / 운빨의 화신.
+          연속 방문이 끊기면 다시 일반 등급부터 시작해. 상자깡 전용 칭호도 있어 — 깡의 시작 / 상자깡 중독 / 깡 고인물 / 개근 깡 / 운빨의 화신 / 잭팟 / 두 칸 점프.
         </p>
       </section>
 
@@ -4963,7 +4985,7 @@ const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ 
                 <span style={{ opacity: 0.75 }}>{row.day_key} · {row.streak_at}일차</span>
                 <span>
                   <b style={{ color: BOX_RARITY_COLORS[row.rarity] }}>{rarityLabel(row.rarity)}</b>
-                  {row.upgraded ? ' (업그레이드)' : ''} · 레이팅 +{row.rating_reward.toLocaleString()} · 토큰 +{row.token_reward}
+                  {row.jackpot ? ' (잭팟)' : row.upgraded_by && row.upgraded_by >= 2 ? ' (두 단계)' : row.upgraded ? ' (업그레이드)' : ''} · 레이팅 +{row.rating_reward.toLocaleString()} · 토큰 +{row.token_reward}
                 </span>
               </li>
             ))}

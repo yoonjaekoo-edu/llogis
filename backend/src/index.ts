@@ -28,6 +28,7 @@ import {
   daysToNextRarity,
   rarityForStreak,
   rollDailyBox,
+  boxOdds,
   upgradeChance
 } from './box/dailyBox';
 import { getTodayString, getWeekKeyString, shiftWeekKey, getWeekRange } from './rating/gameSystemService';
@@ -350,10 +351,15 @@ const ensureSchema = async () => {
       token_reward INTEGER NOT NULL,
       streak_at INTEGER NOT NULL DEFAULT 0,
       upgraded BOOLEAN NOT NULL DEFAULT FALSE,
+      jackpot BOOLEAN NOT NULL DEFAULT FALSE,
+      upgraded_by SMALLINT NOT NULL DEFAULT 0,
       opened_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       UNIQUE (user_id, day_key)
     )
   `);
+  // 기존 DB에도 확률 요소(잭팟·뛴 단계) 기록 컬럼을 붙인다.
+  await pool.query(`ALTER TABLE box_openings ADD COLUMN IF NOT EXISTS jackpot BOOLEAN NOT NULL DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE box_openings ADD COLUMN IF NOT EXISTS upgraded_by SMALLINT NOT NULL DEFAULT 0`);
   // (user_id, day_key) UNIQUE가 하루 1회를 서버에서 강제한다(동시 요청도 하나만 통과).
   await pool.query(`
     CREATE INDEX IF NOT EXISTS box_openings_user_idx ON box_openings (user_id, opened_at DESC)
@@ -405,6 +411,8 @@ const ensureSchema = async () => {
       ('box_50', '깡 고인물', '상자깡을 50번 개봉하세요', 'box_openings', 50),
       ('box_streak_7', '개근 깡', '상자깡을 7일 연속 개봉하세요', 'box_streak', 7),
       ('box_legend_5', '운빨의 화신', '전설 상자를 5번 개봉하세요', 'box_legendary', 5),
+      ('box_jackpot', '잭팟', '상자에서 잭팟(보상 1.5배)을 터뜨리세요', 'box_jackpot', 1),
+      ('box_jump_2', '두 칸 점프', '상자 등급이 두 단계 뛰어오르는 걸 2번 보세요', 'box_jump', 2),
       ('welcome', '새로 온 자', '가입을 환영합니다', 'signup', 1),
       ('invite_3', '전도의 손', '친구 3명을 초대하세요', 'referrals', 3)
     ON CONFLICT (title_id) DO UPDATE SET condition_value = EXCLUDED.condition_value, description = EXCLUDED.description
@@ -2130,12 +2138,17 @@ app.post('/api/admin/league/settle', authenticateToken, async (req: any, res: Re
 // 상자깡 칭호(개봉 횟수 / 전설 개봉 / 연속 개봉)를 확인해 새로 딴 칭호를 돌려준다.
 const unlockBoxTitles = async (client: any, userId: number) => {
   const statsRes = await client.query(
-    `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE rarity = 'legendary')::int AS legendary
+    `SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE rarity = 'legendary')::int AS legendary,
+            COUNT(*) FILTER (WHERE jackpot)::int AS jackpot,
+            COUNT(*) FILTER (WHERE upgraded_by >= 2)::int AS jumps
      FROM box_openings WHERE user_id = $1`,
     [userId]
   );
   const total = statsRes.rows[0]?.total || 0;
   const legendary = statsRes.rows[0]?.legendary || 0;
+  const jackpotCount = statsRes.rows[0]?.jackpot || 0;
+  const jumpCount = statsRes.rows[0]?.jumps || 0;
 
   // 상자깡 연속 개봉일: 오늘까지 거슬러 올라가며 하루도 빠지지 않은 날 수
   const streakRes = await client.query(
@@ -2151,7 +2164,7 @@ const unlockBoxTitles = async (client: any, userId: number) => {
   }
 
   const titlesRes = await client.query(
-    "SELECT * FROM titles WHERE condition_type IN ('box_openings', 'box_legendary', 'box_streak')"
+    "SELECT * FROM titles WHERE condition_type IN ('box_openings', 'box_legendary', 'box_streak', 'box_jackpot', 'box_jump')"
   );
   const ownedRes = await client.query('SELECT title_id FROM user_titles WHERE user_id = $1', [userId]);
   const owned = new Set(ownedRes.rows.map((r: any) => r.title_id));
@@ -2160,7 +2173,11 @@ const unlockBoxTitles = async (client: any, userId: number) => {
   for (const title of titlesRes.rows) {
     if (owned.has(title.title_id)) continue;
     const value =
-      title.condition_type === 'box_openings' ? total : title.condition_type === 'box_legendary' ? legendary : boxStreak;
+      title.condition_type === 'box_openings' ? total
+      : title.condition_type === 'box_legendary' ? legendary
+      : title.condition_type === 'box_jackpot' ? jackpotCount
+      : title.condition_type === 'box_jump' ? jumpCount
+      : boxStreak;
     if (value >= title.condition_value) {
       await client.query('INSERT INTO user_titles (user_id, title_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [
         userId,
@@ -2221,6 +2238,7 @@ app.get('/api/box', authenticateToken, async (req: any, res: Response) => {
       streak,
       baseRarity: rarityForStreak(streak),
       upgradeChance: upgradeChance(streak),
+      odds: boxOdds(streak),
       nextRarity: daysToNextRarity(streak),
       tiers: BOX_RARITY_ORDER.map((rarity) => ({ rarity, ...BOX_TIERS[rarity] })),
       openedToday: todayRes.rows[0] || null,
@@ -2257,11 +2275,11 @@ app.post('/api/box/open', authenticateToken, async (req: any, res: Response) => 
     const roll = rollDailyBox(streak);
 
     const inserted = await client.query(
-      `INSERT INTO box_openings (user_id, day_key, rarity, rating_reward, token_reward, streak_at, upgraded)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO box_openings (user_id, day_key, rarity, rating_reward, token_reward, streak_at, upgraded, jackpot, upgraded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (user_id, day_key) DO NOTHING
-       RETURNING rarity, rating_reward, token_reward, streak_at, upgraded, opened_at`,
-      [userId, today, roll.rarity, roll.ratingReward, roll.tokenReward, streak, roll.upgraded]
+       RETURNING rarity, rating_reward, token_reward, streak_at, upgraded, jackpot, upgraded_by, opened_at`,
+      [userId, today, roll.rarity, roll.ratingReward, roll.tokenReward, streak, roll.upgraded, roll.jackpot, roll.upgradedBy]
     );
 
     if (inserted.rows.length === 0) {
@@ -2290,6 +2308,9 @@ app.post('/api/box/open', authenticateToken, async (req: any, res: Response) => 
       rarity: roll.rarity,
       baseRarity: roll.baseRarity,
       upgraded: roll.upgraded,
+      upgradedBy: roll.upgradedBy,
+      jackpot: roll.jackpot,
+      odds: roll.odds,
       tier: BOX_TIERS[roll.rarity],
       ratingReward: roll.ratingReward,
       tokenReward: roll.tokenReward,

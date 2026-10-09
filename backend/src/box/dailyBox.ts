@@ -3,7 +3,9 @@
  *
  * 규칙
  * - 하루 1개(KST 기준 날짜), 연속 방문(스트릭)이 길수록 **기본 등급**이 올라간다.
- * - 여기에 더해 한 단계 위 등급이 나올 **확률 업그레이드**가 있다(연속 방문이 길수록 확률↑, 최대 50%).
+ * - 여기에 더해 등급이 뛰어오를 **확률 업그레이드**가 있다: 한 단계 위(연속 방문이 길수록 확률↑, 최대 45%),
+ *   두 단계 위(최대 12%). 확률은 스트릭에 따라 매일 조회 화면에 그대로 공개한다.
+ * - 등급이 정해진 뒤 **잭팟**(10%)이 터지면 그 등급 보상의 1.5배를 받는다.
  * - 보상은 서버가 정하고 서버가 지급한다(클라이언트는 등급을 고를 수 없다).
  *
  * 순수 함수라 DB 없이 테스트할 수 있다(난수는 주입받는다).
@@ -39,11 +41,38 @@ export const rarityForStreak = (streak: number): BoxRarity => {
   return rarity;
 };
 
-/** 한 단계 위 등급이 나올 확률 — 연속 방문이 길수록 커진다(최대 0.5). */
+/** 하루 1개 상자의 확률표 — 화면에 그대로 보여준다(가챠는 확률을 숨기면 신뢰를 잃는다). */
+export type BoxOdds = {
+  /** 한 단계(또는 두 단계) 위 등급이 나올 확률 */
+  plus1: number;
+  /** 두 단계 위 등급이 나올 확률(plus1에 포함) */
+  plus2: number;
+  /** 잭팟(보상 1.5배) 확률 */
+  jackpot: number;
+};
+
+/** 한 단계 이상 위 등급이 나올 확률 — 연속 방문이 길수록 커진다(최대 0.45). */
 export const upgradeChance = (streak: number): number => {
   const days = Number.isFinite(streak) ? Math.max(0, Math.floor(streak)) : 0;
-  return Math.min(0.5, Math.round((0.1 + days * 0.02) * 100) / 100);
+  return Math.min(0.45, Math.round((0.1 + days * 0.02) * 100) / 100);
 };
+
+/** 두 단계 위 등급이 나올 확률 — 희귀한 대박(최대 0.12). upgradeChance에 포함되는 값이다. */
+export const doubleUpgradeChance = (streak: number): number => {
+  const days = Number.isFinite(streak) ? Math.max(0, Math.floor(streak)) : 0;
+  return Math.min(0.12, Math.round((0.02 + days * 0.01) * 100) / 100);
+};
+
+/** 잭팟 확률과 배수 — 등급과 무관하게 고정. */
+export const JACKPOT_CHANCE = 0.1;
+export const JACKPOT_MULTIPLIER = 1.5;
+
+/** 이 스트릭에서 오늘 상자의 확률표. */
+export const boxOdds = (streak: number): BoxOdds => ({
+  plus1: upgradeChance(streak),
+  plus2: doubleUpgradeChance(streak),
+  jackpot: JACKPOT_CHANCE,
+});
 
 /** 다음 등급까지 남은 연속 방문일. 이미 최고 등급이면 null. */
 export const daysToNextRarity = (streak: number): { next: BoxRarity; days: number } | null => {
@@ -62,23 +91,46 @@ export type BoxRoll = {
   rarity: BoxRarity;
   baseRarity: BoxRarity;
   upgraded: boolean;
+  /** 몇 단계 뛰었는지(0 = 기본 등급 그대로) */
+  upgradedBy: number;
+  jackpot: boolean;
   ratingReward: number;
   tokenReward: number;
+  odds: BoxOdds;
 };
 
-/** 오늘의 상자를 연다. rand는 0 이상 1 미만 난수 주입(테스트용). */
+/**
+ * 오늘의 상자를 연다. rand는 0 이상 1 미만 난수 주입(테스트용).
+ *
+ * 굴림 순서: ① 두 단계 업그레이드 ② 아니면 한 단계 ③ 등급 확정 후 잭팟.
+ * 기본 등급은 스트릭이 보장하므로 **내려가는 일은 없다**(연속 방문이 손해가 되면 안 된다).
+ */
 export const rollDailyBox = (streak: number, rand: () => number = Math.random): BoxRoll => {
   const baseRarity = rarityForStreak(streak);
-  const idx = BOX_RARITY_ORDER.indexOf(baseRarity);
-  const canUpgrade = idx < BOX_RARITY_ORDER.length - 1;
-  const upgraded = canUpgrade && rand() < upgradeChance(streak);
-  const rarity = upgraded ? BOX_RARITY_ORDER[idx + 1] : baseRarity;
+  const baseIdx = BOX_RARITY_ORDER.indexOf(baseRarity);
+  const maxIdx = BOX_RARITY_ORDER.length - 1;
+  const canUpgrade = baseIdx < maxIdx;
+
+  let upgradedBy = 0;
+  if (canUpgrade) {
+    if (rand() < doubleUpgradeChance(streak)) upgradedBy = 2;
+    else if (rand() < upgradeChance(streak)) upgradedBy = 1;
+  }
+  const idx = Math.min(maxIdx, baseIdx + upgradedBy);
+  const rarity = BOX_RARITY_ORDER[idx];
   const tier = BOX_TIERS[rarity];
+
+  const jackpot = rand() < JACKPOT_CHANCE;
+  const scale = jackpot ? JACKPOT_MULTIPLIER : 1;
+
   return {
     rarity,
     baseRarity,
-    upgraded,
-    ratingReward: rollIn(tier.rating, rand),
-    tokenReward: rollIn(tier.tokens, rand),
+    upgraded: upgradedBy > 0,
+    upgradedBy: idx - baseIdx,
+    jackpot,
+    ratingReward: Math.round(rollIn(tier.rating, rand) * scale),
+    tokenReward: Math.round(rollIn(tier.tokens, rand) * scale),
+    odds: boxOdds(streak),
   };
 };
