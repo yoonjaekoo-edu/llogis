@@ -1669,9 +1669,11 @@ const Ranking: React.FC = () => {
   );
 };
 
-const UserProfile: React.FC = () => {
+const UserProfile: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ user, setUser }) => {
   const { id } = useParams<{ id: string }>();
-  return <Profile user={null} setUser={() => {}} readonly profileUserId={parseInt(id || '0', 10)} />;
+  // 내 프로필이면 일반 프로필 화면과 똑같이(초대 카드 포함), 남의 프로필이면 읽기 전용.
+  const isMe = !!user && Number(id) === Number(user.id);
+  return <Profile user={user} setUser={setUser} readonly={!isMe} profileUserId={parseInt(id || '0', 10)} />;
 };
 
 const Admin: React.FC<{ user: User | null }> = ({ user }) => {
@@ -5900,7 +5902,7 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<Landing user={user} />} />
           <Route path="/solve" element={<ProblemList user={user} setUser={setUser} />} />
           <Route path="/ranking" element={<Ranking />} />
-          <Route path="/users/:id" element={<UserProfile />} />
+          <Route path="/users/:id" element={<UserProfile user={user} setUser={setUser} />} />
           <Route path="/groups" element={<Groups user={user} />} />
           <Route path="/groups/:id" element={<GroupDetail user={user} />} />
           <Route path="/about" element={<About user={user} />} />
