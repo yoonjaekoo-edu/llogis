@@ -543,7 +543,7 @@ export const MathKeypadBar: React.FC<MathKeypadBarProps> = ({ renderPreview }) =
 
   const body = (
     <div
-      className={`math-keypad${isMobile ? ' is-float' : ''}${collapsed ? ' is-collapsed' : ''}`}
+      className={`math-keypad ${isMobile ? 'is-float' : 'is-dock'}${collapsed ? ' is-collapsed' : ''}`}
       style={isMobile && keyboardOffset > 0 ? { transform: `translateY(-${keyboardOffset}px)` } : undefined}
       role="group"
       aria-label="수식 입력 키보드"
@@ -630,6 +630,8 @@ export const MathKeypadBar: React.FC<MathKeypadBarProps> = ({ renderPreview }) =
     </div>
   );
 
-  if (isMobile && typeof document !== 'undefined') return createPortal(body, document.body);
-  return body;
+  // 모바일은 네이티브 키보드 위에, PC는 우측 하단 도크로 — 어느 쪽이든 body에 붙여
+  // 좁은 사이드바 안에서 화면 밖으로 밀리지 않게 한다.
+  if (typeof document === 'undefined') return body;
+  return createPortal(body, document.body);
 };
