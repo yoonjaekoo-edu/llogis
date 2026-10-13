@@ -8,6 +8,7 @@ import { InlineMath, BlockMath } from 'react-katex';
 import GooseRoom from './GooseRoom';
 import CatRoom from './CatRoom';
 import { applyCultureLanguage } from './cultureLanguage';
+import { MathInput, MathKeypadBar, MathKeypadProvider } from './MathKeypad';
 
 import { calculateExchangeQuote, getMaxExchangeRp, MIN_EXCHANGE_RP } from './rpExchange';
 import { CountUp, Reveal, useLandingMotion } from './landingMotion';
@@ -4342,21 +4343,57 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
 
         {/* 문제 출제 폼 — 일반 유저는 검수 후 공개 */}
         {showCustomForm && user && (
-          <form onSubmit={handleCreateCustom} className="problem-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+          <MathKeypadProvider>
+          <form onSubmit={handleCreateCustom} className="problem-card math-form-active" style={{ padding: '1rem', marginBottom: '1rem' }}>
             <h4 style={{ margin: '0 0 0.8rem', color: 'var(--color-4)' }}>문제 출제</h4>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.8rem' }}>
-              수식은 LaTeX 형식으로 작성하세요. 인라인 수식은 <code>$...$</code>, 블록 수식은 <code>$$...$$</code>를 사용합니다.
+              수식은 LaTeX 형식으로 작성하세요. 인라인 수식은 <code>$...$</code>, 블록 수식은 <code>$$...$$</code>를 사용합니다.<br />
+              아래 <strong>수식 키보드</strong>는 커서 위치에 기호를 넣습니다. 키를 누른 뒤 <strong>다음 칸</strong>으로 분자·분모를 옮겨 채우면 됩니다.
               {user.username !== 'admin' && ' 출제한 문제는 관리자 검수를 거쳐 공개되며, 본인은 풀 수 없습니다.'}
             </p>
             <input type="text" placeholder="제목" value={customTitle} onChange={e => setCustomTitle(e.target.value)} required maxLength={120} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem' }} />
-            <textarea placeholder="문제 내용 (예: $x^2 + 2x + 1 = 0$을 푸시오.)" value={customContent} onChange={e => setCustomContent(e.target.value)} required rows={4} maxLength={1000} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem', resize: 'vertical' }} />
+            <MathInput
+              id="content"
+              label="문제 내용"
+              mode="latex"
+              multiline
+              rows={4}
+              maxLength={1000}
+              required
+              placeholder="문제 내용 (예: $x^2 + 2x + 1 = 0$을 푸시오.)"
+              value={customContent}
+              onChange={setCustomContent}
+              style={{ marginBottom: '0.5rem' }}
+            />
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <input type="text" placeholder="정답 (예: 12, 2/5)" value={customAnswer} onChange={e => setCustomAnswer(e.target.value)} required maxLength={120} style={{ flex: 1, padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
+              <MathInput
+                id="answer"
+                label="정답"
+                mode="plain"
+                maxLength={120}
+                required
+                placeholder="정답 (예: 12, 2/5)"
+                value={customAnswer}
+                onChange={setCustomAnswer}
+                style={{ flex: 1 }}
+              />
               {user.username === 'admin' && (
                 <input type="number" placeholder="획득 레이팅" value={customRewardRating} onChange={e => setCustomRewardRating(parseInt(e.target.value) || 0)} style={{ width: '120px', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', fontSize: '0.85rem' }} />
               )}
             </div>
-            <textarea placeholder="해설 (선택) — 정답을 푸는 과정을 적어주세요." value={customExplanation} onChange={e => setCustomExplanation(e.target.value)} rows={3} maxLength={1500} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box', fontSize: '0.85rem', resize: 'vertical' }} />
+            <MathInput
+              id="explanation"
+              label="해설"
+              mode="latex"
+              multiline
+              rows={3}
+              maxLength={1500}
+              placeholder="해설 (선택) — 정답을 푸는 과정을 적어주세요."
+              value={customExplanation}
+              onChange={setCustomExplanation}
+              style={{ marginBottom: '0.5rem' }}
+            />
+            <MathKeypadBar renderPreview={renderMath} />
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <select value={customLevel} onChange={e => setCustomLevel(e.target.value as 'easy' | 'normal' | 'hard')} style={{ padding: '0.5rem', borderRadius: '0.4rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', fontSize: '0.85rem' }}>
                 <option value="easy">쉬움 (+15,000 RP)</option>
@@ -4384,6 +4421,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
               {customSubmitting ? '등록 중...' : (user.username === 'admin' ? '등록하기' : '출제하고 검수 요청')}
             </button>
           </form>
+          </MathKeypadProvider>
         )}
 
         {/* 내가 출제한 문제 + 검수 상태 */}

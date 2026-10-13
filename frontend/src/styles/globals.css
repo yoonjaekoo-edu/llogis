@@ -3036,6 +3036,236 @@ samp {
 }
 
 
+/* ── 문제 출제 수식 키보드 ───────────────────────────── */
+
+.math-field {
+  line-height: 1.5;
+}
+
+.math-field:focus {
+  outline: 2px solid var(--color-4);
+  outline-offset: 1px;
+}
+
+.math-keypad {
+  margin: 0 0 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+}
+
+.math-keypad-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.math-keypad-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.math-keypad-chips {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.math-keypad-chips button,
+.math-keypad-head-actions button {
+  font-family: var(--font-small);
+  font-size: 0.68rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.math-keypad-chips button.is-active {
+  background: var(--color-4);
+  border-color: var(--color-4);
+  color: #fff;
+  font-weight: 700;
+}
+
+.math-keypad-head-actions {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.math-keypad-tabs {
+  display: flex;
+  gap: 0.2rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.math-keypad-tabs button {
+  flex: 0 0 auto;
+  font-family: var(--font-small);
+  font-size: 0.7rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.math-keypad-tabs button.is-active {
+  background: var(--color-3);
+  border-color: var(--color-4);
+  color: var(--color-4);
+  font-weight: 700;
+}
+
+[data-theme='dark'] .math-keypad-tabs button.is-active {
+  background: rgba(143, 179, 210, 0.16);
+  color: var(--text-main);
+}
+
+.math-keypad-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.math-keypad-keys button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  line-height: 1.1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  color: var(--text-main);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.math-keypad-keys button:hover {
+  border-color: var(--color-4);
+}
+
+.math-keypad-keys button:active {
+  background: var(--color-3);
+}
+
+[data-theme='dark'] .math-keypad-keys button:active {
+  background: rgba(143, 179, 210, 0.22);
+}
+
+.math-keypad-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.math-keypad-actions button {
+  min-height: 38px;
+  flex: 1 1 auto;
+  font-family: var(--font-small);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  color: var(--text-main);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.math-keypad-actions button:hover {
+  border-color: var(--color-4);
+  color: var(--color-4);
+}
+
+.math-keypad-notice {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-small);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.math-keypad-preview {
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  overflow-x: auto;
+}
+
+.math-keypad-preview-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+@media (max-width: 768px) {
+  /* iOS는 16px 미만 입력창에 포커스가 가면 화면을 확대해 버린다 */
+  .math-field {
+    font-size: 16px !important;
+  }
+
+  .math-keypad.is-float {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    max-height: 46vh;
+    overflow-y: auto;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -6px 18px rgba(3, 64, 120, 0.18);
+  }
+
+  .math-keypad.is-float.is-collapsed {
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* 부유 키보드가 출제 폼의 버튼을 가리지 않게 */
+  .math-form-active {
+    padding-bottom: 250px !important;
+  }
+
+  .math-keypad-keys {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .math-keypad-keys button {
+    min-height: 46px;
+  }
+}
+
 /* 밝은 배경 위 글자 대비 — 밝은 배경에는 검은 글자 */
 .profile-edit-btn:hover,
 .math-keypad-chips button.is-active {
