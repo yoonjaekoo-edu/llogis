@@ -530,7 +530,7 @@ const Landing: React.FC<{ user: User | null }> = ({ user }) => {
             <button
               type="button"
               onClick={() => navigate('/box')}
-              style={{ background: 'var(--color-4)', color: '#fff', border: 'none', borderRadius: '0.7rem', padding: '0.5rem 0.9rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
+              style={{ background: 'var(--color-4)', color: 'var(--on-light)', border: 'none', borderRadius: '0.7rem', padding: '0.5rem 0.9rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}
             >
               상자깡 열러 가기
             </button>
@@ -854,7 +854,7 @@ const Groups: React.FC<{ user: User | null }> = ({ user }) => {
                 onChange={e => setDescription(e.target.value)} 
                 style={{ width: '100%', padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '1rem', minHeight: '100px' }}
               />
-              <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>만들기</button>
+              <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)' }}>만들기</button>
             </form>
           </div>
         )}
@@ -882,7 +882,7 @@ const Groups: React.FC<{ user: User | null }> = ({ user }) => {
                 <div>멤버: <b>{g.member_count}명</b></div>
               </div>
               {!g.is_member && !g.is_pending && (
-                <button onClick={(e) => handleJoin(e, g.id)} className="btn" style={{ background: 'var(--color-1)', color: 'white', width: '100%' }}>
+                <button onClick={(e) => handleJoin(e, g.id)} className="btn" style={{ background: 'var(--color-1)', color: 'var(--on-light)', width: '100%' }}>
                   가입 신청하기
                 </button>
               )}
@@ -1115,7 +1115,7 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
             ) : isPending ? (
               <button disabled className="btn" style={{ background: 'var(--color-2)', color: 'white', width: 'auto', opacity: 0.7 }}>가입 대기 중</button>
             ) : (
-              <button onClick={handleJoin} className="btn" style={{ background: 'var(--color-1)', color: 'white', width: 'auto' }}>가입 신청하기</button>
+              <button onClick={handleJoin} className="btn" style={{ background: 'var(--color-1)', color: 'var(--on-light)', width: 'auto' }}>가입 신청하기</button>
             )}
           </div>
           <p style={{ fontSize: '1.1rem', opacity: 0.9, marginBottom: '2rem', lineHeight: 1.6 }}>{group.description || '설명이 없습니다.'}</p>
@@ -1251,7 +1251,7 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
                     <option value="168">168시간 (일주일)</option>
                   </select>
                 </div>
-                <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>대회 시작하기</button>
+                <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)' }}>대회 시작하기</button>
               </form>
             )}
 
@@ -1287,7 +1287,7 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                       <h4 style={{ margin: 0, color: 'var(--color-4)' }}>{comp.title}</h4>
                       <span style={{ 
-                        fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontWeight: 800, color: 'white',
+                        fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontWeight: 800, color: isOngoing ? 'var(--on-light)' : 'white',
                         background: isOngoing ? 'var(--color-1)' : isEnded ? 'var(--text-muted)' : 'var(--color-3)'
                       }}>
                         {isOngoing ? '진행 중' : isEnded ? '종료됨' : '대기 중'}
@@ -1381,7 +1381,7 @@ const GroupDetail: React.FC<{ user: User | null }> = ({ user }) => {
               <button 
                 onClick={handleCloseCompDetail}
                 className="btn"
-                style={{ background: 'var(--color-4)', color: 'white', marginTop: '2rem' }}
+                style={{ background: 'var(--color-4)', color: 'var(--on-light)', marginTop: '2rem' }}
               >
                 닫기
               </button>
@@ -1474,7 +1474,7 @@ const Ranking: React.FC = () => {
                 padding: '0.6rem 1.4rem',
                 fontSize: '0.9rem',
                 background: tab === key ? 'var(--color-4)' : 'var(--card-bg)',
-                color: tab === key ? 'white' : 'var(--text-main)',
+                color: tab === key ? 'var(--on-light)' : 'var(--text-main)',
                 border: '1px solid var(--border)'
               }}
             >
@@ -2155,7 +2155,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
           <div style={{ padding: '1.5rem', background: 'var(--card-bg)', border: '1px solid var(--color-4)', borderRadius: '1rem' }}>
             <h3 style={{ marginBottom: '1rem', color: 'var(--color-4)' }}>템플릿 해결 레이팅</h3>
             <p style={{ marginBottom: '1rem', opacity: 0.8 }}>각 템플릿으로 생성된 문제를 맞혔을 때 지급되는 레이팅을 수정합니다.</p>
-            <button onClick={fetchTemplates} className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>
+            <button onClick={fetchTemplates} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)' }}>
               템플릿 목록 새로고침
             </button>
           </div>
@@ -2230,7 +2230,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                     type="button"
                     onClick={() => handleUpdateTemplateReward(template.id)}
                     className="btn"
-                    style={{ width: 'auto', background: 'var(--color-4)', color: 'white', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}
+                    style={{ width: 'auto', background: 'var(--color-4)', color: 'var(--on-light)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}
                   >
                     저장
                   </button>
@@ -2323,7 +2323,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
                       {Array.from({ length: subsTotalPages }, (_, i) => i + 1).map(p => (
                         <button key={p} onClick={() => { setSubsPage(p); fetchSubmissions(selectedUserForSubs.id, p); }}
-                          className="btn" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem', width: 'auto', background: p === subsPage ? 'var(--color-4)' : 'var(--border)', color: p === subsPage ? 'white' : 'var(--text-main)' }}>
+                          className="btn" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem', width: 'auto', background: p === subsPage ? 'var(--color-4)' : 'var(--border)', color: p === subsPage ? 'var(--on-light)' : 'var(--text-main)' }}>
                           {p}
                         </button>
                       ))}
@@ -2380,7 +2380,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                             <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                               <button onClick={() => handleUpdateRating(u.id, u.rating)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: 'var(--color-3)', color: 'white' }}>RP</button>
                               <button onClick={() => handleUpdateTokens(u.id, u.tokens || 0)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#e6a800', color: 'white' }}>토큰</button>
-                              <button onClick={() => handleUpdateCustomTitle(u.id, u.custom_title || '')} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: 'var(--color-4)', color: 'white' }}>칭호</button>
+                              <button onClick={() => handleUpdateCustomTitle(u.id, u.custom_title || '')} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: 'var(--color-4)', color: 'var(--on-light)' }}>칭호</button>
                               <button onClick={() => handleUpdateUsername(u.id, u.username)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#6c5ce7', color: 'white' }}>아이디</button>
                               <button onClick={() => handleViewSubmissions(u)} className="btn" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem', width: 'auto', background: '#00b894', color: 'white' }}>제출</button>
                               {u.username !== 'admin' && (
@@ -2421,7 +2421,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                     </div>
                   </div>
                   {!n.is_read && (
-                    <button onClick={() => handleMarkRead(n.id)} className="btn" style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem', width: 'auto', background: 'var(--color-4)', color: 'white', flexShrink: 0 }}>
+                    <button onClick={() => handleMarkRead(n.id)} className="btn" style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem', width: 'auto', background: 'var(--color-4)', color: 'var(--on-light)', flexShrink: 0 }}>
                       읽음
                     </button>
                   )}
@@ -2437,7 +2437,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
         <div className="problem-card" style={{ margin: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <h3 style={{ margin: 0 }}>템플릿 관리 ({templates.length})</h3>
-            <button onClick={() => { setCreatingTemplate(true); setNewTemplate({ id: '', unit: '', title: '', difficulty: 10000, variables: {}, constraints: [], problem_template: '', answer_formula: { type: 'expression', value: '' }, concepts: [] }); }} className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>
+            <button onClick={() => { setCreatingTemplate(true); setNewTemplate({ id: '', unit: '', title: '', difficulty: 10000, variables: {}, constraints: [], problem_template: '', answer_formula: { type: 'expression', value: '' }, concepts: [] }); }} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)' }}>
               + 새 템플릿
             </button>
           </div>
@@ -2497,7 +2497,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
             <h3 style={{ margin: 0 }}>출제 심사</h3>
             <div style={{ display: 'flex', gap: '0.4rem' }}>
               {(['pending', 'approved', 'rejected'] as const).map(st => (
-                <button key={st} onClick={() => fetchProblemSubmissions(st)} className="btn" style={{ width: 'auto', padding: '0.3rem 0.7rem', fontSize: '0.75rem', background: submissionStatus === st ? 'var(--color-4)' : 'var(--card-bg)', color: submissionStatus === st ? 'white' : 'var(--text-main)', border: '1px solid var(--border)' }}>
+                <button key={st} onClick={() => fetchProblemSubmissions(st)} className="btn" style={{ width: 'auto', padding: '0.3rem 0.7rem', fontSize: '0.75rem', background: submissionStatus === st ? 'var(--color-4)' : 'var(--card-bg)', color: submissionStatus === st ? 'var(--on-light)' : 'var(--text-main)', border: '1px solid var(--border)' }}>
                   {st === 'pending' ? `검수 대기 (${submissionCounts.pending})` : st === 'approved' ? `공개 (${submissionCounts.approved})` : `반려 (${submissionCounts.rejected})`}
                 </button>
               ))}
@@ -2588,11 +2588,11 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                 } catch { setMessage('저장 실패'); }
                 finally { setSavingTierConfig(false); }
               }} disabled={savingTierConfig}
-                className="btn" style={{ background: 'var(--color-4)', color: '#fff', border: 'none' }}>
+                className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', border: 'none' }}>
                 {savingTierConfig ? '저장 중...' : '등급 설정 저장'}
               </button>
               <button onClick={() => setTierConfigDraft(JSON.parse(JSON.stringify(tierConfigTiers.current)))}
-                className="btn" style={{ background: 'var(--color-1)', color: '#fff', border: 'none' }}>
+                className="btn" style={{ background: 'var(--color-1)', color: 'var(--on-light)', border: 'none' }}>
                 초기화
               </button>
             </div>
@@ -2624,11 +2624,11 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                 } catch { setMessage('저장 실패'); }
                 finally { setSavingPageContent(false); }
               }} disabled={savingPageContent}
-                className="btn" style={{ background: 'var(--color-4)', color: '#fff', border: 'none' }}>
+                className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', border: 'none' }}>
                 {savingPageContent ? '저장 중...' : '소개 페이지 저장'}
               </button>
               <button onClick={() => setPageContentDraft(pageContent)}
-                className="btn" style={{ background: 'var(--color-1)', color: '#fff', border: 'none' }}>
+                className="btn" style={{ background: 'var(--color-1)', color: 'var(--on-light)', border: 'none' }}>
                 초기화
               </button>
               <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>변경사항은 소개 페이지(<Link to="/about" target="_blank" style={{ color: 'var(--color-4)' }}>/about</Link>)에서 확인 가능합니다.</span>
@@ -2722,7 +2722,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                 <input type="number" value={editingProblem.current_difficulty} onChange={e => setEditingProblem({ ...editingProblem, current_difficulty: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box' }} />
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button onClick={handleSaveProblem} className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>저장</button>
+                <button onClick={handleSaveProblem} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)' }}>저장</button>
                 <button onClick={() => setEditingProblem(null)} className="btn" style={{ background: 'var(--border)', color: 'var(--text-main)' }}>취소</button>
               </div>
             </div>
@@ -2802,7 +2802,7 @@ const Admin: React.FC<{ user: User | null }> = ({ user }) => {
                   const result = await res.json();
                   alert(result.message || result.error);
                   if (res.ok) { setEditingTemplate(null); setCreatingTemplate(false); fetchTemplates(); }
-                }} className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>
+                }} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)' }}>
                   {creatingTemplate ? '추가' : '저장'}
                 </button>
                 <button onClick={() => { setEditingTemplate(null); setCreatingTemplate(false); }} className="btn" style={{ background: 'var(--border)', color: 'var(--text-main)' }}>취소</button>
@@ -2861,7 +2861,7 @@ const BugReport: React.FC<{ user: User | null }> = ({ user }) => {
         <div className="problem-card" style={{ textAlign: 'center', padding: '3rem' }}>
           <h2 style={{ color: 'var(--color-4)', marginBottom: '1rem' }}>로그인이 필요합니다</h2>
           <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>버그 제보는 로그인 후 이용할 수 있습니다.</p>
-          <button onClick={() => navigate('/login')} className="btn" style={{ background: 'var(--color-4)', color: 'white' }}>로그인</button>
+          <button onClick={() => navigate('/login')} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)' }}>로그인</button>
         </div>
       </main>
     );
@@ -2905,7 +2905,7 @@ const BugReport: React.FC<{ user: User | null }> = ({ user }) => {
             <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>재현 방법 <span style={{ opacity: 0.6, fontWeight: 400 }}>(선택사항)</span></label>
             <textarea value={steps} onChange={e => setSteps(e.target.value)} placeholder="버그를 재현하는 방법을 단계별로 알려주세요" rows={3} style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', boxSizing: 'border-box', resize: 'vertical' }} />
           </div>
-          <button type="submit" disabled={submitting} className="btn" style={{ background: 'var(--color-4)', color: 'white', opacity: submitting ? 0.6 : 1 }}>
+          <button type="submit" disabled={submitting} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', opacity: submitting ? 0.6 : 1 }}>
             {submitting ? '제출 중...' : '버그 제보하기'}
           </button>
         </form>
@@ -3334,7 +3334,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
           {!readonly && (
             <button
               onClick={() => setIsUpdatingImage(!isUpdatingImage)}
-              style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--color-4)', border: '3px solid var(--card-bg)', borderRadius: '0.7rem', width: '34px', height: '34px', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', zIndex: 2, boxShadow: '0 4px 12px rgba(0,0,0,0.25)', transition: 'transform 0.2s' }}
+              style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--color-4)', border: '3px solid var(--card-bg)', borderRadius: '0.7rem', width: '34px', height: '34px', color: 'var(--on-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', zIndex: 2, boxShadow: '0 4px 12px rgba(0,0,0,0.25)', transition: 'transform 0.2s' }}
               title="프로필 사진 변경"
             >
               사진 변경
@@ -3350,7 +3350,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
               style={{ width: '100%', padding: '0.7rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-main)', marginBottom: '0.5rem', boxSizing: 'border-box' }}
               required
             />
-            <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'white', padding: '0.6rem', fontSize: '0.9rem' }}>변경 적용</button>
+            <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.6rem', fontSize: '0.9rem' }}>변경 적용</button>
           </form>
         )}
 
@@ -3368,7 +3368,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
                 style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', minHeight: '90px', resize: 'vertical', boxSizing: 'border-box', fontSize: '1rem' }} />
             </div>
             <div style={{ display: 'flex', gap: '0.6rem' }}>
-              <button type="submit" disabled={isSavingProfile} className="btn" style={{ background: 'var(--color-4)', color: 'white', opacity: isSavingProfile ? 0.6 : 1 }}>{isSavingProfile ? '저장 중...' : '저장'}</button>
+              <button type="submit" disabled={isSavingProfile} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', opacity: isSavingProfile ? 0.6 : 1 }}>{isSavingProfile ? '저장 중...' : '저장'}</button>
               <button type="button" onClick={() => setIsEditingProfile(false)} disabled={isSavingProfile} className="btn" style={{ background: 'var(--border)', color: 'var(--text-main)' }}>취소</button>
             </div>
           </form>
@@ -3711,7 +3711,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
               placeholder="/* 여기에 CSS를 입력하세요 */"
               style={{ width: '100%', minHeight: '150px', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', boxSizing: 'border-box', resize: 'vertical' }} />
             <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.8rem' }}>
-              <button onClick={handleSaveCss} disabled={savingCss} className="btn" style={{ background: 'var(--color-4)', color: 'white', opacity: savingCss ? 0.6 : 1 }}>{savingCss ? '저장 중...' : '저장'}</button>
+              <button onClick={handleSaveCss} disabled={savingCss} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', opacity: savingCss ? 0.6 : 1 }}>{savingCss ? '저장 중...' : '저장'}</button>
               <button onClick={() => { setIsEditingCss(false); setProfileCssDraft(u.profile_css || ''); }} className="btn" style={{ background: 'var(--border)', color: 'var(--text-main)' }}>취소</button>
             </div>
           </div>
@@ -3723,7 +3723,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
               <p style={{ opacity: 0.5, fontStyle: 'italic' }}>아직 CSS가 없습니다.</p>
             )}
             {!readonly && (
-              <button onClick={() => setIsEditingCss(true)} className="btn" style={{ marginTop: '0.8rem', background: 'var(--color-4)', color: 'white', width: 'auto' }}>{u.profile_css ? 'CSS 수정' : 'CSS 추가'}</button>
+              <button onClick={() => setIsEditingCss(true)} className="btn" style={{ marginTop: '0.8rem', background: 'var(--color-4)', color: 'var(--on-light)', width: 'auto' }}>{u.profile_css ? 'CSS 수정' : 'CSS 추가'}</button>
             )}
           </div>
         )}
@@ -3756,7 +3756,7 @@ const Profile: React.FC<{ user: User | null; setUser: (u: User) => void; readonl
                 style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', marginBottom: '0.6rem', boxSizing: 'border-box' }} required />
               <input type="password" placeholder="새 비밀번호" value={newPassword} onChange={e => setNewPassword(e.target.value)}
                 style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', marginBottom: '0.8rem', boxSizing: 'border-box' }} required />
-              <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'white', padding: '0.7rem' }}>변경 확인</button>
+              <button type="submit" className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.7rem' }}>변경 확인</button>
             </form>
           )}
         </div>
@@ -3820,7 +3820,7 @@ const CustomTitleChango: React.FC<{ user: User | null; setUser: (u: User) => voi
           style={{ flex: 1, padding: '0.7rem 1rem', borderRadius: '0.5rem', border: '1.5px solid var(--border)', background: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '0.95rem', boxSizing: 'border-box' }}
           disabled={sending}
         />
-        <button onClick={handleSubmitCustomTitle} disabled={sending} className="btn" style={{ background: 'var(--color-4)', color: 'white', width: 'auto', padding: '0.7rem 1.4rem', whiteSpace: 'nowrap' }}>
+        <button onClick={handleSubmitCustomTitle} disabled={sending} className="btn" style={{ background: 'var(--color-4)', color: 'var(--on-light)', width: 'auto', padding: '0.7rem 1.4rem', whiteSpace: 'nowrap' }}>
           {sending ? '전송 중...' : '전송'}
         </button>
       </div>
@@ -4312,10 +4312,10 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
       <nav className="problem-sidebar" aria-label="문제 목록" style={{ width: '300px', flexShrink: 0 }}>
         {/* 탭: 일반 / 커스텀 */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-          <button onClick={() => { setProblemType('normal'); setPage(1); }} className="btn" style={{ width: 'auto', padding: '0.4rem 1rem', fontSize: '0.8rem', background: problemType === 'normal' ? 'var(--color-4)' : 'var(--card-bg)', color: problemType === 'normal' ? 'white' : 'var(--text-main)', border: '1px solid var(--border)' }}>
+          <button onClick={() => { setProblemType('normal'); setPage(1); }} className="btn" style={{ width: 'auto', padding: '0.4rem 1rem', fontSize: '0.8rem', background: problemType === 'normal' ? 'var(--color-4)' : 'var(--card-bg)', color: problemType === 'normal' ? 'var(--on-light)' : 'var(--text-main)', border: '1px solid var(--border)' }}>
             일반 문제
           </button>
-          <button onClick={() => { setProblemType('custom'); setPage(1); }} className="btn" style={{ width: 'auto', padding: '0.4rem 1rem', fontSize: '0.8rem', background: problemType === 'custom' ? 'var(--color-4)' : 'var(--card-bg)', color: problemType === 'custom' ? 'white' : 'var(--text-main)', border: '1px solid var(--border)' }}>
+          <button onClick={() => { setProblemType('custom'); setPage(1); }} className="btn" style={{ width: 'auto', padding: '0.4rem 1rem', fontSize: '0.8rem', background: problemType === 'custom' ? 'var(--color-4)' : 'var(--card-bg)', color: problemType === 'custom' ? 'var(--on-light)' : 'var(--text-main)', border: '1px solid var(--border)' }}>
             커스텀 문제
           </button>
         </div>
@@ -4334,7 +4334,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
             </button>
           )}
           {problemType === 'custom' && user && (
-            <button onClick={() => setShowCustomForm(!showCustomForm)} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', width: 'auto', background: 'var(--color-4)', color: 'white' }}>
+            <button onClick={() => setShowCustomForm(!showCustomForm)} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', width: 'auto', background: 'var(--color-4)', color: 'var(--on-light)' }}>
               {showCustomForm ? '취소' : '+ 출제'}
             </button>
           )}
@@ -4380,7 +4380,7 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0 0 0.6rem' }}>
               도형·그래프가 있는 문제는 이미지를 함께 올려주세요. 큰 사진은 자동으로 줄여서 올립니다(3MB 이하).
             </p>
-            <button type="submit" disabled={customSubmitting || customImageUploading} className="btn" style={{ padding: '0.5rem', fontSize: '0.85rem', background: 'var(--color-4)', color: 'white', opacity: customSubmitting ? 0.6 : 1 }}>
+            <button type="submit" disabled={customSubmitting || customImageUploading} className="btn" style={{ padding: '0.5rem', fontSize: '0.85rem', background: 'var(--color-4)', color: 'var(--on-light)', opacity: customSubmitting ? 0.6 : 1 }}>
               {customSubmitting ? '등록 중...' : (user.username === 'admin' ? '등록하기' : '출제하고 검수 요청')}
             </button>
           </form>
@@ -4599,8 +4599,8 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
           }}>
             <h3 style={{ marginBottom: '1.5rem', color: 'var(--color-4)' }}>문제 생성</h3>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-              <button onClick={() => setTemplateMode(false)} className="btn" style={{ width: 'auto', padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: !templateMode ? 'var(--color-4)' : 'var(--card-bg)', color: !templateMode ? 'white' : 'var(--text-main)', border: '1px solid var(--border)', flex: 1 }}>태그 기반</button>
-              <button onClick={() => setTemplateMode(true)} className="btn" style={{ width: 'auto', padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: templateMode ? 'var(--color-4)' : 'var(--card-bg)', color: templateMode ? 'white' : 'var(--text-main)', border: '1px solid var(--border)', flex: 1 }}>템플릿 기반</button>
+              <button onClick={() => setTemplateMode(false)} className="btn" style={{ width: 'auto', padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: !templateMode ? 'var(--color-4)' : 'var(--card-bg)', color: !templateMode ? 'var(--on-light)' : 'var(--text-main)', border: '1px solid var(--border)', flex: 1 }}>태그 기반</button>
+              <button onClick={() => setTemplateMode(true)} className="btn" style={{ width: 'auto', padding: '0.3rem 0.8rem', fontSize: '0.8rem', background: templateMode ? 'var(--color-4)' : 'var(--card-bg)', color: templateMode ? 'var(--on-light)' : 'var(--text-main)', border: '1px solid var(--border)', flex: 1 }}>템플릿 기반</button>
             </div>
 
             {!templateMode ? (
@@ -4962,7 +4962,7 @@ const BoxPage: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ 
                 borderRadius: '0.8rem',
                 border: 'none',
                 background: 'var(--color-4)',
-                color: '#fff',
+                color: 'var(--on-light)',
                 cursor: opening ? 'wait' : 'pointer',
                 opacity: opening || loading ? 0.7 : 1
               }}
@@ -5231,7 +5231,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
           ) : (
             <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>5,000 RP 이상, 보유 RP 이하의 정수로 입력하세요.</p>
           )}
-          <button type="button" onClick={handleExchange} disabled={!validQuote || exchanging} className="btn" style={{ width: '100%', background: validQuote && !exchanging ? 'var(--color-4)' : 'var(--border)', color: validQuote && !exchanging ? 'white' : 'var(--text-muted)' }}>
+          <button type="button" onClick={handleExchange} disabled={!validQuote || exchanging} className="btn" style={{ width: '100%', background: validQuote && !exchanging ? 'var(--color-4)' : 'var(--border)', color: validQuote && !exchanging ? 'var(--on-light)' : 'var(--text-muted)' }}>
             {exchanging ? '환전 중...' : '환전하기'}
           </button>
         </section>
@@ -5251,7 +5251,7 @@ const Shop: React.FC<{ user: User | null; setUser: (u: User) => void }> = ({ use
                   onClick={() => handleBuy(item.id, Number(item.cost) || 0)}
                   disabled={(user?.tokens || 0) < item.cost}
                   className="btn"
-                  style={{ width: 'auto', padding: '0.6rem 1.5rem', background: (user?.tokens || 0) >= item.cost ? 'var(--color-4)' : 'var(--border)', color: (user?.tokens || 0) >= item.cost ? 'white' : 'var(--text-muted)', cursor: (user?.tokens || 0) >= item.cost ? 'pointer' : 'not-allowed', opacity: (user?.tokens || 0) >= item.cost ? 1 : 0.6 }}
+                  style={{ width: 'auto', padding: '0.6rem 1.5rem', background: (user?.tokens || 0) >= item.cost ? 'var(--color-4)' : 'var(--border)', color: (user?.tokens || 0) >= item.cost ? 'var(--on-light)' : 'var(--text-muted)', cursor: (user?.tokens || 0) >= item.cost ? 'pointer' : 'not-allowed', opacity: (user?.tokens || 0) >= item.cost ? 1 : 0.6 }}
                 >
                   구매하기
                 </button>
@@ -5393,7 +5393,7 @@ const ShareCardButton: React.FC<{ user: User | null; inviteCode?: string }> = ({
         onClick={handleShare}
         disabled={busy}
         className="btn"
-        style={{ background: 'var(--color-4)', color: '#fff', padding: '0.7rem 1.2rem', fontSize: '0.9rem', fontWeight: 700, border: 'none', borderRadius: '0.7rem', cursor: busy ? 'wait' : 'pointer' }}
+        style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.7rem 1.2rem', fontSize: '0.9rem', fontWeight: 700, border: 'none', borderRadius: '0.7rem', cursor: busy ? 'wait' : 'pointer' }}
       >
         {busy ? '카드 만드는 중...' : '기록 카드 만들기'}
       </button>
@@ -5458,7 +5458,7 @@ const InviteCard: React.FC<{ user: User | null; readonly?: boolean }> = ({ user,
               type="button"
               onClick={copy}
               className="btn"
-              style={{ background: 'var(--color-4)', color: 'white', padding: '0.7rem 1.1rem', fontSize: '0.9rem' }}
+              style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.7rem 1.1rem', fontSize: '0.9rem' }}
             >
               {copied ? '복사됨' : '링크 복사'}
             </button>
@@ -5589,7 +5589,7 @@ const TrialPage: React.FC = () => {
             type="button"
             onClick={() => navigate(signupPath)}
             className="btn"
-            style={{ background: 'var(--color-4)', color: '#fff', padding: '0.85rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
+            style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.85rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
           >
             무료로 가입하고 이어서 풀기
           </button>
@@ -5652,7 +5652,7 @@ const TrialPage: React.FC = () => {
                 type="submit"
                 disabled={submitting || !answer.trim()}
                 className="btn"
-                style={{ background: 'var(--color-4)', color: '#fff', padding: '0.8rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: submitting ? 'wait' : 'pointer' }}
+                style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.8rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: submitting ? 'wait' : 'pointer' }}
               >
                 {submitting ? '채점 중...' : '정답 확인'}
               </button>
@@ -5668,7 +5668,7 @@ const TrialPage: React.FC = () => {
                   type="button"
                   onClick={next}
                   className="btn"
-                  style={{ background: 'var(--color-4)', color: '#fff', padding: '0.8rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
+                  style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.8rem 1.6rem', fontWeight: 700, border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
                 >
                   {index + 1 >= problems.length ? '결과 보기' : '다음 문제'}
                 </button>
@@ -5683,7 +5683,7 @@ const TrialPage: React.FC = () => {
           type="button"
           onClick={load}
           className="btn"
-          style={{ background: 'var(--color-4)', color: '#fff', padding: '0.8rem 1.6rem', border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
+          style={{ background: 'var(--color-4)', color: 'var(--on-light)', padding: '0.8rem 1.6rem', border: 'none', borderRadius: '0.8rem', cursor: 'pointer' }}
         >
           다시 시도
         </button>

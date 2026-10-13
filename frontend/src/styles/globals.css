@@ -4,6 +4,7 @@
   --color-2: #8fb3d2;
   --color-3: #e6f0f7;
   --color-4: #034078;
+  --on-light: #ffffff; /* 강조 배경 위 글자색 (라이트 팔레트: 강조색이 어두움) */
 
   /* Light theme */
   --bg-color: #f5f8fc;
@@ -2204,6 +2205,7 @@ nav a.active {
   --color-2: #767676;
   --color-3: #1b1b1b;
   --color-4: #f0f0f0;
+  --on-light: #0b0c0d; /* 밝은 강조 배경 위 글자색 — 어두운 배경에는 white/--text-main 사용 */
   --bg-color: #090a0b;
   --text-main: #f0f1f2;
   --text-muted: #999fa7;
@@ -3033,3 +3035,9 @@ samp {
   font-family: var(--font-mono);
 }
 
+
+/* 밝은 배경 위 글자 대비 — 밝은 배경에는 검은 글자 */
+.profile-edit-btn:hover,
+.math-keypad-chips button.is-active {
+  color: var(--on-light) !important;
+}
