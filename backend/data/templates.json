@@ -1105,49 +1105,6 @@
     ]
   },
   {
-    "id": "MS-STAT-002",
-    "unit": "통계",
-    "title": "중앙값",
-    "difficulty": 6500,
-    "variables": {
-      "x": {
-        "type": "integer",
-        "min": 1,
-        "max": 10
-      },
-      "y": {
-        "type": "integer",
-        "min": 11,
-        "max": 20
-      },
-      "z": {
-        "type": "integer",
-        "min": 21,
-        "max": 30
-      }
-    },
-    "constraints": [
-      "x < y",
-      "y < z"
-    ],
-    "problem_template": "다섯 개의 자료 ${{x}}, 5, {{y}}, 8, {{z}}$를 작은 값부터 순서대로 나열할 때, 중앙값을 구하시오.",
-    "answer_formula": {
-      "type": "expression",
-      "value": "y"
-    },
-    "concepts": [
-      "통계",
-      "중앙값"
-    ],
-    "reward_rating": 6500,
-    "domain": "확률과 통계",
-    "tags": [
-      "확률과 통계",
-      "통계",
-      "중앙값"
-    ]
-  },
-  {
     "id": "MS-PROB-001",
     "unit": "확률",
     "title": "동시에 일어나는 경우",
