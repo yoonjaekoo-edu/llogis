@@ -31,6 +31,7 @@ import {
   apiRateLimiter,
   authRateLimiter,
   issueChallenge,
+  submissionRateLimiter,
   verifyAntiBot,
 } from './middleware/antiBot';
 
@@ -2267,7 +2268,7 @@ app.patch('/api/admin/templates/:id', authenticateToken, async (req: any, res: R
   }
 });
 
-app.post('/api/submissions', authenticateToken, async (req: any, res: any) => {
+app.post('/api/submissions', authenticateToken, submissionRateLimiter, async (req: any, res: any) => {
   const { problemId, userAnswer } = req.body;
   const userId = req.user.id;
 
