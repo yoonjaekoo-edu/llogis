@@ -56,6 +56,14 @@ import path from 'path';
 import { randomBytes } from 'crypto';
 import fs from 'fs';
 import multer from 'multer';
+import {
+  apiRateLimiter,
+  authRateLimiter,
+  clearHumanVerification,
+  issueChallenge,
+  submissionRateLimiter,
+  verifyAntiBot,
+} from './middleware/antiBot';
 
 dotenv.config();
 
@@ -656,7 +664,10 @@ const generateInviteCode = async (): Promise<string> => {
   throw new Error('초대 코드를 만들지 못했습니다.');
 };
 
-app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response) => {
+app.get('/api/anti-bot/challenge', issueChallenge);
+app.post('/api/anti-bot/verify-human', authenticateToken, verifyAntiBot, clearHumanVerification);
+
+app.post('/api/auth/signup', signupRateLimit, verifyAntiBot, async (req: Request, res: Response) => {
   const { username, email, password, userAgent, language, ref } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields are required' });
 
@@ -3252,7 +3263,7 @@ app.patch('/api/admin/templates/:id', authenticateToken, async (req: any, res: R
   }
 });
 
-app.post('/api/submissions', authenticateToken, async (req: any, res: any) => {
+app.post('/api/submissions', authenticateToken, submissionRateLimiter, async (req: any, res: any) => {
   const { problemId, userAnswer } = req.body;
   const userId = req.user.id;
   const handlerStart = Date.now();
