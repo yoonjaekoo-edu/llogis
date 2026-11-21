@@ -4532,15 +4532,44 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [website, setWebsite] = useState('');
+  const [challengeQuestion, setChallengeQuestion] = useState('');
+  const [challengeToken, setChallengeToken] = useState('');
+  const [challengeAnswer, setChallengeAnswer] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
+
+  const fetchChallenge = async () => {
+    try {
+      const res = await fetch('/api/anti-bot/challenge');
+      if (res.ok) {
+        const data = await res.json();
+        setChallengeQuestion(data.question);
+        setChallengeToken(data.token);
+        setChallengeAnswer('');
+      }
+    } catch {
+      // ignore network error
+    }
+  };
+
+  useEffect(() => {
+    fetchChallenge();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password })
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        website,
+        challengeToken,
+        challengeAnswer
+      })
     });
     if (res.ok) {
       const data = await res.json();
@@ -4549,6 +4578,7 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
     } else {
       const data = await res.json();
       alert(data.error);
+      fetchChallenge();
     }
   };
 
@@ -4566,9 +4596,35 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
         </div>
         <h2 style={{ color: 'var(--color-4)' }}>가입하기</h2>
         <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            name="website"
+            value={website}
+            onChange={e => setWebsite(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            style={{ display: 'none' }}
+          />
           <input type="text" placeholder="이름" value={username} onChange={e => setUsername(e.target.value)} required aria-label="사용자 이름" />
           <input type="email" placeholder="이메일" value={email} onChange={e => setEmail(e.target.value)} required aria-label="이메일 주소" />
           <input type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required aria-label="비밀번호" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--color-4)', fontWeight: 600 }}>
+              봇 방지: {challengeQuestion || '불러오는 중...'}
+            </span>
+            <button type="button" onClick={fetchChallenge} style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem', width: 'auto' }}>
+              새로고침
+            </button>
+          </div>
+          <input
+            type="number"
+            placeholder="위 계산의 답을 입력하세요"
+            value={challengeAnswer}
+            onChange={e => setChallengeAnswer(e.target.value)}
+            required
+            aria-label="봇 방지 질문 답"
+          />
           <button type="submit" aria-label="회원가입 제출">가입</button>
         </form>
       </section>

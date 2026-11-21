@@ -27,6 +27,12 @@ import { DogeMarketError, getDogeMarketSnapshot, tradeDoge } from './dogeMarketS
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
+import {
+  apiRateLimiter,
+  authRateLimiter,
+  issueChallenge,
+  verifyAntiBot,
+} from './middleware/antiBot';
 
 dotenv.config();
 
@@ -436,7 +442,10 @@ const canGenerateProblems = async (userId: number) => {
   return !!user && (user.username === 'admin' || user.can_generate_problems === true);
 };
 
-app.post('/api/auth/signup', async (req: Request, res: Response) => {
+app.use('/api', apiRateLimiter);
+app.get('/api/anti-bot/challenge', issueChallenge);
+
+app.post('/api/auth/signup', authRateLimiter, verifyAntiBot, async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields are required' });
   try {
@@ -469,7 +478,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/auth/login', async (req: Request, res: Response) => {
+app.post('/api/auth/login', authRateLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
   const client = await pool.connect();
   try {
