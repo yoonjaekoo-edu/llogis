@@ -10,22 +10,22 @@ function replaceOnce(source, before, after, label) {
 
 function patchBackend() {
   const path = 'backend/src/index.ts';
-  let source = fs.readFileSync(path, 'utf8');
+  let source = fs.readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 
   const oldProfile = 'SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, profile_theme, profile_css FROM users WHERE id = $1';
   const newProfile = 'SELECT id, username, email, profile_image_url, bio, can_generate_problems, equipped_title, created_at, has_firework_effect, has_developer_chango, custom_title, problems_solved, tokens, profile_theme, profile_css FROM users WHERE id = $1';
 
-  if (!source.includes(newProfile)) {
+  if (!source.includes(newProfile) && source.includes(oldProfile)) {
     source = replaceOnce(source, oldProfile, newProfile, 'profile tokens SELECT');
   }
 
-  if (!source.includes("app.post('/api/store/exchange-rp-token'")) {
-    const anchor = `  res.json({ items });
-});
-
-
-
-// Purchase firework effect item`;
+  if (!source.includes('/api/store/exchange-rp-token') && !source.includes('/api/store/exchange-rp')) {
+    const anchorRegex = /  res\.json\(\{ items \}\);\n\}\);\n+\/\/ Purchase firework effect item/;
+    const match = source.match(anchorRegex);
+    if (!match) {
+      throw new Error('RP-token exchange API: expected exactly one anchor, found 0');
+    }
+    const anchor = match[0];
 
     const replacement = `  res.json({ items });
 });
@@ -88,6 +88,10 @@ function patchFrontend() {
   const beforeShop = source.slice(0, shopStart);
   let shop = source.slice(shopStart, loginStart);
   const afterShop = source.slice(loginStart);
+
+  if (shop.includes('exchange-rp')) {
+    return;
+  }
 
   if (!shop.includes('const [exchangingRp, setExchangingRp]')) {
     shop = replaceOnce(
