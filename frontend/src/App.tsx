@@ -3844,6 +3844,10 @@ const ProblemList: React.FC<{ user: User | null; setUser: (u: User) => void }> =
     .then(res => res.json().then(data => ({ ok: res.ok, data })))
     .then(({ ok, data }) => {
       if (!ok) {
+        if (data.requireHumanVerification) {
+          navigate('/verify-human');
+          return;
+        }
         alert(data.error || '제출 처리 중 오류가 발생했습니다.');
         return;
       }
@@ -4632,6 +4636,104 @@ const Signup: React.FC<{ onLogin: (token: string, user: User) => void }> = ({ on
   );
 };
 
+const VerifyHuman: React.FC = () => {
+  const [website, setWebsite] = useState('');
+  const [challengeQuestion, setChallengeQuestion] = useState('');
+  const [challengeToken, setChallengeToken] = useState('');
+  const [challengeAnswer, setChallengeAnswer] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+
+  const fetchChallenge = async () => {
+    try {
+      const res = await fetch('/api/anti-bot/challenge');
+      if (res.ok) {
+        const data = await res.json();
+        setChallengeQuestion(data.question);
+        setChallengeToken(data.token);
+        setChallengeAnswer('');
+      }
+    } catch {
+      // ignore network error
+    }
+  };
+
+  useEffect(() => {
+    fetchChallenge();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/anti-bot/verify-human', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ website, challengeToken, challengeAnswer })
+      });
+      if (res.ok) {
+        navigate(-1);
+      } else {
+        const data = await res.json();
+        alert(data.error || '인증에 실패했습니다.');
+        fetchChallenge();
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="container">
+      <Helmet>
+        <title>사람인지 확인하시오 | Logis</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+      <section aria-label="사람 확인" className="auth-form">
+        <h2 style={{ color: 'var(--color-4)' }}>사람인지 확인하시오</h2>
+        <p style={{ color: 'var(--color-4)', marginBottom: '1rem', fontSize: '0.95rem' }}>
+          짧은 시간에 문제를 너무 빠르게 풀었습니다. 계속하려면 아래 간단한 계산을 완료해주세요.
+        </p>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            name="website"
+            value={website}
+            onChange={e => setWebsite(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            style={{ display: 'none' }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '1rem', color: 'var(--color-4)', fontWeight: 600 }}>
+              {challengeQuestion || '불러오는 중...'}
+            </span>
+            <button type="button" onClick={fetchChallenge} style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem', width: 'auto' }}>
+              새로고침
+            </button>
+          </div>
+          <input
+            type="number"
+            placeholder="답을 입력하세요"
+            value={challengeAnswer}
+            onChange={e => setChallengeAnswer(e.target.value)}
+            required
+            aria-label="사람 확인 질문 답"
+          />
+          <button type="submit" disabled={submitting} aria-label="확인 제출">
+            {submitting ? '확인 중...' : '확인'}
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+};
+
 const DogePriceChart: React.FC<{ history: DogeMarketSnapshot['history'] }> = ({ history }) => {
   if (history.length < 2) {
     return <div className="market-chart-empty">가격 기록이 쌓이면 최근 24시간 차트가 표시됩니다.</div>;
@@ -4940,6 +5042,7 @@ const AppContent: React.FC = () => {
           <Route path="/about" element={<About user={user} />} />
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
+          <Route path="/verify-human" element={<VerifyHuman />} />
           <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
           <Route path="/shop" element={<Shop user={user} setUser={setUser} />} />
           <Route path="/logicoin" element={<DogeMarket user={user} setUser={setUser} />} />

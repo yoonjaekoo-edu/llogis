@@ -82,20 +82,24 @@ const SUBMISSION_MAX_PER_WINDOW = 15; // 1분당 최대 15회
 
 const submissionTracker = new Map<
   string,
-  { lastSubmitAt: number; count: number; resetAt: number }
+  { lastSubmitAt: number; count: number; resetAt: number; flagged: boolean }
 >();
+
+function getSubmissionKey(req: any): string {
+  return req.user?.id ? `user:${req.user.id}` : `ip:${getClientIp(req)}`;
+}
 
 export function submissionRateLimiter(req: any, res: Response, next: NextFunction) {
   const now = Date.now();
   if (submissionTracker.size > 5000) {
     for (const [key, entry] of submissionTracker.entries()) {
-      if (entry.resetAt <= now && now - entry.lastSubmitAt > SUBMISSION_COOLDOWN_MS) {
+      if (!entry.flagged && entry.resetAt <= now && now - entry.lastSubmitAt > SUBMISSION_COOLDOWN_MS) {
         submissionTracker.delete(key);
       }
     }
   }
 
-  const key = req.user?.id ? `user:${req.user.id}` : `ip:${getClientIp(req)}`;
+  const key = getSubmissionKey(req);
   const entry = submissionTracker.get(key);
 
   if (!entry) {
@@ -103,15 +107,23 @@ export function submissionRateLimiter(req: any, res: Response, next: NextFunctio
       lastSubmitAt: now,
       count: 1,
       resetAt: now + SUBMISSION_WINDOW_MS,
+      flagged: false,
     });
     return next();
   }
 
+  if (entry.flagged) {
+    return res.status(403).json({
+      error: '사람인지 확인이 필요합니다.',
+      requireHumanVerification: true,
+    });
+  }
+
   if (now - entry.lastSubmitAt < SUBMISSION_COOLDOWN_MS) {
-    const retryAfterSec = Math.ceil((SUBMISSION_COOLDOWN_MS - (now - entry.lastSubmitAt)) / 1000);
-    res.setHeader('Retry-After', String(retryAfterSec));
-    return res.status(429).json({
-      error: '너무 빠르게 문제를 제출하고 있습니다. 잠시 후 다시 시도해주세요.',
+    entry.flagged = true;
+    return res.status(403).json({
+      error: '너무 빠르게 문제를 제출하여 사람인지 확인이 필요합니다.',
+      requireHumanVerification: true,
     });
   }
 
@@ -125,14 +137,20 @@ export function submissionRateLimiter(req: any, res: Response, next: NextFunctio
   entry.count += 1;
   entry.lastSubmitAt = now;
   if (entry.count > SUBMISSION_MAX_PER_WINDOW) {
-    const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
-    res.setHeader('Retry-After', String(retryAfterSec));
-    return res.status(429).json({
-      error: '짧은 시간에 너무 많은 문제를 제출했습니다. 1분 후 다시 시도해주세요.',
+    entry.flagged = true;
+    return res.status(403).json({
+      error: '짧은 시간에 너무 많은 문제를 제출하여 사람인지 확인이 필요합니다.',
+      requireHumanVerification: true,
     });
   }
 
   return next();
+}
+
+export function clearHumanVerification(req: any, res: Response) {
+  const key = getSubmissionKey(req);
+  submissionTracker.delete(key);
+  res.json({ verified: true });
 }
 
 interface ChallengePayload {

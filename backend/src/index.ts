@@ -30,6 +30,7 @@ import multer from 'multer';
 import {
   apiRateLimiter,
   authRateLimiter,
+  clearHumanVerification,
   issueChallenge,
   submissionRateLimiter,
   verifyAntiBot,
@@ -445,6 +446,7 @@ const canGenerateProblems = async (userId: number) => {
 
 app.use('/api', apiRateLimiter);
 app.get('/api/anti-bot/challenge', issueChallenge);
+app.post('/api/anti-bot/verify-human', authenticateToken, verifyAntiBot, clearHumanVerification);
 
 app.post('/api/auth/signup', authRateLimiter, verifyAntiBot, async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
