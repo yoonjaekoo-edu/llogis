@@ -667,7 +667,7 @@ const generateInviteCode = async (): Promise<string> => {
 app.get('/api/anti-bot/challenge', issueChallenge);
 app.post('/api/anti-bot/verify-human', authenticateToken, verifyAntiBot, clearHumanVerification);
 
-app.post('/api/auth/signup', signupRateLimit, verifyAntiBot, async (req: Request, res: Response) => {
+app.post('/api/auth/signup', signupRateLimit, async (req: Request, res: Response) => {
   const { username, email, password, userAgent, language, ref } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields are required' });
 
